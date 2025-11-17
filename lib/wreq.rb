@@ -69,4 +69,70 @@ module Wreq
       HTTP_3  = nil # @return [Wreq::Version] HTTP/3
     end
   end
+
+  # HTTP status code wrapper.
+  #
+  # This class wraps standard HTTP status codes and provides
+  # convenient methods to check the response category.
+  #
+  # The actual implementation is provided by Rust for performance.
+  #
+  # @example Check if response is successful
+  #   status = response.status
+  #   if status.success?
+  #     puts "Request succeeded with code: #{status.as_int}"
+  #   end
+  #
+  # @example Check different status categories
+  #   status.informational?  # 1xx
+  #   status.success?        # 2xx
+  #   status.redirection?    # 3xx
+  #   status.client_error?   # 4xx
+  #   status.server_error?   # 5xx
+  class StatusCode
+    # Returns the status code as an integer.
+    #
+    # @return [Integer] the numeric HTTP status code (100-599)
+    def as_int; end
+
+    # Checks if status code is informational (1xx).
+    #
+    # Informational responses indicate that the request was received
+    # and the process is continuing.
+    #
+    # @return [Boolean] true if status is 100-199
+    def informational?; end
+
+    # Checks if status code indicates success (2xx).
+    #
+    # Success responses indicate that the request was successfully
+    # received, understood, and accepted.
+    #
+    # @return [Boolean] true if status is 200-299
+    def success?; end
+
+    # Checks if status code indicates redirection (3xx).
+    #
+    # Redirection responses indicate that further action needs to be
+    # taken to complete the request.
+    #
+    # @return [Boolean] true if status is 300-399
+    def redirection?; end
+
+    # Checks if status code indicates client error (4xx).
+    #
+    # Client error responses indicate that the request contains bad
+    # syntax or cannot be fulfilled.
+    #
+    # @return [Boolean] true if status is 400-499
+    def client_error?; end
+
+    # Checks if status code indicates server error (5xx).
+    #
+    # Server error responses indicate that the server failed to
+    # fulfill a valid request.
+    #
+    # @return [Boolean] true if status is 500-599
+    def server_error?; end
+  end
 end
