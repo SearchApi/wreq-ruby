@@ -15,16 +15,6 @@ module Wreq
   # Variants are exposed as constants under this class.
   # Each constant is an instance of {Wreq::Method}.
   #
-  # Available methods:
-  # - GET     - Safe, idempotent
-  # - HEAD    - Safe, idempotent
-  # - POST    - Not safe, not idempotent
-  # - PUT     - Not safe, idempotent
-  # - DELETE  - Not safe, idempotent
-  # - OPTIONS - Safe, idempotent
-  # - TRACE   - Safe, idempotent
-  # - PATCH   - Not safe, not idempotent
-  #
   # @example Using predefined constants
   #   method = Wreq::Method::GET
   #   method.class #=> Wreq::Method
@@ -47,13 +37,6 @@ module Wreq
   end
 
   # HTTP version enumeration backed by Rust.
-  #
-  # Available versions:
-  # - HTTP_09 - HTTP/0.9 (legacy)
-  # - HTTP_10 - HTTP/1.0
-  # - HTTP_11 - HTTP/1.1 (most common)
-  # - HTTP_2  - HTTP/2
-  # - HTTP_3  - HTTP/3 (QUIC-based)
   #
   # @example Using predefined constants
   #   version = Wreq::Version::HTTP_11
