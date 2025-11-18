@@ -10,7 +10,7 @@ use wreq::{
     header::{HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
 };
 
-use crate::{format_magnus_error, nogvl};
+use crate::nogvl;
 
 /// A builder for `Client`.
 #[derive(Debug, Default, Deserialize)]
@@ -84,7 +84,7 @@ struct Builder {
     no_proxy: Option<bool>,
     /// The proxy to use for the client.
     #[serde(skip)]
-    proxy: Option<Uri>,
+    proxy: Option<Proxy>,
 
     // ========= Compression options =========
     /// Sets gzip as an accepted encoding.
@@ -165,12 +165,8 @@ impl Builder {
             .get(ruby.to_symbol("proxy"))
             .and_then(RString::from_value)
         {
-            let uri = Uri::from_maybe_shared(proxy.to_bytes()).map_err(|e| {
-                magnus::Error::new(
-                    ruby.exception_arg_error(),
-                    format!("invalid proxy URI '{proxy}': {e}"),
-                )
-            })?;
+            let uri = Proxy::all(proxy.to_bytes().as_ref())
+                .map_err(|err| crate::error::wreq_error_to_magnus(ruby, err))?;
             builder.proxy = Some(uri);
         }
 
@@ -297,7 +293,7 @@ impl Client {
                 apply_option!(set_if_some, builder, params.verify, cert_verification);
 
                 // Network options.
-                apply_option!(set_if_some_map_ok, builder, params.proxy, proxy, Proxy::all);
+                apply_option!(set_if_some, builder, params.proxy, proxy);
                 apply_option!(set_if_true, builder, params.no_proxy, no_proxy, false);
 
                 // Compression options.
@@ -309,7 +305,7 @@ impl Client {
                 builder
                     .build()
                     .map(Client)
-                    .map_err(|e| format_magnus_error(ruby, e))
+                    .map_err(|err| crate::error::wreq_error_to_magnus(ruby, err))
             })
         } else {
             nogvl::nogvl(|| Ok(Self(wreq::Client::new())))

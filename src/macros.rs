@@ -24,13 +24,6 @@ macro_rules! apply_option {
             $builder = $builder.$method($transform(&value));
         }
     };
-    (set_if_some_map_ok, $builder:expr, $option:expr, $method:ident, $transform:expr) => {
-        if let Some(value) = $option.take() {
-            if let Ok(transformed) = $transform(value) {
-                $builder = $builder.$method(transformed);
-            }
-        }
-    };
     (set_if_true, $builder:expr, $option:expr, $method:ident, $default:expr) => {
         if $option.unwrap_or($default) {
             $builder = $builder.$method();
