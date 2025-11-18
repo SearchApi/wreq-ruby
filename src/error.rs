@@ -14,6 +14,19 @@ macro_rules! define_exception {
     };
 }
 
+macro_rules! map_wreq_error {
+    ($ruby:expr, $err:expr, $msg:expr, $($check_method:ident => $exception:ident),* $(,)?) => {
+        {
+            $(
+                if $err.$check_method() {
+                    return MagnusError::new($ruby.get_inner(&$exception), $msg);
+                }
+            )*
+            MagnusError::new($ruby.exception_runtime_error(), $msg)
+        }
+    };
+}
+
 // Network connection errors
 define_exception!(CONNECTION_ERROR, "ConnectionError", exception_runtime_error);
 define_exception!(
@@ -36,32 +49,24 @@ define_exception!(DECODING_ERROR, "DecodingError", exception_runtime_error);
 // Configuration and builder errors
 define_exception!(BUILDER_ERROR, "BuilderError", exception_runtime_error);
 
+/// Map [`wreq::Error`] to corresponding [`magnus::Error`]
 pub fn wreq_error_to_magnus(ruby: &Ruby, err: wreq::Error) -> MagnusError {
     let error_msg = err.to_string();
-
-    if err.is_builder() {
-        MagnusError::new(ruby.get_inner(&BUILDER_ERROR), error_msg)
-    } else if err.is_body() {
-        MagnusError::new(ruby.get_inner(&BODY_ERROR), error_msg)
-    } else if err.is_tls() {
-        MagnusError::new(ruby.get_inner(&TLS_ERROR), error_msg)
-    } else if err.is_connection_reset() {
-        MagnusError::new(ruby.get_inner(&CONNECTION_RESET_ERROR), error_msg)
-    } else if err.is_connect() {
-        MagnusError::new(ruby.get_inner(&CONNECTION_ERROR), error_msg)
-    } else if err.is_decode() {
-        MagnusError::new(ruby.get_inner(&DECODING_ERROR), error_msg)
-    } else if err.is_redirect() {
-        MagnusError::new(ruby.get_inner(&REDIRECT_ERROR), error_msg)
-    } else if err.is_timeout() {
-        MagnusError::new(ruby.get_inner(&TIMEOUT_ERROR), error_msg)
-    } else if err.is_status() {
-        MagnusError::new(ruby.get_inner(&STATUS_ERROR), error_msg)
-    } else if err.is_request() {
-        MagnusError::new(ruby.get_inner(&REQUEST_ERROR), error_msg)
-    } else {
-        MagnusError::new(ruby.exception_runtime_error(), error_msg)
-    }
+    map_wreq_error!(
+        ruby,
+        err,
+        error_msg,
+        is_builder => BUILDER_ERROR,
+        is_body => BODY_ERROR,
+        is_tls => TLS_ERROR,
+        is_connection_reset => CONNECTION_RESET_ERROR,
+        is_connect => CONNECTION_ERROR,
+        is_decode => DECODING_ERROR,
+        is_redirect => REDIRECT_ERROR,
+        is_timeout => TIMEOUT_ERROR,
+        is_status => STATUS_ERROR,
+        is_request => REQUEST_ERROR,
+    )
 }
 
 pub fn include(ruby: &Ruby) {
