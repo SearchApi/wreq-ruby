@@ -5,72 +5,36 @@ use magnus::{
 static WREQ: Lazy<RModule> = Lazy::new(|ruby| ruby.define_module(crate::RUBY_MODULE_NAME).unwrap());
 
 macro_rules! define_exception {
-    ($name:ident, $ruby_name:literal, $parent:expr) => {
+    ($name:ident, $ruby_name:literal, $parent_method:ident) => {
         static $name: Lazy<ExceptionClass> = Lazy::new(|ruby| {
             ruby.get_inner(&WREQ)
-                .define_error($ruby_name, $parent(ruby))
+                .define_error($ruby_name, ruby.$parent_method())
                 .unwrap()
         });
     };
 }
 
 // Network connection errors
-define_exception!(
-    CONNECTION_ERROR,
-    "ConnectionError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
-);
+define_exception!(CONNECTION_ERROR, "ConnectionError", exception_runtime_error);
 define_exception!(
     CONNECTION_RESET_ERROR,
     "ConnectionResetError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
+    exception_runtime_error
 );
-define_exception!(
-    TLS_ERROR,
-    "TlsError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
-);
+define_exception!(TLS_ERROR, "TlsError", exception_runtime_error);
 
 // HTTP protocol and request/response errors
-define_exception!(
-    REQUEST_ERROR,
-    "RequestError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
-);
-define_exception!(
-    STATUS_ERROR,
-    "StatusError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
-);
-define_exception!(
-    REDIRECT_ERROR,
-    "RedirectError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
-);
-define_exception!(
-    TIMEOUT_ERROR,
-    "TimeoutError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
-);
+define_exception!(REQUEST_ERROR, "RequestError", exception_runtime_error);
+define_exception!(STATUS_ERROR, "StatusError", exception_runtime_error);
+define_exception!(REDIRECT_ERROR, "RedirectError", exception_runtime_error);
+define_exception!(TIMEOUT_ERROR, "TimeoutError", exception_runtime_error);
 
 // Data processing and encoding errors
-define_exception!(
-    BODY_ERROR,
-    "BodyError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
-);
-define_exception!(
-    DECODING_ERROR,
-    "DecodingError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
-);
+define_exception!(BODY_ERROR, "BodyError", exception_runtime_error);
+define_exception!(DECODING_ERROR, "DecodingError", exception_runtime_error);
 
 // Configuration and builder errors
-define_exception!(
-    BUILDER_ERROR,
-    "BuilderError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
-);
+define_exception!(BUILDER_ERROR, "BuilderError", exception_runtime_error);
 
 pub fn wreq_error_to_magnus(ruby: &Ruby, err: wreq::Error) -> MagnusError {
     let error_msg = err.to_string();
