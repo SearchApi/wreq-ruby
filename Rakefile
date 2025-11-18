@@ -37,38 +37,6 @@ Rake::TestTask.new do |t|
   t.pattern = "test/**/*_test.rb"
 end
 
-namespace :doc do
-  task default: %i[rustdoc yard]
-
-  desc "Generate YARD documentation"
-  task :yard do
-    run("bundle exec yard doc --plugin rustdoc -- lib tmp/doc/wreq_ruby.json")
-  end
-
-  desc "Generate Rust documentation as JSON"
-  task :rustdoc do
-    target_dir = "tmp"
-    ext_dir = "wreq-ruby"
-    run(<<~CMD)
-      cargo +nightly-2025-03-18 rustdoc \
-        --target-dir #{target_dir} \
-        --package #{ext_dir} \
-        -Zunstable-options \
-        --output-format json \
-        --lib \
-        -- \
-        --document-private-items
-    CMD
-  end
-
-  def run(cmd)
-    system(cmd)
-    fail if $? != 0
-  end
-end
-
-task doc: "doc:default"
-task default: %i[compile test standard]
 task purge: %i[clean clobber]
 
 desc "report gem version"
@@ -85,7 +53,7 @@ Rake::Task["release:rubygem_push"].clear if Rake::Task.task_defined?("release:ru
 desc "Multi-arch release"
 task release: [
   "release:guard_clean",
-  "release:rubygem_push"
+  "release:rubygem_push",
 ]
 
 namespace :release do
