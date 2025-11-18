@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
     "documentation_uri" => "https://github.com/SearchApi/wreq-ruby/README.md",
     "homepage_uri" => spec.homepage,
     "source_code_uri" => "https://github.com/SearchApi/wreq-ruby",
-    "rubygems_mfa_required" => "true"
+    "rubygems_mfa_required" => "true",
   }
 
   # Specify which files should be added to a source release gem when we release wreq Ruby gem.

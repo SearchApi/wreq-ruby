@@ -85,7 +85,7 @@ Rake::Task["release:rubygem_push"].clear if Rake::Task.task_defined?("release:ru
 desc "Multi-arch release"
 task release: [
   "release:guard_clean",
-  "release:rubygem_push"
+  "release:rubygem_push",
 ]
 
 namespace :release do

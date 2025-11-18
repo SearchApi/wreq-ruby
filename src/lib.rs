@@ -19,7 +19,9 @@
 
 #[macro_use]
 mod macros;
+mod client;
 mod http;
+mod nogvl;
 
 use std::sync::LazyLock;
 
@@ -41,5 +43,6 @@ fn format_magnus_error(ruby: &Ruby, err: wreq::Error) -> Error {
 fn init(ruby: &Ruby) -> Result<(), Error> {
     let gem_module = ruby.define_module("Wreq")?;
     http::include(ruby, &gem_module)?;
+    client::include(ruby, &gem_module)?;
     Ok(())
 }

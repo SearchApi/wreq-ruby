@@ -1,3 +1,48 @@
+macro_rules! apply_option {
+    (set_if_some, $builder:expr, $option:expr, $method:ident) => {
+        if let Some(value) = $option.take() {
+            $builder = $builder.$method(value);
+        }
+    };
+    (set_if_some_ref, $builder:expr, $option:expr, $method:ident) => {
+        if let Some(value) = $option.take() {
+            $builder = $builder.$method(&value);
+        }
+    };
+    (set_if_some_inner, $builder:expr, $option:expr, $method:ident) => {
+        if let Some(value) = $option.take() {
+            $builder = $builder.$method(value.0);
+        }
+    };
+    (set_if_some_map, $builder:expr, $option:expr, $method:ident, $transform:expr) => {
+        if let Some(value) = $option.take() {
+            $builder = $builder.$method($transform(value));
+        }
+    };
+    (set_if_some_map_ref, $builder:expr, $option:expr, $method:ident, $transform:expr) => {
+        if let Some(value) = $option.take() {
+            $builder = $builder.$method($transform(&value));
+        }
+    };
+    (set_if_some_map_ok, $builder:expr, $option:expr, $method:ident, $transform:expr) => {
+        if let Some(value) = $option.take() {
+            if let Ok(transformed) = $transform(value) {
+                $builder = $builder.$method(transformed);
+            }
+        }
+    };
+    (set_if_true, $builder:expr, $option:expr, $method:ident, $default:expr) => {
+        if $option.unwrap_or($default) {
+            $builder = $builder.$method();
+        }
+    };
+    (set_if_true_with, $builder:expr, $option:expr, $method:ident, $default:expr, $value:expr) => {
+        if $option.unwrap_or($default) {
+            $builder = $builder.$method($value);
+        }
+    };
+}
+
 macro_rules! define_ruby_enum {
     ($(#[$meta:meta])* $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $($variant:ident),* $(,)?) => {
         define_ruby_enum!($(#[$meta])* $enum_type, $ruby_class, $ffi_type, $( ($variant, $variant) ),*);

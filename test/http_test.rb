@@ -31,7 +31,7 @@ class EnumsTest < Minitest::Test
 
   def test_version_instances_have_correct_class
     v11 = Wreq::Version::HTTP_11
-    v2  = Wreq::Version::HTTP_2
+    v2 = Wreq::Version::HTTP_2
 
     assert_equal Wreq::Version, v11.class
     assert_equal Wreq::Version, v2.class
