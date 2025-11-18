@@ -1,42 +1,6 @@
 # frozen_string_literal: true
 
 module Wreq
-  # Base error class for all Wreq exceptions.
-  # This is only defined if the native extension hasn't loaded yet.
-  unless const_defined?(:Error)
-    class Error < StandardError; end
-  end
-
-  # System-level and runtime errors
-
-  # DNS resolution failed.
-  #
-  # Raised when the DNS resolver cannot resolve the hostname.
-  #
-  # @example
-  #   begin
-  #     client.get("http://nonexistent.domain.invalid")
-  #   rescue Wreq::DNSResolverError => e
-  #     puts "DNS resolution failed: #{e.message}"
-  #   end
-  unless const_defined?(:DNSResolverError)
-    class DNSResolverError < Error; end
-  end
-
-  # Rust panic occurred.
-  #
-  # Raised when an unexpected panic occurs in the Rust code.
-  # This usually indicates a bug in the library.
-  #
-  # @example
-  #   rescue Wreq::RustPanic => e
-  #     puts "Internal error: #{e.message}"
-  #     # Report this as a bug
-  #   end
-  unless const_defined?(:RustPanic)
-    class RustPanic < Error; end
-  end
-
   # Network connection errors
 
   # Connection to the server failed.
@@ -190,21 +154,5 @@ module Wreq
   #   end
   unless const_defined?(:BuilderError)
     class BuilderError < Error; end
-  end
-
-  # Input validation and parsing errors
-
-  # URL parsing failed.
-  #
-  # Raised when a provided URL is malformed or invalid.
-  #
-  # @example
-  #   begin
-  #     client.get("not a valid url")
-  #   rescue Wreq::URLParseError => e
-  #     puts "Invalid URL: #{e.message}"
-  #   end
-  unless const_defined?(:URLParseError)
-    class URLParseError < Error; end
   end
 end

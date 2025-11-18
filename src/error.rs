@@ -14,12 +14,6 @@ macro_rules! define_exception {
     };
 }
 
-// System-level and runtime errors
-define_exception!(DNS_RESOLVER_ERROR, "DNSResolverError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
-define_exception!(RUST_PANIC, "RustPanic", |ruby: &Ruby| ruby
-    .exception_runtime_error());
-
 // Network connection errors
 define_exception!(CONNECTION_ERROR, "ConnectionError", |ruby: &Ruby| ruby
     .exception_runtime_error());
@@ -51,10 +45,6 @@ define_exception!(DECODING_ERROR, "DecodingError", |ruby: &Ruby| ruby
 define_exception!(BUILDER_ERROR, "BuilderError", |ruby: &Ruby| ruby
     .exception_runtime_error());
 
-// Input validation and parsing errors
-define_exception!(URL_PARSE_ERROR, "URLParseError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
-
 pub fn wreq_error_to_magnus(ruby: &Ruby, err: wreq::Error) -> MagnusError {
     let error_msg = format!("{}", err);
 
@@ -84,8 +74,6 @@ pub fn wreq_error_to_magnus(ruby: &Ruby, err: wreq::Error) -> MagnusError {
 }
 
 pub fn include(ruby: &Ruby) {
-    Lazy::force(&DNS_RESOLVER_ERROR, ruby);
-    Lazy::force(&RUST_PANIC, ruby);
     Lazy::force(&CONNECTION_ERROR, ruby);
     Lazy::force(&CONNECTION_RESET_ERROR, ruby);
     Lazy::force(&TLS_ERROR, ruby);
@@ -96,5 +84,4 @@ pub fn include(ruby: &Ruby) {
     Lazy::force(&BODY_ERROR, ruby);
     Lazy::force(&DECODING_ERROR, ruby);
     Lazy::force(&BUILDER_ERROR, ruby);
-    Lazy::force(&URL_PARSE_ERROR, ruby);
 }
