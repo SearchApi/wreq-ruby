@@ -98,7 +98,7 @@ struct Builder {
 }
 
 #[derive(Clone)]
-#[magnus::wrap(class = "Wreq::Client")]
+#[magnus::wrap(class = "Wreq::Client", free_immediately, size)]
 pub struct Client(wreq::Client);
 
 // ===== impl Builder =====

@@ -54,7 +54,7 @@ macro_rules! define_ruby_enum {
 
     ($(#[$meta:meta])* $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $(($rust_variant:ident, $ffi_variant:ident)),* $(,)?) => {
         $(#[$meta])*
-        #[magnus::wrap(class = $ruby_class)]
+        #[magnus::wrap(class = $ruby_class, free_immediately, size)]
         #[derive(Clone, Copy, PartialEq, Eq, Hash)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::upper_case_acronyms)]
@@ -81,7 +81,7 @@ macro_rules! define_ruby_enum {
 
     ($(#[$meta:meta])* const, $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $(($rust_variant:ident, $ffi_variant:ident)),* $(,)?) => {
         $(#[$meta])*
-        #[magnus::wrap(class = $ruby_class)]
+        #[magnus::wrap(class = $ruby_class, free_immediately, size)]
         #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::upper_case_acronyms)]
