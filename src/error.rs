@@ -46,7 +46,7 @@ define_exception!(BUILDER_ERROR, "BuilderError", |ruby: &Ruby| ruby
     .exception_runtime_error());
 
 pub fn wreq_error_to_magnus(ruby: &Ruby, err: wreq::Error) -> MagnusError {
-    let error_msg = format!("{}", err);
+    let error_msg = err.to_string();
 
     if err.is_builder() {
         MagnusError::new(ruby.get_inner(&BUILDER_ERROR), error_msg)
