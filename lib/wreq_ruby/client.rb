@@ -224,9 +224,7 @@ module Wreq
       #     verify: false,  # WARNING: Do not use in production!
       #     timeout: 5
       #   )
-      def self.new(**options)
-        # Native implementation provided by Rust extension
-      end
+      def self.new(**options); end
     end
   end
 end

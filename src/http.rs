@@ -30,7 +30,7 @@ define_ruby_enum!(
 
 /// HTTP status code.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-#[magnus::wrap(class = "Wreq::StatusCode")]
+#[magnus::wrap(class = "Wreq::StatusCode", free_immediately, size)]
 pub struct StatusCode(pub wreq::StatusCode);
 
 impl StatusCode {
