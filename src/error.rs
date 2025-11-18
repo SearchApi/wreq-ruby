@@ -15,35 +15,62 @@ macro_rules! define_exception {
 }
 
 // Network connection errors
-define_exception!(CONNECTION_ERROR, "ConnectionError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
+define_exception!(
+    CONNECTION_ERROR,
+    "ConnectionError",
+    |ruby: &Ruby| ruby.exception_runtime_error()
+);
 define_exception!(
     CONNECTION_RESET_ERROR,
     "ConnectionResetError",
-    |ruby: &Ruby| ruby.get_inner(&CONNECTION_ERROR)
+    |ruby: &Ruby| ruby.exception_runtime_error()
 );
-define_exception!(TLS_ERROR, "TlsError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
+define_exception!(
+    TLS_ERROR,
+    "TlsError",
+    |ruby: &Ruby| ruby.exception_runtime_error()
+);
 
 // HTTP protocol and request/response errors
-define_exception!(REQUEST_ERROR, "RequestError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
-define_exception!(STATUS_ERROR, "StatusError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
-define_exception!(REDIRECT_ERROR, "RedirectError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
-define_exception!(TIMEOUT_ERROR, "TimeoutError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
+define_exception!(
+    REQUEST_ERROR,
+    "RequestError",
+    |ruby: &Ruby| ruby.exception_runtime_error()
+);
+define_exception!(
+    STATUS_ERROR,
+    "StatusError",
+    |ruby: &Ruby| ruby.exception_runtime_error()
+);
+define_exception!(
+    REDIRECT_ERROR,
+    "RedirectError",
+    |ruby: &Ruby| ruby.exception_runtime_error()
+);
+define_exception!(
+    TIMEOUT_ERROR,
+    "TimeoutError",
+    |ruby: &Ruby| ruby.exception_runtime_error()
+);
 
 // Data processing and encoding errors
-define_exception!(BODY_ERROR, "BodyError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
-define_exception!(DECODING_ERROR, "DecodingError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
+define_exception!(
+    BODY_ERROR,
+    "BodyError",
+    |ruby: &Ruby| ruby.exception_runtime_error()
+);
+define_exception!(
+    DECODING_ERROR,
+    "DecodingError",
+    |ruby: &Ruby| ruby.exception_runtime_error()
+);
 
 // Configuration and builder errors
-define_exception!(BUILDER_ERROR, "BuilderError", |ruby: &Ruby| ruby
-    .exception_runtime_error());
+define_exception!(
+    BUILDER_ERROR,
+    "BuilderError",
+    |ruby: &Ruby| ruby.exception_runtime_error()
+);
 
 pub fn wreq_error_to_magnus(ruby: &Ruby, err: wreq::Error) -> MagnusError {
     let error_msg = err.to_string();
