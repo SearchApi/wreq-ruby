@@ -15,7 +15,7 @@ module Wreq
   #     retry_with_backoff
   #   end
   unless const_defined?(:ConnectionError)
-    class ConnectionError < Error; end
+    class ConnectionError < StandardError; end
   end
 
   # Connection was reset by the server.
@@ -27,7 +27,7 @@ module Wreq
   #     puts "Connection reset: #{e.message}"
   #   end
   unless const_defined?(:ConnectionResetError)
-    class ConnectionResetError < ConnectionError; end
+    class ConnectionResetError < StandardError; end
   end
 
   # TLS/SSL error occurred.
@@ -42,7 +42,7 @@ module Wreq
   #     puts "TLS error: #{e.message}"
   #   end
   unless const_defined?(:TlsError)
-    class TlsError < Error; end
+    class TlsError < StandardError; end
   end
 
   # HTTP protocol and request/response errors
@@ -56,7 +56,7 @@ module Wreq
   #     puts "Request failed: #{e.message}"
   #   end
   unless const_defined?(:RequestError)
-    class RequestError < Error; end
+    class RequestError < StandardError; end
   end
 
   # HTTP status code indicates an error.
@@ -71,7 +71,7 @@ module Wreq
   #     # e.response contains the full response
   #   end
   unless const_defined?(:StatusError)
-    class StatusError < Error; end
+    class StatusError < StandardError; end
   end
 
   # Redirect handling failed.
@@ -86,7 +86,7 @@ module Wreq
   #     puts "Too many redirects: #{e.message}"
   #   end
   unless const_defined?(:RedirectError)
-    class RedirectError < Error; end
+    class RedirectError < StandardError; end
   end
 
   # Request timed out.
@@ -102,7 +102,7 @@ module Wreq
   #     retry_with_longer_timeout
   #   end
   unless const_defined?(:TimeoutError)
-    class TimeoutError < Error; end
+    class TimeoutError < StandardError; end
   end
 
   # Data processing and encoding errors
@@ -116,7 +116,7 @@ module Wreq
   #     puts "Body error: #{e.message}"
   #   end
   unless const_defined?(:BodyError)
-    class BodyError < Error; end
+    class BodyError < StandardError; end
   end
 
   # Decoding response failed.
@@ -134,7 +134,7 @@ module Wreq
   #     data = response.body
   #   end
   unless const_defined?(:DecodingError)
-    class DecodingError < Error; end
+    class DecodingError < StandardError; end
   end
 
   # Configuration and builder errors
@@ -153,6 +153,6 @@ module Wreq
   #     puts "Invalid configuration: #{e.message}"
   #   end
   unless const_defined?(:BuilderError)
-    class BuilderError < Error; end
+    class BuilderError < StandardError; end
   end
 end
