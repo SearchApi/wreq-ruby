@@ -12,6 +12,5 @@ group :development, :test do
   gem "activesupport", "~> 8.0.1" # testing support
   gem "standard", "~> 1.44" # linter with pre-specified rules
   gem "redcarpet", "~> 3.6" # for documentation markdown parsing
-  gem "yard-rustdoc", "~> 0.4.1" # to generate YARD documentation from Ruby and Rust source
   gem "ruby-lsp", "~> 0.22" # Ruby language server for IDE support
 end
