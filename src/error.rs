@@ -20,7 +20,7 @@ define_exception!(CONNECTION_ERROR, "ConnectionError", |ruby: &Ruby| ruby
 define_exception!(
     CONNECTION_RESET_ERROR,
     "ConnectionResetError",
-    |ruby: &Ruby| ruby.exception_runtime_error()
+    |ruby: &Ruby| ruby.get_inner(&CONNECTION_ERROR)
 );
 define_exception!(TLS_ERROR, "TlsError", |ruby: &Ruby| ruby
     .exception_runtime_error());
