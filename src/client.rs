@@ -1,8 +1,8 @@
 use std::{net::IpAddr, time::Duration};
 
 use magnus::{
-    Module, Object, RArray, RHash, RString, Ruby, function, kwargs, method, r_hash::ForEach,
-    value::ReprValue,
+    Module, Object, RArray, RHash, RString, Ruby, Symbol, function, kwargs, method,
+    r_hash::ForEach, value::ReprValue,
 };
 use serde::Deserialize;
 use wreq::{
@@ -104,11 +104,15 @@ pub struct Client(wreq::Client);
 // ===== impl Builder =====
 
 impl Builder {
+    /// Create a new [`Builder`] from Ruby keyword arguments.
     fn new(ruby: &magnus::Ruby, kwargs: RHash) -> Result<Self, magnus::Error> {
         let mut builder: Builder = serde_magnus::deserialize(&ruby, kwargs)?;
 
         // Handle user agent separately
-        if let Some(user_agent) = kwargs.get("user_agent").and_then(RString::from_value) {
+        if let Some(user_agent) = kwargs
+            .get(ruby.to_symbol("user_agent"))
+            .and_then(RString::from_value)
+        {
             let value = HeaderValue::from_maybe_shared(user_agent.to_bytes()).map_err(|e| {
                 magnus::Error::new(
                     ruby.exception_arg_error(),
@@ -119,7 +123,10 @@ impl Builder {
         }
 
         // Handle headers separately
-        if let Some(headers) = kwargs.get("headers").and_then(RHash::from_value) {
+        if let Some(headers) = kwargs
+            .get(ruby.to_symbol("headers"))
+            .and_then(RHash::from_value)
+        {
             let mut map = HeaderMap::new();
             headers.foreach(|name: RString, value: RString| {
                 let name = HeaderName::from_bytes(&name.to_bytes()).map_err(|e| {
@@ -142,7 +149,10 @@ impl Builder {
         }
 
         // Handle original headers separately
-        if let Some(orig_headers) = kwargs.get("orig_headers").and_then(RArray::from_value) {
+        if let Some(orig_headers) = kwargs
+            .get(ruby.to_symbol("orig_headers"))
+            .and_then(RArray::from_value)
+        {
             let mut map = OrigHeaderMap::new();
             for value in orig_headers.into_iter().flat_map(RString::from_value) {
                 map.insert(value.to_bytes());
@@ -151,7 +161,10 @@ impl Builder {
         }
 
         // Handle proxies separately
-        if let Some(proxy) = kwargs.get("proxy").and_then(RString::from_value) {
+        if let Some(proxy) = kwargs
+            .get(ruby.to_symbol("proxy"))
+            .and_then(RString::from_value)
+        {
             let uri = Uri::from_maybe_shared(proxy.to_bytes()).map_err(|e| {
                 magnus::Error::new(
                     ruby.exception_arg_error(),
@@ -168,9 +181,9 @@ impl Builder {
 impl Client {
     /// Create a new [`Client`] with the given keyword arguments.
     pub fn new(ruby: &Ruby, args: &[magnus::Value]) -> Result<Self, magnus::Error> {
-        nogvl::nogvl(|| {
-            if let Some(kwargs) = args.first().cloned().and_then(RHash::from_value) {
-                let mut params: Builder = serde_magnus::deserialize(&ruby, kwargs)?;
+        if let Some(kwargs) = args.first().cloned().and_then(RHash::from_value) {
+            let mut params = Builder::new(ruby, kwargs)?;
+            nogvl::nogvl(|| {
                 let mut builder = wreq::Client::builder();
 
                 // User agent options.
@@ -297,10 +310,10 @@ impl Client {
                     .build()
                     .map(Client)
                     .map_err(|e| format_magnus_error(ruby, e))
-            } else {
-                Ok(Self(wreq::Client::new()))
-            }
-        })
+            })
+        } else {
+            nogvl::nogvl(|| Ok(Self(wreq::Client::new())))
+        }
     }
 }
 
