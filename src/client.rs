@@ -10,7 +10,10 @@ use wreq::{
     header::{HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
 };
 
-use crate::nogvl;
+use crate::{
+    error::{header_name_error_to_magnus, header_value_error_to_magnus, wreq_error_to_magnus},
+    nogvl,
+};
 
 /// A builder for `Client`.
 #[derive(Debug, Default, Deserialize)]
@@ -113,12 +116,8 @@ impl Builder {
             .get(ruby.to_symbol("user_agent"))
             .and_then(RString::from_value)
         {
-            let value = HeaderValue::from_maybe_shared(user_agent.to_bytes()).map_err(|e| {
-                magnus::Error::new(
-                    ruby.exception_arg_error(),
-                    format!("invalid user agent '{user_agent}': {e}"),
-                )
-            })?;
+            let value = HeaderValue::from_maybe_shared(user_agent.to_bytes())
+                .map_err(|err| header_value_error_to_magnus(ruby, err))?;
             builder.user_agent = Some(value);
         }
 
@@ -129,18 +128,10 @@ impl Builder {
         {
             let mut map = HeaderMap::new();
             headers.foreach(|name: RString, value: RString| {
-                let name = HeaderName::from_bytes(&name.to_bytes()).map_err(|e| {
-                    magnus::Error::new(
-                        ruby.exception_arg_error(),
-                        format!("invalid header name '{name}': {e}"),
-                    )
-                })?;
-                let value = HeaderValue::from_maybe_shared(value.to_bytes()).map_err(|e| {
-                    magnus::Error::new(
-                        ruby.exception_arg_error(),
-                        format!("invalid header value for '{value}': {e}"),
-                    )
-                })?;
+                let name = HeaderName::from_bytes(&name.to_bytes())
+                    .map_err(|err| header_name_error_to_magnus(ruby, err))?;
+                let value = HeaderValue::from_maybe_shared(value.to_bytes())
+                    .map_err(|err| header_value_error_to_magnus(ruby, err))?;
                 map.insert(name, value);
 
                 Ok(ForEach::Continue)
@@ -166,7 +157,7 @@ impl Builder {
             .and_then(RString::from_value)
         {
             let uri = Proxy::all(proxy.to_bytes().as_ref())
-                .map_err(|err| crate::error::wreq_error_to_magnus(ruby, err))?;
+                .map_err(|err| wreq_error_to_magnus(ruby, err))?;
             builder.proxy = Some(uri);
         }
 
@@ -305,7 +296,7 @@ impl Client {
                 builder
                     .build()
                     .map(Client)
-                    .map_err(|err| crate::error::wreq_error_to_magnus(ruby, err))
+                    .map_err(|err| wreq_error_to_magnus(ruby, err))
             })
         } else {
             nogvl::nogvl(|| Ok(Self(wreq::Client::new())))
