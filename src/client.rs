@@ -10,7 +10,10 @@ use wreq::{
     header::{HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
 };
 
-use crate::{format_magnus_error, nogvl};
+use crate::{
+    error::{header_name_error_to_magnus, header_value_error_to_magnus, wreq_error_to_magnus},
+    nogvl,
+};
 
 /// A builder for `Client`.
 #[derive(Debug, Default, Deserialize)]
@@ -84,7 +87,7 @@ struct Builder {
     no_proxy: Option<bool>,
     /// The proxy to use for the client.
     #[serde(skip)]
-    proxy: Option<Uri>,
+    proxy: Option<Proxy>,
 
     // ========= Compression options =========
     /// Sets gzip as an accepted encoding.
@@ -113,12 +116,8 @@ impl Builder {
             .get(ruby.to_symbol("user_agent"))
             .and_then(RString::from_value)
         {
-            let value = HeaderValue::from_maybe_shared(user_agent.to_bytes()).map_err(|e| {
-                magnus::Error::new(
-                    ruby.exception_arg_error(),
-                    format!("invalid user agent '{user_agent}': {e}"),
-                )
-            })?;
+            let value = HeaderValue::from_maybe_shared(user_agent.to_bytes())
+                .map_err(|err| header_value_error_to_magnus(ruby, err))?;
             builder.user_agent = Some(value);
         }
 
@@ -129,18 +128,10 @@ impl Builder {
         {
             let mut map = HeaderMap::new();
             headers.foreach(|name: RString, value: RString| {
-                let name = HeaderName::from_bytes(&name.to_bytes()).map_err(|e| {
-                    magnus::Error::new(
-                        ruby.exception_arg_error(),
-                        format!("invalid header name '{name}': {e}"),
-                    )
-                })?;
-                let value = HeaderValue::from_maybe_shared(value.to_bytes()).map_err(|e| {
-                    magnus::Error::new(
-                        ruby.exception_arg_error(),
-                        format!("invalid header value for '{value}': {e}"),
-                    )
-                })?;
+                let name = HeaderName::from_bytes(&name.to_bytes())
+                    .map_err(|err| header_name_error_to_magnus(ruby, err))?;
+                let value = HeaderValue::from_maybe_shared(value.to_bytes())
+                    .map_err(|err| header_value_error_to_magnus(ruby, err))?;
                 map.insert(name, value);
 
                 Ok(ForEach::Continue)
@@ -165,12 +156,8 @@ impl Builder {
             .get(ruby.to_symbol("proxy"))
             .and_then(RString::from_value)
         {
-            let uri = Uri::from_maybe_shared(proxy.to_bytes()).map_err(|e| {
-                magnus::Error::new(
-                    ruby.exception_arg_error(),
-                    format!("invalid proxy URI '{proxy}': {e}"),
-                )
-            })?;
+            let uri = Proxy::all(proxy.to_bytes().as_ref())
+                .map_err(|err| wreq_error_to_magnus(ruby, err))?;
             builder.proxy = Some(uri);
         }
 
@@ -297,7 +284,7 @@ impl Client {
                 apply_option!(set_if_some, builder, params.verify, cert_verification);
 
                 // Network options.
-                apply_option!(set_if_some_map_ok, builder, params.proxy, proxy, Proxy::all);
+                apply_option!(set_if_some, builder, params.proxy, proxy);
                 apply_option!(set_if_true, builder, params.no_proxy, no_proxy, false);
 
                 // Compression options.
@@ -309,7 +296,7 @@ impl Client {
                 builder
                     .build()
                     .map(Client)
-                    .map_err(|e| format_magnus_error(ruby, e))
+                    .map_err(|err| wreq_error_to_magnus(ruby, err))
             })
         } else {
             nogvl::nogvl(|| Ok(Self(wreq::Client::new())))

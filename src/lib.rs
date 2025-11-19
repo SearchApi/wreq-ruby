@@ -20,12 +20,13 @@
 #[macro_use]
 mod macros;
 mod client;
+mod error;
 mod http;
 mod nogvl;
 
 use std::sync::LazyLock;
 
-use magnus::{Error, Ruby};
+use magnus::{Error, RModule, Ruby, value::Lazy};
 
 static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -34,15 +35,14 @@ static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
         .expect("Failed to initialize Tokio runtime")
 });
 
-fn format_magnus_error(ruby: &Ruby, err: wreq::Error) -> Error {
-    Error::new(ruby.exception_runtime_error(), err.to_string())
-}
+const RUBY_MODULE_NAME: &str = "Wreq";
 
 /// wreq ruby binding
 #[magnus::init]
 fn init(ruby: &Ruby) -> Result<(), Error> {
-    let gem_module = ruby.define_module("Wreq")?;
+    let gem_module = ruby.define_module(RUBY_MODULE_NAME)?;
     http::include(ruby, &gem_module)?;
     client::include(ruby, &gem_module)?;
+    error::include(ruby);
     Ok(())
 }
