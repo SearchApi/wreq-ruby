@@ -5,28 +5,43 @@ use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use rb_sys::rb_thread_call_without_gvl;
 
+/// Container for safely passing closure and result through C callback
+struct Args<F, R> {
+    func: Option<F>,
+    result: MaybeUninit<R>,
+}
+
 unsafe extern "C" fn call_without_gvl<F, R>(arg: *mut c_void) -> *mut c_void
 where
-    F: FnMut() -> R,
+    F: FnOnce() -> R,
     R: Sized,
 {
-    let arg = arg as *mut (&mut F, &mut MaybeUninit<R>);
-    let (func, result) = unsafe { &mut *arg };
-    result.write(func());
+    let args = unsafe { &mut *(arg as *mut Args<F, R>) };
+
+    // Take closure from Option to transfer ownership
+    if let Some(func) = args.func.take() {
+        let result = func();
+        args.result.write(result);
+    }
 
     null_mut()
 }
 
-pub fn nogvl<F, R>(mut func: F) -> R
+pub fn nogvl<F, R>(func: F) -> R
 where
-    F: FnMut() -> R,
+    F: FnOnce() -> R,
     R: Sized,
 {
-    let result = MaybeUninit::uninit();
-    let arg_ptr = &(&mut func, &result) as *const _ as *mut c_void;
+    // Create stable wrapper to keep data valid during callback
+    let mut args = Args {
+        func: Some(func),
+        result: MaybeUninit::uninit(),
+    };
+
+    let arg_ptr = &mut args as *mut _ as *mut c_void;
 
     unsafe {
         rb_thread_call_without_gvl(Some(call_without_gvl::<F, R>), arg_ptr, None, null_mut());
-        result.assume_init()
+        args.result.assume_init()
     }
 }

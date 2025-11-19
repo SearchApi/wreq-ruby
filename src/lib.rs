@@ -21,6 +21,7 @@
 mod macros;
 mod client;
 mod error;
+mod extractor;
 mod http;
 mod nogvl;
 

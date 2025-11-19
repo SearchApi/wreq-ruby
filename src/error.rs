@@ -50,32 +50,26 @@ define_exception!(DECODING_ERROR, "DecodingError", exception_runtime_error);
 define_exception!(BUILDER_ERROR, "BuilderError", exception_runtime_error);
 
 /// Map [`wreq::header::InvalidHeaderName`] to corresponding [`magnus::Error`]
-pub fn header_name_error_to_magnus(
-    ruby: &Ruby,
-    err: wreq::header::InvalidHeaderName,
-) -> MagnusError {
+pub fn header_name_error_to_magnus(err: wreq::header::InvalidHeaderName) -> MagnusError {
     MagnusError::new(
-        ruby.get_inner(&BUILDER_ERROR),
+        ruby!().get_inner(&BUILDER_ERROR),
         format!("invalid header name: {err}"),
     )
 }
 
 /// Map [`wreq::header::InvalidHeaderValue`] to corresponding [`magnus::Error`]
-pub fn header_value_error_to_magnus(
-    ruby: &Ruby,
-    err: wreq::header::InvalidHeaderValue,
-) -> MagnusError {
+pub fn header_value_error_to_magnus(err: wreq::header::InvalidHeaderValue) -> MagnusError {
     MagnusError::new(
-        ruby.get_inner(&BUILDER_ERROR),
+        ruby!().get_inner(&BUILDER_ERROR),
         format!("invalid header value: {err}"),
     )
 }
 
 /// Map [`wreq::Error`] to corresponding [`magnus::Error`]
-pub fn wreq_error_to_magnus(ruby: &Ruby, err: wreq::Error) -> MagnusError {
+pub fn wreq_error_to_magnus(err: wreq::Error) -> MagnusError {
     let error_msg = err.to_string();
     map_wreq_error!(
-        ruby,
+        ruby!(),
         err,
         error_msg,
         is_builder => BUILDER_ERROR,

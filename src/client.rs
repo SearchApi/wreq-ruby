@@ -1,17 +1,25 @@
+pub mod body;
+pub mod req;
+pub mod resp;
+
 use std::{net::IpAddr, time::Duration};
 
 use magnus::{
-    Module, Object, RArray, RHash, RString, Ruby, Symbol, function, kwargs, method,
-    r_hash::ForEach, value::ReprValue,
+    Module, Object, RArray, RHash, RModule, RString, Ruby, Symbol, TryConvert, Value, function,
+    kwargs, method, r_hash::ForEach, value::ReprValue,
 };
 use serde::Deserialize;
 use wreq::{
     Proxy, Uri,
-    header::{HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
+    header::{self, HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
 };
 
 use crate::{
+    RUNTIME,
+    client::req::Request,
     error::{header_name_error_to_magnus, header_value_error_to_magnus, wreq_error_to_magnus},
+    extractor::Extractor,
+    http::Method,
     nogvl,
 };
 
@@ -108,67 +116,35 @@ pub struct Client(wreq::Client);
 
 impl Builder {
     /// Create a new [`Builder`] from Ruby keyword arguments.
-    fn new(ruby: &magnus::Ruby, kwargs: RHash) -> Result<Self, magnus::Error> {
-        let mut builder: Builder = serde_magnus::deserialize(&ruby, kwargs)?;
+    fn new(ruby: &magnus::Ruby, keyword: &Value) -> Result<Self, magnus::Error> {
+        if let Ok(hash) = RHash::try_convert(*keyword) {
+            let mut builder: Self = serde_magnus::deserialize(&ruby, hash)?;
 
-        // Handle user agent separately
-        if let Some(user_agent) = kwargs
-            .get(ruby.to_symbol("user_agent"))
-            .and_then(RString::from_value)
-        {
-            let value = HeaderValue::from_maybe_shared(user_agent.to_bytes())
-                .map_err(|err| header_value_error_to_magnus(ruby, err))?;
-            builder.user_agent = Some(value);
+            // extra user agent handling
+            builder.user_agent = Extractor::<HeaderValue>::try_convert(*keyword)?.into_inner();
+
+            // extra headers handling
+            builder.headers = Extractor::<HeaderMap>::try_convert(*keyword)?.into_inner();
+
+            // extra original headers handling
+            builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(*keyword)?.into_inner();
+
+            // extra proxy handling
+            builder.proxy = Extractor::<Proxy>::try_convert(*keyword)?.into_inner();
+
+            return Ok(builder);
         }
 
-        // Handle headers separately
-        if let Some(headers) = kwargs
-            .get(ruby.to_symbol("headers"))
-            .and_then(RHash::from_value)
-        {
-            let mut map = HeaderMap::new();
-            headers.foreach(|name: RString, value: RString| {
-                let name = HeaderName::from_bytes(&name.to_bytes())
-                    .map_err(|err| header_name_error_to_magnus(ruby, err))?;
-                let value = HeaderValue::from_maybe_shared(value.to_bytes())
-                    .map_err(|err| header_value_error_to_magnus(ruby, err))?;
-                map.insert(name, value);
-
-                Ok(ForEach::Continue)
-            });
-            builder.headers = Some(map);
-        }
-
-        // Handle original headers separately
-        if let Some(orig_headers) = kwargs
-            .get(ruby.to_symbol("orig_headers"))
-            .and_then(RArray::from_value)
-        {
-            let mut map = OrigHeaderMap::new();
-            for value in orig_headers.into_iter().flat_map(RString::from_value) {
-                map.insert(value.to_bytes());
-            }
-            builder.orig_headers = Some(map);
-        }
-
-        // Handle proxies separately
-        if let Some(proxy) = kwargs
-            .get(ruby.to_symbol("proxy"))
-            .and_then(RString::from_value)
-        {
-            let uri = Proxy::all(proxy.to_bytes().as_ref())
-                .map_err(|err| wreq_error_to_magnus(ruby, err))?;
-            builder.proxy = Some(uri);
-        }
-
-        Ok(builder)
+        Ok(Default::default())
     }
 }
 
+// ===== impl Client =====
+
 impl Client {
     /// Create a new [`Client`] with the given keyword arguments.
-    pub fn new(ruby: &Ruby, args: &[magnus::Value]) -> Result<Self, magnus::Error> {
-        if let Some(kwargs) = args.first().cloned().and_then(RHash::from_value) {
+    pub fn new(ruby: &Ruby, kwargs: &[Value]) -> Result<Self, magnus::Error> {
+        if let Some(kwargs) = kwargs.first() {
             let mut params = Builder::new(ruby, kwargs)?;
             nogvl::nogvl(|| {
                 let mut builder = wreq::Client::builder();
@@ -293,10 +269,7 @@ impl Client {
                 apply_option!(set_if_some, builder, params.deflate, deflate);
                 apply_option!(set_if_some, builder, params.zstd, zstd);
 
-                builder
-                    .build()
-                    .map(Client)
-                    .map_err(|err| wreq_error_to_magnus(ruby, err))
+                builder.build().map(Client).map_err(wreq_error_to_magnus)
             })
         } else {
             nogvl::nogvl(|| Ok(Self(wreq::Client::new())))
@@ -304,8 +277,155 @@ impl Client {
     }
 }
 
-pub fn include(ruby: &magnus::Ruby, gem_module: &magnus::RModule) -> Result<(), magnus::Error> {
+impl Client {
+    /// Send a HTTP request.
+    pub fn request(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<String, magnus::Error> {
+        let ((method, url), request) = extract_args!(args, (&Method, String));
+        nogvl::nogvl(|| {
+            RUNTIME.block_on(execute_request(
+                rb_self.0.clone(),
+                method.clone(),
+                url,
+                request,
+            ))
+        })
+    }
+
+    /// Send a GET request.
+    pub fn get(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<String, magnus::Error> {
+        let ((url,), request) = extract_args!(args, (String,));
+        nogvl::nogvl(|| {
+            RUNTIME.block_on(execute_request(
+                rb_self.0.clone(),
+                Method::GET,
+                url.clone(),
+                request,
+            ))
+        })
+    }
+}
+
+pub async fn execute_request<C, U>(
+    client: C,
+    method: Method,
+    url: U,
+    mut request: Request,
+) -> Result<String, magnus::Error>
+where
+    C: Into<Option<wreq::Client>>,
+    U: AsRef<str>,
+{
+    let mut builder = match client.into() {
+        Some(client) => client.request(method.into_ffi(), url.as_ref()),
+        None => wreq::request(method.into_ffi(), url.as_ref()),
+    };
+
+    // Version options.
+    apply_option!(set_if_some, builder, request.version, version);
+
+    // Timeout options.
+    apply_option!(
+        set_if_some_map,
+        builder,
+        request.timeout,
+        timeout,
+        Duration::from_secs
+    );
+    apply_option!(
+        set_if_some_map,
+        builder,
+        request.read_timeout,
+        read_timeout,
+        Duration::from_secs
+    );
+
+    // Network options.
+    apply_option!(set_if_some, builder, request.proxy, proxy);
+
+    // Headers options.
+    apply_option!(set_if_some, builder, request.headers, headers);
+    apply_option!(set_if_some, builder, request.orig_headers, orig_headers);
+    apply_option!(
+        set_if_some,
+        builder,
+        request.default_headers,
+        default_headers
+    );
+
+    // Authentication options.
+    apply_option!(
+        set_if_some_map_ref,
+        builder,
+        request.auth,
+        auth,
+        AsRef::<str>::as_ref
+    );
+    apply_option!(set_if_some, builder, request.bearer_auth, bearer_auth);
+    if let Some(basic_auth) = request.basic_auth.take() {
+        builder = builder.basic_auth(basic_auth.0, basic_auth.1);
+    }
+
+    // Cookies options.
+    if let Some(cookies) = request.cookies.take() {
+        for cookie in cookies {
+            builder = builder.header_append(header::COOKIE, cookie);
+        }
+    }
+
+    // Allow redirects options.
+    match request.allow_redirects {
+        Some(false) => {
+            builder = builder.redirect(wreq::redirect::Policy::none());
+        }
+        Some(true) => {
+            builder = builder.redirect(
+                request
+                    .max_redirects
+                    .take()
+                    .map(wreq::redirect::Policy::limited)
+                    .unwrap_or_default(),
+            );
+        }
+        None => {}
+    };
+
+    // Compression options.
+    apply_option!(set_if_some, builder, request.gzip, gzip);
+    apply_option!(set_if_some, builder, request.brotli, brotli);
+    apply_option!(set_if_some, builder, request.deflate, deflate);
+    apply_option!(set_if_some, builder, request.zstd, zstd);
+
+    // Query options.
+    apply_option!(set_if_some_ref, builder, request.query, query);
+
+    // Form options.
+    apply_option!(set_if_some_ref, builder, request.form, form);
+
+    // JSON options.
+    apply_option!(set_if_some_ref, builder, request.json, json);
+
+    // Body options.
+    if let Some(body) = request.body.take() {
+        builder = match body {
+            body::Body::Text(str) => builder.body(wreq::Body::from(str)),
+            body::Body::Bytes(bytes) => builder.body(wreq::Body::from(bytes)),
+        }
+    }
+
+    // Send request.
+    builder
+        .send()
+        .await
+        .map_err(wreq_error_to_magnus)?
+        .text()
+        .await
+        .map_err(wreq_error_to_magnus)
+}
+
+pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), magnus::Error> {
     let client_class = gem_module.define_class("Client", ruby.class_object())?;
     client_class.define_singleton_method("new", function!(Client::new, -1))?;
+    client_class.define_method("request", method!(Client::request, -1))?;
+    client_class.define_method("get", method!(Client::get, -1))?;
     Ok(())
 }

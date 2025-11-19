@@ -32,7 +32,10 @@ wreq = { version = "6.0.0-rc.21", features = [
 wreq-util = { version = "3.0.0-rc.7", features = ["emulation-rand"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_magnus = "0.10.0"
-
+indexmap = { version = "2.10.0", features = ["serde"] }
+bytes = "1.10.1"
+serde_json = "1"
+serde_urlencoded = "0.7.1"
 
 [build-dependencies]
 rb-sys-env = "0.1.2"

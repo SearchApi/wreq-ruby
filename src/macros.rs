@@ -1,3 +1,5 @@
+use magnus::Ruby;
+
 macro_rules! apply_option {
     (set_if_some, $builder:expr, $option:expr, $method:ident) => {
         if let Some(value) = $option.take() {
@@ -48,7 +50,7 @@ macro_rules! define_ruby_enum {
     ($(#[$meta:meta])* $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $(($rust_variant:ident, $ffi_variant:ident)),* $(,)?) => {
         $(#[$meta])*
         #[magnus::wrap(class = $ruby_class, free_immediately, size)]
-        #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::upper_case_acronyms)]
         pub enum $enum_type {
@@ -75,7 +77,7 @@ macro_rules! define_ruby_enum {
     ($(#[$meta:meta])* const, $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $(($rust_variant:ident, $ffi_variant:ident)),* $(,)?) => {
         $(#[$meta])*
         #[magnus::wrap(class = $ruby_class, free_immediately, size)]
-        #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::upper_case_acronyms)]
         pub enum $enum_type {
@@ -99,4 +101,19 @@ macro_rules! define_ruby_enum {
             }
         }
     };
+}
+
+macro_rules! ruby {
+    () => {
+        Ruby::get().expect("Failed to get Ruby VM instance")
+    };
+}
+
+macro_rules! extract_args {
+    ($args:expr, $required:ty) => {{
+        let args = magnus::scan_args::scan_args::<$required, (), (), (), magnus::RHash, ()>($args)?;
+        let required = args.required;
+        let request = crate::client::req::Request::new(&ruby!(), args.keywords)?;
+        (required, request)
+    }};
 }
