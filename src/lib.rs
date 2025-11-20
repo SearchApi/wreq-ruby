@@ -15,19 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#![allow(unused)]
-
 #[macro_use]
 mod macros;
 mod client;
 mod error;
 mod extractor;
+mod header;
 mod http;
 mod nogvl;
 
 use std::sync::LazyLock;
 
-use magnus::{Error, RModule, Ruby, value::Lazy};
+use magnus::{Error, Ruby};
 
 static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -43,6 +42,7 @@ const RUBY_MODULE_NAME: &str = "Wreq";
 fn init(ruby: &Ruby) -> Result<(), Error> {
     let gem_module = ruby.define_module(RUBY_MODULE_NAME)?;
     http::include(ruby, &gem_module)?;
+    header::include(ruby, &gem_module)?;
     client::include(ruby, &gem_module)?;
     error::include(ruby);
     Ok(())

@@ -4,12 +4,14 @@ use arc_swap::ArcSwapOption;
 use bytes::Bytes;
 use http::{Extensions, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RModule, Ruby};
+use magnus::{Error, Module, RModule, Ruby, Value, block::Yield};
 use wreq::{Uri, header::HeaderMap};
 
 use crate::{
     RUNTIME,
+    client::body::Json,
     error::{memory_error, wreq_error_to_magnus},
+    header::HeaderIterator,
     http::{StatusCode, Version},
     nogvl,
 };
@@ -61,6 +63,7 @@ impl Response {
         }
     }
 
+    /// Internal method to get the wreq::Response, optionally streaming the body.
     fn response(&self, stream: bool) -> Result<wreq::Response, Error> {
         nogvl::nogvl(|| {
             let build_response = |body: wreq::Body| -> wreq::Response {
@@ -131,6 +134,11 @@ impl Response {
         self.content_length
     }
 
+    /// Iterate over headers with Ruby block support.
+    pub fn each_header(&self) -> Result<Yield<HeaderIterator>, Error> {
+        Ok(Yield::Iter(HeaderIterator::new(&self.headers)))
+    }
+
     /// Get the local socket address, if available.
     pub fn local_addr(&self) -> Option<String> {
         self.local_addr.map(|addr| addr.to_string())
@@ -140,19 +148,50 @@ impl Response {
     pub fn remote_addr(&self) -> Option<String> {
         self.remote_addr.map(|addr| addr.to_string())
     }
+
+    /// Get the response body as text.
+    pub fn text(&self) -> Result<String, Error> {
+        let response = self.response(false)?;
+        nogvl::nogvl(|| {
+            RUNTIME
+                .block_on(response.text())
+                .map_err(wreq_error_to_magnus)
+        })
+    }
+
+    /// Get the response body as JSON.
+    pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
+        let response = rb_self.response(false)?;
+        nogvl::nogvl(|| {
+            let json: Json = RUNTIME
+                .block_on(response.json())
+                .map_err(wreq_error_to_magnus)?;
+            serde_magnus::serialize(ruby, &json)
+        })
+    }
+}
+
+impl Drop for Response {
+    fn drop(&mut self) {
+        // Ensure body is dropped in GVL
+        self.body.swap(None);
+    }
 }
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
-    gem_module.define_class("Response", ruby.class_object())?;
-    gem_module.define_method("code", magnus::method!(Response::code, 0))?;
-    gem_module.define_method("status", magnus::method!(Response::status, 0))?;
-    gem_module.define_method("version", magnus::method!(Response::version, 0))?;
-    gem_module.define_method("uri", magnus::method!(Response::uri, 0))?;
-    gem_module.define_method(
+    let response_class = gem_module.define_class("Response", ruby.class_object())?;
+    response_class.define_method("code", magnus::method!(Response::code, 0))?;
+    response_class.define_method("status", magnus::method!(Response::status, 0))?;
+    response_class.define_method("version", magnus::method!(Response::version, 0))?;
+    response_class.define_method("uri", magnus::method!(Response::uri, 0))?;
+    response_class.define_method("each_header", magnus::method!(Response::each_header, 0))?;
+    response_class.define_method(
         "content_length",
         magnus::method!(Response::content_length, 0),
     )?;
-    gem_module.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
-    gem_module.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
+    response_class.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
+    response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
+    response_class.define_method("text", magnus::method!(Response::text, 0))?;
+    response_class.define_method("json", magnus::method!(Response::json, 0))?;
     Ok(())
 }

@@ -1,18 +1,13 @@
 use indexmap::IndexMap;
-use magnus::{
-    RArray, RHash, RString, TryConvert, Value, kwargs, r_hash::ForEach, value::ReprValue,
-};
+use magnus::{RHash, TryConvert, value::ReprValue};
 use serde::Deserialize;
 use wreq::{
     Proxy, Version,
-    header::{HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
+    header::{HeaderMap, OrigHeaderMap},
 };
 
 use super::body::{Body, Json};
-use crate::{
-    error::{header_name_error_to_magnus, header_value_error_to_magnus, wreq_error_to_magnus},
-    extractor::Extractor,
-};
+use crate::extractor::Extractor;
 
 /// The parameters for a request.
 #[derive(Default, Deserialize)]

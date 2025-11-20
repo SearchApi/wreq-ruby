@@ -1,5 +1,3 @@
-use magnus::Ruby;
-
 macro_rules! apply_option {
     (set_if_some, $builder:expr, $option:expr, $method:ident) => {
         if let Some(value) = $option.take() {
@@ -64,6 +62,7 @@ macro_rules! define_ruby_enum {
                 }
             }
 
+            #[allow(dead_code)]
             pub fn from_ffi(ffi: $ffi_type) -> Self {
                 #[allow(unreachable_patterns)]
                 match ffi {

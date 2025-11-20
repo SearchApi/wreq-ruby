@@ -2,22 +2,19 @@ pub mod body;
 pub mod req;
 pub mod resp;
 
-use std::{net::IpAddr, time::Duration};
+use std::time::Duration;
 
-use magnus::{
-    Module, Object, RArray, RHash, RModule, RString, Ruby, Symbol, TryConvert, Value, function,
-    kwargs, method, r_hash::ForEach, value::ReprValue,
-};
+use magnus::{Module, Object, RHash, RModule, Ruby, TryConvert, Value, function, method};
 use serde::Deserialize;
 use wreq::{
-    Proxy, Uri,
-    header::{self, HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
+    Proxy,
+    header::{self, HeaderMap, HeaderValue, OrigHeaderMap},
 };
 
 use crate::{
     RUNTIME,
-    client::req::Request,
-    error::{header_name_error_to_magnus, header_value_error_to_magnus, wreq_error_to_magnus},
+    client::{req::Request, resp::Response},
+    error::wreq_error_to_magnus,
     extractor::Extractor,
     http::Method,
     nogvl,
@@ -64,6 +61,7 @@ struct Builder {
     /// Set the number of retries for TCP keepalive.
     tcp_keepalive_retries: Option<u32>,
     /// Set an optional user timeout for TCP sockets. (in seconds)
+    #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
     tcp_user_timeout: Option<u64>,
     /// Set that all sockets have `NO_DELAY` set.
     tcp_nodelay: Option<bool>,
@@ -279,7 +277,7 @@ impl Client {
 
 impl Client {
     /// Send a HTTP request.
-    pub fn request(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<String, magnus::Error> {
+    pub fn request(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((method, url), request) = extract_args!(args, (&Method, String));
         nogvl::nogvl(|| {
             RUNTIME.block_on(execute_request(
@@ -292,7 +290,7 @@ impl Client {
     }
 
     /// Send a GET request.
-    pub fn get(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<String, magnus::Error> {
+    pub fn get(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_args!(args, (String,));
         nogvl::nogvl(|| {
             RUNTIME.block_on(execute_request(
@@ -310,7 +308,7 @@ pub async fn execute_request<C, U>(
     method: Method,
     url: U,
     mut request: Request,
-) -> Result<String, magnus::Error>
+) -> Result<Response, magnus::Error>
 where
     C: Into<Option<wreq::Client>>,
     U: AsRef<str>,
@@ -409,6 +407,7 @@ where
         builder = match body {
             body::Body::Text(str) => builder.body(wreq::Body::from(str)),
             body::Body::Bytes(bytes) => builder.body(wreq::Body::from(bytes)),
+            body::Body::Json(json) => builder.json(&json),
         }
     }
 
@@ -416,9 +415,7 @@ where
     builder
         .send()
         .await
-        .map_err(wreq_error_to_magnus)?
-        .text()
-        .await
+        .map(Response::new)
         .map_err(wreq_error_to_magnus)
 }
 

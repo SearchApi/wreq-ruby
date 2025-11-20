@@ -1,6 +1,4 @@
-use bytes::Bytes;
 use indexmap::IndexMap;
-use magnus::TryConvert;
 use serde::{Deserialize, Serialize};
 
 /// Represents a JSON value for HTTP requests.
@@ -20,7 +18,9 @@ pub enum Json {
 /// Represents the body of an HTTP request.
 /// Supports text, bytes, form, json, synchronous and asynchronous streaming bodies.
 #[derive(Deserialize)]
+#[serde(untagged)]
 pub enum Body {
     Text(String),
     Bytes(Vec<u8>),
+    Json(Json),
 }

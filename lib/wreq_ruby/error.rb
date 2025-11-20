@@ -2,7 +2,7 @@
 
 module Wreq
   # System-level and runtime errors
-  
+
   # Memory allocation failed.
   unless const_defined?(:MemoryError)
     class MemoryError < StandardError; end
