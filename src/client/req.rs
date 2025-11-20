@@ -1,3 +1,4 @@
+use http::HeaderValue;
 use indexmap::IndexMap;
 use magnus::{RHash, TryConvert, value::ReprValue};
 use serde::Deserialize;
@@ -10,7 +11,7 @@ use super::body::{Body, Json};
 use crate::extractor::Extractor;
 
 /// The parameters for a request.
-#[derive(Default, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[non_exhaustive]
 pub struct Request {
     /// The proxy to use for the request.
@@ -39,7 +40,8 @@ pub struct Request {
     pub default_headers: Option<bool>,
 
     /// The cookies to use for the request.
-    pub cookies: Option<Vec<String>>,
+    #[serde(skip)]
+    pub cookies: Option<Vec<HeaderValue>>,
 
     /// Whether to allow redirects.
     pub allow_redirects: Option<bool>,
@@ -95,6 +97,9 @@ impl Request {
 
         // extra original headers handling
         builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(kwargs)?.into_inner();
+
+        // extra cookies handling
+        builder.cookies = Extractor::<Vec<HeaderValue>>::try_convert(kwargs)?.into_inner();
 
         // extra proxy handling
         builder.proxy = Extractor::<Proxy>::try_convert(kwargs)?.into_inner();

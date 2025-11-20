@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use magnus::{RArray, RHash, RString, Ruby, TryConvert, r_hash::ForEach};
 use wreq::{
     Proxy, Version,
@@ -131,6 +132,37 @@ impl TryConvert for Extractor<OrigHeaderMap> {
                 map.insert(value.to_bytes());
             }
             return Ok(Extractor(Some(map)));
+        }
+
+        Ok(Extractor(None))
+    }
+}
+
+// ===== impl Extractor<Vec<HeaderValue>> =====
+
+impl ExtractorName for Vec<HeaderValue> {
+    const NAME: &str = "cookies";
+}
+
+impl TryConvert for Extractor<Vec<HeaderValue>> {
+    fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
+        let ruby = Ruby::get_with(value);
+        let keyword = RHash::try_convert(value)?;
+
+        if let Some(hash) = keyword
+            .get(ruby.to_symbol(Vec::<HeaderValue>::NAME))
+            .and_then(RHash::from_value)
+        {
+            let mut cookies = Vec::new();
+            hash.foreach(|name: RString, value: RString| {
+                let cookie = format!("{name}={value}");
+                let header_value = HeaderValue::from_maybe_shared(Bytes::from(cookie))
+                    .map_err(header_value_error_to_magnus)?;
+                cookies.push(header_value);
+                Ok(ForEach::Continue)
+            })?;
+
+            return Ok(Extractor(Some(cookies)));
         }
 
         Ok(Extractor(None))

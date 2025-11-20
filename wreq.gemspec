@@ -41,7 +41,9 @@ Gem::Specification.new do |spec|
     git_output = `git ls-files -z`
     git_output.force_encoding("UTF-8")
     git_output.split("\x0").reject do |f|
-      f.start_with?(*%w[gems/ pkg/ target/ tmp/ .git])
+      f.start_with?(*%w[gems/ pkg/ target/ tmp/ .git]) ||
+      f.match?(/\.gem$/) ||  # Exclude gem files
+      f.match?(/^wreq-.*\.gem$/)  # Exclude any wreq gem files
     end
   end
 

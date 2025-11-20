@@ -28,7 +28,7 @@ gem install wreq-*.gem
 # with pre-compiled binaries. Users can install quickly without build environment.
 bundle exec rake compile
 bundle exec rake native gem
-gem install pkg/wreq-*-$(ruby -e 'puts RUBY_PLATFORM').gem
+gem install pkg/wreq-*.gem
 
 # Development workflow
 bundle exec rake compile    # Compile for development/testing

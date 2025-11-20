@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// Represents a JSON value for HTTP requests.
 /// Supports objects, arrays, numbers, strings, booleans, and null.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Json {
     Object(IndexMap<String, Json>),
@@ -20,7 +20,7 @@ pub enum Json {
 
 /// Represents the body of an HTTP request.
 /// Supports text, bytes, form, json, synchronous and asynchronous streaming bodies.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum Body {
     Text(String),
