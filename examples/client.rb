@@ -3,7 +3,6 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "wreq"
 
-# 示例 1: 捕获 BuilderError (无效的代理 URL)
 puts "--- Example 1: Invalid Proxy URL ---"
 begin
   client = Wreq::Client.new(
