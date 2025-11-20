@@ -1,3 +1,6 @@
+mod stream;
+
+pub use self::stream::{Streamer, include};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -22,5 +25,4 @@ pub enum Json {
 pub enum Body {
     Text(String),
     Bytes(Vec<u8>),
-    Json(Json),
 }

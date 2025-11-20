@@ -407,7 +407,6 @@ where
         builder = match body {
             body::Body::Text(str) => builder.body(wreq::Body::from(str)),
             body::Body::Bytes(bytes) => builder.body(wreq::Body::from(bytes)),
-            body::Body::Json(json) => builder.json(&json),
         }
     }
 
@@ -426,5 +425,6 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), magnus::Error> {
     client_class.define_method("get", method!(Client::get, -1))?;
 
     resp::include(ruby, gem_module)?;
+    body::include(ruby, gem_module)?;
     Ok(())
 }

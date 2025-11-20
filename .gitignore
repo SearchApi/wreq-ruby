@@ -11,6 +11,5 @@
 Gemfile.lock
 Cargo.lock
 .idea
-examples
 /core/
 sig

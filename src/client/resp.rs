@@ -9,7 +9,7 @@ use wreq::{Uri, header::HeaderMap};
 
 use crate::{
     RUNTIME,
-    client::body::Json,
+    client::body::{Json, Streamer},
     error::{memory_error, wreq_error_to_magnus},
     header::HeaderIterator,
     http::{StatusCode, Version},
@@ -169,6 +169,22 @@ impl Response {
             serde_magnus::serialize(ruby, &json)
         })
     }
+
+    /// Get a streamer for the response body.
+    pub fn stream(&self) -> Result<Streamer, Error> {
+        self.response(true)
+            .map(wreq::Response::bytes_stream)
+            .map(Streamer::new)
+    }
+
+    /// Close the response body, dropping any resources.
+    pub fn close(&self) -> Result<(), Error> {
+        // Drop the body in GVL to ensure safety
+        nogvl::nogvl(|| {
+            self.body.swap(None);
+            Ok(())
+        })
+    }
 }
 
 impl Drop for Response {
@@ -193,5 +209,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
     response_class.define_method("text", magnus::method!(Response::text, 0))?;
     response_class.define_method("json", magnus::method!(Response::json, 0))?;
+    response_class.define_method("stream", magnus::method!(Response::stream, 0))?;
+    response_class.define_method("close", magnus::method!(Response::close, 0))?;
     Ok(())
 }
