@@ -26,7 +26,7 @@ mod nogvl;
 
 use std::sync::LazyLock;
 
-use magnus::{Error, Ruby, Value};
+use magnus::{Error, Ruby, Value, typed_data::Obj};
 
 use crate::{
     client::{Client, resp::Response},
@@ -45,7 +45,7 @@ const RUBY_MODULE_NAME: &str = "Wreq";
 /// Send a HTTP request.
 #[inline]
 pub fn request(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((method, url), request) = extract_args!(args, (&Method, String));
+    let ((method, url), request) = extract_args!(args, (Obj<Method>, String));
     Client::default().execute_request(*method, url, request)
 }
 
