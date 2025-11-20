@@ -22,7 +22,7 @@ end
 puts "\n=== Response Summary ==="
 puts "Status: #{response.code}"
 puts "Version: #{response.version}"
-puts "URI: #{response.uri}"
+puts "URI: #{response.url}"
 puts "Content Length: #{response.content_length || "Unknown"}"
 
 if response.local_addr

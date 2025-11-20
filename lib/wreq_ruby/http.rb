@@ -63,5 +63,52 @@ module Wreq
   #   status.redirection?    # 3xx
   #   status.client_error?   # 4xx
   #   status.server_error?   # 5xx
- 
+  unless const_defined?(:StatusCode)
+    class StatusCode
+      # Returns the status code as an integer.
+      #
+      # @return [Integer] the numeric HTTP status code (100-599)
+      def as_int; end
+
+      # Checks if status code is informational (1xx).
+      #
+      # Informational responses indicate that the request was received
+      # and the process is continuing.
+      #
+      # @return [Boolean] true if status is 100-199
+      def informational?; end
+
+      # Checks if status code indicates success (2xx).
+      #
+      # Success responses indicate that the request was successfully
+      # received, understood, and accepted.
+      #
+      # @return [Boolean] true if status is 200-299
+      def success?; end
+
+      # Checks if status code indicates redirection (3xx).
+      #
+      # Redirection responses indicate that further action needs to be
+      # taken to complete the request.
+      #
+      # @return [Boolean] true if status is 300-399
+      def redirection?; end
+
+      # Checks if status code indicates client error (4xx).
+      #
+      # Client error responses indicate that the request contains bad
+      # syntax or cannot be fulfilled.
+      #
+      # @return [Boolean] true if status is 400-499
+      def client_error?; end
+
+      # Checks if status code indicates server error (5xx).
+      #
+      # Server error responses indicate that the server failed to
+      # fulfill a valid request.
+      #
+      # @return [Boolean] true if status is 500-599
+      def server_error?; end
+    end
+  end
 end

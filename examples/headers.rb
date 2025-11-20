@@ -1,8 +1,5 @@
 #!/usr/bin/env ruby
 
-# Example: Using Wreq::Response headers methods
-# Demonstrates the different ways to access HTTP response headers
-
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "wreq"
 
@@ -18,7 +15,7 @@ end
 puts "\n=== Response Summary ==="
 puts "Status: #{response.code}"
 puts "Version: #{response.version}"
-puts "URI: #{response.uri}"
+puts "URI: #{response.url}"
 puts "Content Length: #{response.content_length || "Unknown"}"
 
 if response.local_addr
