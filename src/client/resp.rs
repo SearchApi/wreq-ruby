@@ -124,8 +124,8 @@ impl Response {
         self.version
     }
 
-    /// Get the response URI.
-    pub fn uri(&self) -> String {
+    /// Get the response URL.
+    pub fn url(&self) -> String {
         self.uri.to_string()
     }
 
@@ -147,6 +147,16 @@ impl Response {
     /// Get the remote socket address, if available.
     pub fn remote_addr(&self) -> Option<String> {
         self.remote_addr.map(|addr| addr.to_string())
+    }
+
+    /// Get the response body as bytes.
+    pub fn bytes(&self) -> Result<Bytes, Error> {
+        let response = self.response(false)?;
+        nogvl::nogvl(|| {
+            RUNTIME
+                .block_on(response.bytes())
+                .map_err(wreq_error_to_magnus)
+        })
     }
 
     /// Get the response body as text.
@@ -199,7 +209,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response_class.define_method("code", magnus::method!(Response::code, 0))?;
     response_class.define_method("status", magnus::method!(Response::status, 0))?;
     response_class.define_method("version", magnus::method!(Response::version, 0))?;
-    response_class.define_method("uri", magnus::method!(Response::uri, 0))?;
+    response_class.define_method("url", magnus::method!(Response::url, 0))?;
     response_class.define_method("each_header", magnus::method!(Response::each_header, 0))?;
     response_class.define_method(
         "content_length",
@@ -207,6 +217,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     )?;
     response_class.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
     response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
+    response_class.define_method("bytes", magnus::method!(Response::bytes, 0))?;
     response_class.define_method("text", magnus::method!(Response::text, 0))?;
     response_class.define_method("json", magnus::method!(Response::json, 0))?;
     response_class.define_method("stream", magnus::method!(Response::stream, 0))?;

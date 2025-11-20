@@ -9,10 +9,10 @@ require "wreq"
 # Make a request
 client = Wreq::Client.new
 response = client.post("https://httpbin.org/anything",
-                      json: { foo: "bar", baz: "qux" },
-                      headers: { "Content-Type" => "application/json" },
-                      cookies: { "session_id" => "abc123",
-                                 "user" => "test_user" })
+                       json: { foo: "bar", baz: "qux" },
+                       headers: { "Content-Type" => "application/json" },
+                       cookies: { "session_id" => "abc123",
+                                  "user" => "test_user" })
 
 puts "\n=== Iterating Over All Headers ==="
 response.each_header do |name, value|
