@@ -1,0 +1,444 @@
+# RBS type definitions for Wreq Ruby HTTP client
+
+# Main module containing all HTTP client functionality
+module Wreq
+
+
+  # HTTP status code wrapper with category checking methods
+  class StatusCode
+    # Returns the status code as integer
+    def code: () -> Integer
+    def to_i: () -> Integer
+    def as_int: () -> Integer
+
+    # Category checking methods
+    def informational?: () -> bool  # 1xx
+    def success?: () -> bool        # 2xx
+    def redirection?: () -> bool    # 3xx
+    def client_error?: () -> bool   # 4xx
+    def server_error?: () -> bool   # 5xx
+
+    # Returns string representation
+    def to_s: () -> String
+  end
+
+  # Header iterator for efficient header enumeration
+  class HeaderIterator
+    def each: () { (String name, String value) -> void } -> self
+            | () -> Enumerator[[String, String], self]
+  end
+
+  # HTTP response object containing status, headers, and body
+  class Response
+    # Status code access
+    def code: () -> Integer
+    def status_code: () -> Integer
+    def status: () -> StatusCode
+
+    # HTTP version
+    def version: () -> Version
+
+    # URL information
+    def url: () -> String
+
+    # Content length if known
+    def content_length: () -> Integer?
+
+    # Address information
+    def local_addr: () -> String?
+    def remote_addr: () -> String?
+
+    # Response body access
+    def text: () -> String
+    def body: () -> String
+    def bytes: () -> String
+
+    # JSON parsing - returns any valid JSON value
+    def json: () -> untyped
+
+    # Headers access - returns ordered hash preserving insertion order
+    def each_header: () { (String name, String value) -> void } -> void
+                   | () -> Enumerator[[String, String], void]
+
+    # Response streaming
+    def stream: () -> Streamer
+
+    # Close response and free resources
+    def close: () -> void
+  end
+
+  # Request body streaming interface for efficient data streaming
+  class Streamer
+    include Enumerable[String]
+    
+    def each: () { (String chunk) -> void } -> self
+            | () -> Enumerator[String, self]
+  end
+
+  # High-performance HTTP client with extensive configuration options
+  class Client
+    # Create new client instance with optional configuration
+    def initialize: (
+      ?user_agent: String,
+      ?headers: Hash[String, String],
+      ?referer: bool,
+      ?history: bool,
+      ?allow_redirects: bool,
+      ?max_redirects: Integer,
+      ?cookie_store: bool,
+      ?timeout: Integer,
+      ?connect_timeout: Integer,
+      ?read_timeout: Integer,
+      ?tcp_keepalive: Integer,
+      ?tcp_keepalive_interval: Integer,
+      ?tcp_keepalive_retries: Integer,
+      ?tcp_user_timeout: Integer,
+      ?tcp_nodelay: bool,
+      ?tcp_reuse_address: bool,
+      ?pool_idle_timeout: Integer,
+      ?pool_max_idle_per_host: Integer,
+      ?pool_max_size: Integer,
+      ?http1_only: bool,
+      ?http2_only: bool,
+      ?https_only: bool,
+      ?verify: bool,
+      ?no_proxy: bool,
+      ?proxy: String,
+      ?gzip: bool,
+      ?brotli: bool,
+      ?deflate: bool,
+      ?zstd: bool
+    ) -> void
+
+    # HTTP method implementations with fluent interface
+    def get: (
+      String url,
+      ?headers: Hash[String, String],
+      ?query: Hash[String, untyped],
+      ?form: Hash[String, String],
+      ?json: untyped,
+      ?body: String,
+      ?auth: String,
+      ?bearer_auth: String,
+      ?basic_auth: Array[String],
+      ?timeout: Integer,
+      ?allow_redirects: bool,
+      ?gzip: bool
+    ) -> Response
+    
+    def post: (
+      String url,
+      ?headers: Hash[String, String],
+      ?query: Hash[String, untyped],
+      ?form: Hash[String, String],
+      ?json: untyped,
+      ?body: String,
+      ?auth: String,
+      ?bearer_auth: String,
+      ?basic_auth: Array[String],
+      ?timeout: Integer,
+      ?allow_redirects: bool,
+      ?gzip: bool
+    ) -> Response
+    
+    def put: (
+      String url,
+      ?headers: Hash[String, String],
+      ?query: Hash[String, untyped],
+      ?form: Hash[String, String],
+      ?json: untyped,
+      ?body: String,
+      ?auth: String,
+      ?bearer_auth: String,
+      ?basic_auth: Array[String],
+      ?timeout: Integer,
+      ?allow_redirects: bool,
+      ?gzip: bool
+    ) -> Response
+    
+    def delete: (
+      String url,
+      ?headers: Hash[String, String],
+      ?query: Hash[String, untyped],
+      ?form: Hash[String, String],
+      ?json: untyped,
+      ?body: String,
+      ?auth: String,
+      ?bearer_auth: String,
+      ?basic_auth: Array[String],
+      ?timeout: Integer,
+      ?allow_redirects: bool,
+      ?gzip: bool
+    ) -> Response
+    
+    def head: (
+      String url,
+      ?headers: Hash[String, String],
+      ?query: Hash[String, untyped],
+      ?form: Hash[String, String],
+      ?json: untyped,
+      ?body: String,
+      ?auth: String,
+      ?bearer_auth: String,
+      ?basic_auth: Array[String],
+      ?timeout: Integer,
+      ?allow_redirects: bool,
+      ?gzip: bool
+    ) -> Response
+    
+    def options: (
+      String url,
+      ?headers: Hash[String, String],
+      ?query: Hash[String, untyped],
+      ?form: Hash[String, String],
+      ?json: untyped,
+      ?body: String,
+      ?auth: String,
+      ?bearer_auth: String,
+      ?basic_auth: Array[String],
+      ?timeout: Integer,
+      ?allow_redirects: bool,
+      ?gzip: bool
+    ) -> Response
+    
+    def trace: (
+      String url,
+      ?headers: Hash[String, String],
+      ?query: Hash[String, untyped],
+      ?form: Hash[String, String],
+      ?json: untyped,
+      ?body: String,
+      ?auth: String,
+      ?bearer_auth: String,
+      ?basic_auth: Array[String],
+      ?timeout: Integer,
+      ?allow_redirects: bool,
+      ?gzip: bool
+    ) -> Response
+    
+    def patch: (
+      String url,
+      ?headers: Hash[String, String],
+      ?query: Hash[String, untyped],
+      ?form: Hash[String, String],
+      ?json: untyped,
+      ?body: String,
+      ?auth: String,
+      ?bearer_auth: String,
+      ?basic_auth: Array[String],
+      ?timeout: Integer,
+      ?allow_redirects: bool,
+      ?gzip: bool
+    ) -> Response
+
+    # Generic request method with explicit HTTP method
+    def request: (
+      Method method,
+      String url,
+      ?headers: Hash[String, String],
+      ?query: Hash[String, untyped],
+      ?form: Hash[String, String],
+      ?json: untyped,
+      ?body: String,
+      ?auth: String,
+      ?bearer_auth: String,
+      ?basic_auth: Array[String],
+      ?timeout: Integer,
+      ?allow_redirects: bool,
+      ?gzip: bool
+    ) -> Response
+    
+    # Internal method for request execution (private)
+    private def execute_request: (Method method, String url, untyped request) -> Response
+  end
+
+  # Module-level convenience methods using shared default client instance
+  def self.get: (
+    String url,
+    ?headers: Hash[String, String],
+    ?query: Hash[String, untyped],
+    ?form: Hash[String, String],
+    ?json: untyped,
+    ?body: String,
+    ?auth: String,
+    ?bearer_auth: String,
+    ?basic_auth: Array[String],
+    ?timeout: Integer,
+    ?allow_redirects: bool,
+    ?gzip: bool
+  ) -> Response
+  
+  def self.post: (
+    String url,
+    ?headers: Hash[String, String],
+    ?query: Hash[String, untyped],
+    ?form: Hash[String, String],
+    ?json: untyped,
+    ?body: String,
+    ?auth: String,
+    ?bearer_auth: String,
+    ?basic_auth: Array[String],
+    ?timeout: Integer,
+    ?allow_redirects: bool,
+    ?gzip: bool
+  ) -> Response
+  
+  def self.put: (
+    String url,
+    ?headers: Hash[String, String],
+    ?query: Hash[String, untyped],
+    ?form: Hash[String, String],
+    ?json: untyped,
+    ?body: String,
+    ?auth: String,
+    ?bearer_auth: String,
+    ?basic_auth: Array[String],
+    ?timeout: Integer,
+    ?allow_redirects: bool,
+    ?gzip: bool
+  ) -> Response
+  
+  def self.delete: (
+    String url,
+    ?headers: Hash[String, String],
+    ?query: Hash[String, untyped],
+    ?form: Hash[String, String],
+    ?json: untyped,
+    ?body: String,
+    ?auth: String,
+    ?bearer_auth: String,
+    ?basic_auth: Array[String],
+    ?timeout: Integer,
+    ?allow_redirects: bool,
+    ?gzip: bool
+  ) -> Response
+  
+  def self.head: (
+    String url,
+    ?headers: Hash[String, String],
+    ?query: Hash[String, untyped],
+    ?form: Hash[String, String],
+    ?json: untyped,
+    ?body: String,
+    ?auth: String,
+    ?bearer_auth: String,
+    ?basic_auth: Array[String],
+    ?timeout: Integer,
+    ?allow_redirects: bool,
+    ?gzip: bool
+  ) -> Response
+  
+  def self.options: (
+    String url,
+    ?headers: Hash[String, String],
+    ?query: Hash[String, untyped],
+    ?form: Hash[String, String],
+    ?json: untyped,
+    ?body: String,
+    ?auth: String,
+    ?bearer_auth: String,
+    ?basic_auth: Array[String],
+    ?timeout: Integer,
+    ?allow_redirects: bool,
+    ?gzip: bool
+  ) -> Response
+  
+  def self.trace: (
+    String url,
+    ?headers: Hash[String, String],
+    ?query: Hash[String, untyped],
+    ?form: Hash[String, String],
+    ?json: untyped,
+    ?body: String,
+    ?auth: String,
+    ?bearer_auth: String,
+    ?basic_auth: Array[String],
+    ?timeout: Integer,
+    ?allow_redirects: bool,
+    ?gzip: bool
+  ) -> Response
+  
+  def self.patch: (
+    String url,
+    ?headers: Hash[String, String],
+    ?query: Hash[String, untyped],
+    ?form: Hash[String, String],
+    ?json: untyped,
+    ?body: String,
+    ?auth: String,
+    ?bearer_auth: String,
+    ?basic_auth: Array[String],
+    ?timeout: Integer,
+    ?allow_redirects: bool,
+    ?gzip: bool
+  ) -> Response
+  
+  def self.request: (
+    Method method,
+    String url,
+    ?headers: Hash[String, String],
+    ?query: Hash[String, untyped],
+    ?form: Hash[String, String],
+    ?json: untyped,
+    ?body: String,
+    ?auth: String,
+    ?bearer_auth: String,
+    ?basic_auth: Array[String],
+    ?timeout: Integer,
+    ?allow_redirects: bool,
+    ?gzip: bool
+  ) -> Response
+
+  # Error hierarchy for comprehensive error handling and debugging
+
+  # System and memory errors
+  class MemoryError < StandardError
+    def initialize: (?String? message) -> void
+  end
+
+  # Network connection errors
+  class ConnectionError < StandardError
+    def initialize: (?String? message) -> void
+  end
+
+  class ConnectionResetError < StandardError
+    def initialize: (?String? message) -> void
+  end
+
+  class TlsError < StandardError
+    def initialize: (?String? message) -> void
+  end
+
+  # HTTP protocol and request errors
+  class RequestError < StandardError
+    def initialize: (?String? message) -> void
+  end
+
+  class StatusError < StandardError
+    attr_reader response: Response
+    
+    def initialize: (String? message, Response response) -> void
+  end
+
+  class RedirectError < StandardError
+    def initialize: (?String? message) -> void
+  end
+
+  class TimeoutError < StandardError
+    def initialize: (?String? message) -> void
+  end
+
+  # Data processing errors
+  class BodyError < StandardError
+    def initialize: (?String? message) -> void
+  end
+
+  class DecodingError < StandardError
+    def initialize: (?String? message) -> void
+  end
+
+  # Configuration errors
+  class BuilderError < StandardError
+    def initialize: (?String? message) -> void
+  end
+end

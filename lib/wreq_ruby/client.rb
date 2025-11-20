@@ -1,31 +1,30 @@
 # frozen_string_literal: true
 
-module Wreq
-  # HTTP client with extensive configuration options.
-  #
-  # This class wraps a native Rust implementation providing high-performance
-  # HTTP/1.1 and HTTP/2 client functionality with support for connection pooling,
-  # compression, redirects, proxies, and fine-grained timeout controls.
-  #
-  # The client is thread-safe and maintains an internal connection pool for
-  # efficient request reuse.
-  #
-  # @example Basic usage
-  #   client = Wreq::Client.new
-  #   # Use client for HTTP requests
-  #
-  # @example With common options
-  #   client = Wreq::Client.new(
-  #     user_agent: "MyApp/1.0",
-  #     timeout: 30,
-  #     gzip: true,
-  #     brotli: true
-  #   )
-  #
-  # @see https://github.com/your-repo/wreq-ruby Full documentation
-  class Client
-    unless method_defined?(:new) || singleton_class.method_defined?(:new)
-      ##
+unless defined?(:Wreq)
+  module Wreq
+    # HTTP client with extensive configuration options.
+    #
+    # This class wraps a native Rust implementation providing high-performance
+    # HTTP/1.1 and HTTP/2 client functionality with support for connection pooling,
+    # compression, redirects, proxies, and fine-grained timeout controls.
+    #
+    # The client is thread-safe and maintains an internal connection pool for
+    # efficient request reuse.
+    #
+    # @example Basic usage
+    #   client = Wreq::Client.new
+    #   # Use client for HTTP requests
+    #
+    # @example With common options
+    #   client = Wreq::Client.new(
+    #     user_agent: "MyApp/1.0",
+    #     timeout: 30,
+    #     gzip: true,
+    #     brotli: true
+    #   )
+    #
+    # @see https://github.com/your-repo/wreq-ruby Full documentation
+    class Client
       # Create a new HTTP client instance.
       #
       # All options are optional. Time-related numeric values are expressed in seconds.
@@ -225,6 +224,143 @@ module Wreq
       #     timeout: 5
       #   )
       def self.new(**options); end
+
+      # @param method [Wreq::Method] HTTP method to use
+      # @param url [String] Target URL
+      # @param options [Hash] Optional request parameters
+      # @return [Wreq::Response] HTTP response
+      def request(method, url, **options); end
+
+      # @param url [String] Target URL
+      # @param options [Hash] Optional request parameters
+      # @return [Wreq::Response] HTTP response
+      def get(url, **options); end
+
+      # Send an HTTP HEAD request.
+      #
+      # @param url [String] Target URL
+      # @param options [Hash] Optional request parameters
+      # @option options [Hash{String=>String}] :headers Custom headers
+      # @option options [Hash] :query URL query parameters
+      # @option options [Hash{String=>String}] :form Form data (application/x-www-form-urlencoded)
+      # @option options [Object] :json JSON body (will be serialized)
+      # @option options [String] :body Raw request body
+      # @option options [String] :auth Authorization header value
+      # @option options [String] :bearer_auth Bearer token for Authorization header
+      # @option options [Array<String>] :basic_auth Username and password for basic auth
+      # @option options [Integer] :timeout Request timeout in seconds
+      # @option options [Boolean] :allow_redirects Whether to follow redirects
+      # @option options [Boolean] :gzip Enable gzip compression
+      # @return [Wreq::Response] HTTP response
+      def head(url, **options); end
+
+      # Send an HTTP POST request.
+      #
+      # @param url [String] Target URL
+      # @param options [Hash] Optional request parameters
+      # @option options [Hash{String=>String}] :headers Custom headers
+      # @option options [Hash] :query URL query parameters
+      # @option options [Hash{String=>String}] :form Form data (application/x-www-form-urlencoded)
+      # @option options [Object] :json JSON body (will be serialized)
+      # @option options [String] :body Raw request body
+      # @option options [String] :auth Authorization header value
+      # @option options [String] :bearer_auth Bearer token for Authorization header
+      # @option options [Array<String>] :basic_auth Username and password for basic auth
+      # @option options [Integer] :timeout Request timeout in seconds
+      # @option options [Boolean] :allow_redirects Whether to follow redirects
+      # @option options [Boolean] :gzip Enable gzip compression
+      # @return [Wreq::Response] HTTP response
+      def post(url, **options); end
+
+      # Send an HTTP PUT request.
+      #
+      # @param url [String] Target URL
+      # @param options [Hash] Optional request parameters
+      # @option options [Hash{String=>String}] :headers Custom headers
+      # @option options [Hash] :query URL query parameters
+      # @option options [Hash{String=>String}] :form Form data (application/x-www-form-urlencoded)
+      # @option options [Object] :json JSON body (will be serialized)
+      # @option options [String] :body Raw request body
+      # @option options [String] :auth Authorization header value
+      # @option options [String] :bearer_auth Bearer token for Authorization header
+      # @option options [Array<String>] :basic_auth Username and password for basic auth
+      # @option options [Integer] :timeout Request timeout in seconds
+      # @option options [Boolean] :allow_redirects Whether to follow redirects
+      # @option options [Boolean] :gzip Enable gzip compression
+      # @return [Wreq::Response] HTTP response
+      def put(url, **options); end
+
+      # Send an HTTP DELETE request.
+      #
+      # @param url [String] Target URL
+      # @param options [Hash] Optional request parameters
+      # @option options [Hash{String=>String}] :headers Custom headers
+      # @option options [Hash] :query URL query parameters
+      # @option options [Hash{String=>String}] :form Form data (application/x-www-form-urlencoded)
+      # @option options [Object] :json JSON body (will be serialized)
+      # @option options [String] :body Raw request body
+      # @option options [String] :auth Authorization header value
+      # @option options [String] :bearer_auth Bearer token for Authorization header
+      # @option options [Array<String>] :basic_auth Username and password for basic auth
+      # @option options [Integer] :timeout Request timeout in seconds
+      # @option options [Boolean] :allow_redirects Whether to follow redirects
+      # @option options [Boolean] :gzip Enable gzip compression
+      # @return [Wreq::Response] HTTP response
+      def delete(url, **options); end
+
+      # Send an HTTP OPTIONS request.
+      #
+      # @param url [String] Target URL
+      # @param options [Hash] Optional request parameters
+      # @option options [Hash{String=>String}] :headers Custom headers
+      # @option options [Hash] :query URL query parameters
+      # @option options [Hash{String=>String}] :form Form data (application/x-www-form-urlencoded)
+      # @option options [Object] :json JSON body (will be serialized)
+      # @option options [String] :body Raw request body
+      # @option options [String] :auth Authorization header value
+      # @option options [String] :bearer_auth Bearer token for Authorization header
+      # @option options [Array<String>] :basic_auth Username and password for basic auth
+      # @option options [Integer] :timeout Request timeout in seconds
+      # @option options [Boolean] :allow_redirects Whether to follow redirects
+      # @option options [Boolean] :gzip Enable gzip compression
+      # @return [Wreq::Response] HTTP response
+      def options(url, **options); end
+
+      # Send an HTTP TRACE request.
+      #
+      # @param url [String] Target URL
+      # @param options [Hash] Optional request parameters
+      # @option options [Hash{String=>String}] :headers Custom headers
+      # @option options [Hash] :query URL query parameters
+      # @option options [Hash{String=>String}] :form Form data (application/x-www-form-urlencoded)
+      # @option options [Object] :json JSON body (will be serialized)
+      # @option options [String] :body Raw request body
+      # @option options [String] :auth Authorization header value
+      # @option options [String] :bearer_auth Bearer token for Authorization header
+      # @option options [Array<String>] :basic_auth Username and password for basic auth
+      # @option options [Integer] :timeout Request timeout in seconds
+      # @option options [Boolean] :allow_redirects Whether to follow redirects
+      # @option options [Boolean] :gzip Enable gzip compression
+      # @return [Wreq::Response] HTTP response
+      def trace(url, **options); end
+
+      # Send an HTTP PATCH request.
+      #
+      # @param url [String] Target URL
+      # @param options [Hash] Optional request parameters
+      # @option options [Hash{String=>String}] :headers Custom headers
+      # @option options [Hash] :query URL query parameters
+      # @option options [Hash{String=>String}] :form Form data (application/x-www-form-urlencoded)
+      # @option options [Object] :json JSON body (will be serialized)
+      # @option options [String] :body Raw request body
+      # @option options [String] :auth Authorization header value
+      # @option options [String] :bearer_auth Bearer token for Authorization header
+      # @option options [Array<String>] :basic_auth Username and password for basic auth
+      # @option options [Integer] :timeout Request timeout in seconds
+      # @option options [Boolean] :allow_redirects Whether to follow redirects
+      # @option options [Boolean] :gzip Enable gzip compression
+      # @return [Wreq::Response] HTTP response
+      def patch(url, **options); end
     end
   end
 end
