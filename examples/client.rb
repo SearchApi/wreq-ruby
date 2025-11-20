@@ -18,7 +18,7 @@ begin
     timeout: 10,
     gzip: true,
     brotli: true,
-    # proxy: "http:://localhost:8080",  # 注意：三个冒号，这是无效的 URL
+    proxy: "http:://localhost:8080",
   )
   puts "Client created successfully: #{client.inspect}"
   s = client.get("https://httpbin.org/anything", headers: { "Custom-Header" => "CustomValue" }, basic_auth: ["user", "pass"])
