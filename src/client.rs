@@ -106,7 +106,7 @@ struct Builder {
     zstd: Option<bool>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[magnus::wrap(class = "Wreq::Client", free_immediately, size)]
 pub struct Client(wreq::Client);
 
@@ -277,13 +277,117 @@ impl Client {
 
 impl Client {
     #[inline]
-    fn execute_request<U: AsRef<str>>(
+    pub fn execute_request<U: AsRef<str>>(
         &self,
         method: Method,
         url: U,
-        request: Request,
+        mut request: Request,
     ) -> Result<Response, magnus::Error> {
-        nogvl::nogvl(|| RUNTIME.block_on(execute_request(self.0.clone(), method, url, request)))
+        nogvl::nogvl(|| {
+            let client = self.0.clone();
+            RUNTIME.block_on(async move {
+                let mut builder = client.request(method.into_ffi(), url.as_ref());
+
+                // Version options.
+                apply_option!(set_if_some, builder, request.version, version);
+
+                // Timeout options.
+                apply_option!(
+                    set_if_some_map,
+                    builder,
+                    request.timeout,
+                    timeout,
+                    Duration::from_secs
+                );
+                apply_option!(
+                    set_if_some_map,
+                    builder,
+                    request.read_timeout,
+                    read_timeout,
+                    Duration::from_secs
+                );
+
+                // Network options.
+                apply_option!(set_if_some, builder, request.proxy, proxy);
+
+                // Headers options.
+                apply_option!(set_if_some, builder, request.headers, headers);
+                apply_option!(set_if_some, builder, request.orig_headers, orig_headers);
+                apply_option!(
+                    set_if_some,
+                    builder,
+                    request.default_headers,
+                    default_headers
+                );
+
+                // Authentication options.
+                apply_option!(
+                    set_if_some_map_ref,
+                    builder,
+                    request.auth,
+                    auth,
+                    AsRef::<str>::as_ref
+                );
+                apply_option!(set_if_some, builder, request.bearer_auth, bearer_auth);
+                if let Some(basic_auth) = request.basic_auth.take() {
+                    builder = builder.basic_auth(basic_auth.0, basic_auth.1);
+                }
+
+                // Cookies options.
+                if let Some(cookies) = request.cookies.take() {
+                    for cookie in cookies {
+                        builder = builder.header_append(header::COOKIE, cookie);
+                    }
+                }
+
+                // Allow redirects options.
+                match request.allow_redirects {
+                    Some(false) => {
+                        builder = builder.redirect(wreq::redirect::Policy::none());
+                    }
+                    Some(true) => {
+                        builder = builder.redirect(
+                            request
+                                .max_redirects
+                                .take()
+                                .map(wreq::redirect::Policy::limited)
+                                .unwrap_or_default(),
+                        );
+                    }
+                    None => {}
+                };
+
+                // Compression options.
+                apply_option!(set_if_some, builder, request.gzip, gzip);
+                apply_option!(set_if_some, builder, request.brotli, brotli);
+                apply_option!(set_if_some, builder, request.deflate, deflate);
+                apply_option!(set_if_some, builder, request.zstd, zstd);
+
+                // Query options.
+                apply_option!(set_if_some_ref, builder, request.query, query);
+
+                // Form options.
+                apply_option!(set_if_some_ref, builder, request.form, form);
+
+                // JSON options.
+                apply_option!(set_if_some_ref, builder, request.json, json);
+
+                // Body options.
+                if let Some(body) = request.body.take() {
+                    builder = match body {
+                        body::Body::Text(str) => builder.body(wreq::Body::from(str)),
+                        body::Body::Bytes(bytes) => builder.body(wreq::Body::from(bytes)),
+                    }
+                }
+
+                // Send request.
+                builder
+                    .send()
+                    .await
+                    .map(Response::new)
+                    .map_err(wreq_error_to_magnus)
+            })
+        })
     }
 
     /// Send a HTTP request.
@@ -348,121 +452,6 @@ impl Client {
         let ((url,), request) = extract_args!(args, (String,));
         rb_self.execute_request(Method::PATCH, url, request)
     }
-}
-
-pub async fn execute_request<C, U>(
-    client: C,
-    method: Method,
-    url: U,
-    mut request: Request,
-) -> Result<Response, magnus::Error>
-where
-    C: Into<Option<wreq::Client>>,
-    U: AsRef<str>,
-{
-    let mut builder = match client.into() {
-        Some(client) => client.request(method.into_ffi(), url.as_ref()),
-        None => wreq::request(method.into_ffi(), url.as_ref()),
-    };
-
-    // Version options.
-    apply_option!(set_if_some, builder, request.version, version);
-
-    // Timeout options.
-    apply_option!(
-        set_if_some_map,
-        builder,
-        request.timeout,
-        timeout,
-        Duration::from_secs
-    );
-    apply_option!(
-        set_if_some_map,
-        builder,
-        request.read_timeout,
-        read_timeout,
-        Duration::from_secs
-    );
-
-    // Network options.
-    apply_option!(set_if_some, builder, request.proxy, proxy);
-
-    // Headers options.
-    apply_option!(set_if_some, builder, request.headers, headers);
-    apply_option!(set_if_some, builder, request.orig_headers, orig_headers);
-    apply_option!(
-        set_if_some,
-        builder,
-        request.default_headers,
-        default_headers
-    );
-
-    // Authentication options.
-    apply_option!(
-        set_if_some_map_ref,
-        builder,
-        request.auth,
-        auth,
-        AsRef::<str>::as_ref
-    );
-    apply_option!(set_if_some, builder, request.bearer_auth, bearer_auth);
-    if let Some(basic_auth) = request.basic_auth.take() {
-        builder = builder.basic_auth(basic_auth.0, basic_auth.1);
-    }
-
-    // Cookies options.
-    if let Some(cookies) = request.cookies.take() {
-        for cookie in cookies {
-            builder = builder.header_append(header::COOKIE, cookie);
-        }
-    }
-
-    // Allow redirects options.
-    match request.allow_redirects {
-        Some(false) => {
-            builder = builder.redirect(wreq::redirect::Policy::none());
-        }
-        Some(true) => {
-            builder = builder.redirect(
-                request
-                    .max_redirects
-                    .take()
-                    .map(wreq::redirect::Policy::limited)
-                    .unwrap_or_default(),
-            );
-        }
-        None => {}
-    };
-
-    // Compression options.
-    apply_option!(set_if_some, builder, request.gzip, gzip);
-    apply_option!(set_if_some, builder, request.brotli, brotli);
-    apply_option!(set_if_some, builder, request.deflate, deflate);
-    apply_option!(set_if_some, builder, request.zstd, zstd);
-
-    // Query options.
-    apply_option!(set_if_some_ref, builder, request.query, query);
-
-    // Form options.
-    apply_option!(set_if_some_ref, builder, request.form, form);
-
-    // JSON options.
-    apply_option!(set_if_some_ref, builder, request.json, json);
-
-    // Body options.
-    if let Some(body) = request.body.take() {
-        builder = match body {
-            body::Body::Text(str) => builder.body(wreq::Body::from(str)),
-            body::Body::Bytes(bytes) => builder.body(wreq::Body::from(bytes)),
-        }
-    }
-
-    // Send request.
-    builder
-        .send()
-        .await
-        .map(Response::new)
-        .map_err(wreq_error_to_magnus)
 }
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), magnus::Error> {

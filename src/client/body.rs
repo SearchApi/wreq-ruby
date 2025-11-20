@@ -1,8 +1,9 @@
 mod stream;
 
-pub use self::stream::{Streamer, include};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+
+pub use self::stream::{Streamer, include};
 
 /// Represents a JSON value for HTTP requests.
 /// Supports objects, arrays, numbers, strings, booleans, and null.
