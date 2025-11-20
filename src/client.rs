@@ -296,7 +296,98 @@ impl Client {
             RUNTIME.block_on(execute_request(
                 rb_self.0.clone(),
                 Method::GET,
-                url.clone(),
+                url,
+                request,
+            ))
+        })
+    }
+
+    /// Send a POST request.
+    pub fn post(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+        let ((url,), request) = extract_args!(args, (String,));
+        nogvl::nogvl(|| {
+            RUNTIME.block_on(execute_request(
+                rb_self.0.clone(),
+                Method::POST,
+                url,
+                request,
+            ))
+        })
+    }
+
+    /// Send a PUT request.
+    pub fn put(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+        let ((url,), request) = extract_args!(args, (String,));
+        nogvl::nogvl(|| {
+            RUNTIME.block_on(execute_request(
+                rb_self.0.clone(),
+                Method::PUT,
+                url,
+                request,
+            ))
+        })
+    }
+
+    /// Send a DELETE request.
+    pub fn delete(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+        let ((url,), request) = extract_args!(args, (String,));
+        nogvl::nogvl(|| {
+            RUNTIME.block_on(execute_request(
+                rb_self.0.clone(),
+                Method::DELETE,
+                url,
+                request,
+            ))
+        })
+    }
+
+    /// Send a HEAD request.
+    pub fn head(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+        let ((url,), request) = extract_args!(args, (String,));
+        nogvl::nogvl(|| {
+            RUNTIME.block_on(execute_request(
+                rb_self.0.clone(),
+                Method::HEAD,
+                url,
+                request,
+            ))
+        })
+    }
+
+    /// Send an OPTIONS request.
+    pub fn options(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+        let ((url,), request) = extract_args!(args, (String,));
+        nogvl::nogvl(|| {
+            RUNTIME.block_on(execute_request(
+                rb_self.0.clone(),
+                Method::OPTIONS,
+                url,
+                request,
+            ))
+        })
+    }
+
+    /// Send a TRACE request.
+    pub fn trace(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+        let ((url,), request) = extract_args!(args, (String,));
+        nogvl::nogvl(|| {
+            RUNTIME.block_on(execute_request(
+                rb_self.0.clone(),
+                Method::TRACE,
+                url,
+                request,
+            ))
+        })
+    }
+
+    /// Send a PATCH request.
+    pub fn patch(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+        let ((url,), request) = extract_args!(args, (String,));
+        nogvl::nogvl(|| {
+            RUNTIME.block_on(execute_request(
+                rb_self.0.clone(),
+                Method::PATCH,
+                url,
                 request,
             ))
         })
@@ -423,6 +514,13 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), magnus::Error> {
     client_class.define_singleton_method("new", function!(Client::new, -1))?;
     client_class.define_method("request", method!(Client::request, -1))?;
     client_class.define_method("get", method!(Client::get, -1))?;
+    client_class.define_method("post", method!(Client::post, -1))?;
+    client_class.define_method("put", method!(Client::put, -1))?;
+    client_class.define_method("delete", method!(Client::delete, -1))?;
+    client_class.define_method("head", method!(Client::head, -1))?;
+    client_class.define_method("options", method!(Client::options, -1))?;
+    client_class.define_method("trace", method!(Client::trace, -1))?;
+    client_class.define_method("patch", method!(Client::patch, -1))?;
 
     resp::include(ruby, gem_module)?;
     body::include(ruby, gem_module)?;
