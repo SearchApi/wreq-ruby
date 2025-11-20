@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 module Wreq
+  # System-level and runtime errors
+  
+  # Memory allocation failed.
+  unless const_defined?(:MemoryError)
+    class MemoryError < StandardError; end
+  end
+
   # Network connection errors
 
   # Connection to the server failed.

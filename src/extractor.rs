@@ -11,6 +11,53 @@ use crate::error::{
     header_name_error_to_magnus, header_value_error_to_magnus, wreq_error_to_magnus,
 };
 
+/// Convert HeaderMap to Ruby Hash while preserving insertion order.
+///
+/// Ruby 1.9+ guarantees Hash insertion order, this function preserves
+/// the order of headers as they appear in the HeaderMap iterator.
+pub fn headermap_to_rhash(ruby: &Ruby, headers: &HeaderMap) -> Result<RHash, magnus::Error> {
+    let hash = ruby.hash_new();
+
+    for (name, value) in headers.iter() {
+        let key = ruby.str_new(name.as_str());
+        let val = ruby.str_from_slice(value.as_bytes());
+        hash.aset(key, val)?;
+    }
+
+    Ok(hash)
+}
+
+/// Convert HeaderMap to Ruby Hash with multiple values per key.
+///
+/// For headers that can have multiple values (like Set-Cookie),
+/// this creates an array of values.
+pub fn headermap_to_rhash_multi(ruby: &Ruby, headers: &HeaderMap) -> Result<RHash, magnus::Error> {
+    let hash = ruby.hash_new();
+
+    for (name, value) in headers.iter() {
+        let key = ruby.str_new(name.as_str());
+        let val = ruby.str_from_slice(value.as_bytes());
+
+        // Check if key already exists
+        if let Some(existing) = hash.get(key) {
+            // Convert to array if needed
+            if let Some(arr) = RArray::from_value(existing) {
+                arr.push(val)?;
+            } else {
+                // First duplicate, create array
+                let arr = ruby.ary_new();
+                arr.push(existing)?;
+                arr.push(val)?;
+                hash.aset(key, arr)?;
+            }
+        } else {
+            // First value for this key
+            hash.aset(key, val)?;
+        }
+    }
+
+    Ok(hash)
+}
 /// A trait that defines the parameter name for extraction.
 pub trait ExtractorName {
     /// The name of the parameter in the Ruby hash.

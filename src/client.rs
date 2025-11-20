@@ -427,5 +427,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), magnus::Error> {
     client_class.define_singleton_method("new", function!(Client::new, -1))?;
     client_class.define_method("request", method!(Client::request, -1))?;
     client_class.define_method("get", method!(Client::get, -1))?;
+
+    resp::include(ruby, gem_module)?;
     Ok(())
 }
