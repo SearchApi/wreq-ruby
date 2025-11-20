@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
-module Wreq
-  # Iterator for HTTP headers.
-  #
-  # This class provides efficient iteration over HTTP response headers,
-  # yielding name-value pairs. The implementation is backed by Rust for
-  # performance.
-  #
-  # @example Iterate headers
-  #   response.each_header do |name, value|
-  #     puts "#{name}: #{value}"
-  #   end
-  #
-  # @example Collect all headers
-  #   headers = response.each_header.to_h
-  unless const_defined?(:HeaderIterator)
+unless defined?(:Wreq)
+  module Wreq
+    # Iterator for HTTP headers.
+    #
+    # This class provides efficient iteration over HTTP response headers,
+    # yielding name-value pairs. The implementation is backed by Rust for
+    # performance.
+    #
+    # @example Iterate headers
+    #   response.each_header do |name, value|
+    #     puts "#{name}: #{value}"
+    #   end
+    #
+    # @example Collect all headers
+    #   headers = response.each_header.to_h
     class HeaderIterator
       include Enumerable
 

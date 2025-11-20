@@ -1,29 +1,29 @@
 # frozen_string_literal: true
 
-module Wreq
-  # HTTP client with extensive configuration options.
-  #
-  # This class wraps a native Rust implementation providing high-performance
-  # HTTP/1.1 and HTTP/2 client functionality with support for connection pooling,
-  # compression, redirects, proxies, and fine-grained timeout controls.
-  #
-  # The client is thread-safe and maintains an internal connection pool for
-  # efficient request reuse.
-  #
-  # @example Basic usage
-  #   client = Wreq::Client.new
-  #   # Use client for HTTP requests
-  #
-  # @example With common options
-  #   client = Wreq::Client.new(
-  #     user_agent: "MyApp/1.0",
-  #     timeout: 30,
-  #     gzip: true,
-  #     brotli: true
-  #   )
-  #
-  # @see https://github.com/your-repo/wreq-ruby Full documentation
-  unless const_defined?(:Client)
+unless defined?(:Wreq)
+  module Wreq
+    # HTTP client with extensive configuration options.
+    #
+    # This class wraps a native Rust implementation providing high-performance
+    # HTTP/1.1 and HTTP/2 client functionality with support for connection pooling,
+    # compression, redirects, proxies, and fine-grained timeout controls.
+    #
+    # The client is thread-safe and maintains an internal connection pool for
+    # efficient request reuse.
+    #
+    # @example Basic usage
+    #   client = Wreq::Client.new
+    #   # Use client for HTTP requests
+    #
+    # @example With common options
+    #   client = Wreq::Client.new(
+    #     user_agent: "MyApp/1.0",
+    #     timeout: 30,
+    #     gzip: true,
+    #     brotli: true
+    #   )
+    #
+    # @see https://github.com/your-repo/wreq-ruby Full documentation
     class Client
       # Create a new HTTP client instance.
       #

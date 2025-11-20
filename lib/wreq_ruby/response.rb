@@ -1,27 +1,27 @@
 # frozen_string_literal: true
 
-module Wreq
-  # HTTP response object containing status, headers, and body.
-  #
-  # This class wraps a native Rust implementation providing efficient
-  # access to HTTP response data including status codes, headers, body
-  # content, and streaming capabilities.
-  #
-  # @example Basic response handling
-  #   response = client.get("https://api.example.com")
-  #   puts response.status.as_int  # => 200
-  #   puts response.text
-  #
-  # @example JSON response
-  #   response = client.get("https://api.example.com/data")
-  #   data = response.json
-  #
-  # @example Streaming response
-  #   response = client.get("https://example.com/large-file")
-  #   response.stream.each do |chunk|
-  #     # Process chunk
-  #   end
-  unless const_defined?(:Response)
+unless defined?(:Wreq)
+  module Wreq
+    # HTTP response object containing status, headers, and body.
+    #
+    # This class wraps a native Rust implementation providing efficient
+    # access to HTTP response data including status codes, headers, body
+    # content, and streaming capabilities.
+    #
+    # @example Basic response handling
+    #   response = client.get("https://api.example.com")
+    #   puts response.status.as_int  # => 200
+    #   puts response.text
+    #
+    # @example JSON response
+    #   response = client.get("https://api.example.com/data")
+    #   data = response.json
+    #
+    # @example Streaming response
+    #   response = client.get("https://example.com/large-file")
+    #   response.stream.each do |chunk|
+    #     # Process chunk
+    #   end
     class Response
       # Get the HTTP status code as an integer.
       #
