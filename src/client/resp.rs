@@ -4,12 +4,13 @@ use arc_swap::ArcSwapOption;
 use bytes::Bytes;
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RModule, Ruby, Value};
+use magnus::{Error, Module, RArray, RModule, Ruby, Value};
 use wreq::Uri;
 
 use crate::{
     RUNTIME,
     client::body::{Json, Streamer},
+    cookie::Cookie,
     error::{memory_error, wreq_error_to_magnus},
     header::Headers,
     http::{StatusCode, Version},
@@ -110,41 +111,59 @@ impl Response {
 
 impl Response {
     /// Get the response status code as a u16.
+    #[inline]
     pub fn code(&self) -> u16 {
         self.status.0.as_u16()
     }
 
     /// Get the response status code.
+    #[inline]
     pub fn status(&self) -> StatusCode {
         self.status
     }
 
     /// Get the response HTTP version.
+    #[inline]
     pub fn version(&self) -> Version {
         self.version
     }
 
     /// Get the response URL.
+    #[inline]
     pub fn url(&self) -> String {
         self.uri.to_string()
     }
 
     /// Get the content length of the response, if known.
+    #[inline]
     pub fn content_length(&self) -> Option<u64> {
         self.content_length
     }
 
+    /// Get the response cookies.
+    pub fn cookies(ruby: &Ruby, rb_self: &Self) -> Result<RArray, Error> {
+        let cookies = Cookie::extract_headers_cookies(&rb_self.headers);
+        let ary = ruby.ary_new_capa(cookies.len());
+        for cookie in cookies {
+            ary.push(cookie)?;
+        }
+        Ok(ary)
+    }
+
     /// Get the response headers.
+    #[inline]
     pub fn headers(&self) -> Headers {
         Headers::from(self.headers.clone())
     }
 
     /// Get the local socket address, if available.
+    #[inline]
     pub fn local_addr(&self) -> Option<String> {
         self.local_addr.map(|addr| addr.to_string())
     }
 
     /// Get the remote socket address, if available.
+    #[inline]
     pub fn remote_addr(&self) -> Option<String> {
         self.remote_addr.map(|addr| addr.to_string())
     }
@@ -178,12 +197,8 @@ impl Response {
     }
 
     /// Close the response body, dropping any resources.
-    pub fn close(&self) -> Result<(), Error> {
-        // Drop the body in GVL to ensure safety
-        nogvl::nogvl(|| {
-            self.body.swap(None);
-            Ok(())
-        })
+    pub fn close(&self) {
+        nogvl::nogvl(|| self.body.swap(None));
     }
 }
 
@@ -204,6 +219,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
         "content_length",
         magnus::method!(Response::content_length, 0),
     )?;
+    response_class.define_method("cookies", magnus::method!(Response::cookies, 0))?;
     response_class.define_method("headers", magnus::method!(Response::headers, 0))?;
     response_class.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
     response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;

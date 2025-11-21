@@ -84,6 +84,7 @@ macro_rules! define_ruby_enum {
         }
 
         impl $enum_type {
+            #[allow(dead_code)]
             pub const fn into_ffi(self) -> $ffi_type {
                 match self {
                     $(<$enum_type>::$rust_variant => <$ffi_type>::$ffi_variant,)*

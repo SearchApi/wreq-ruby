@@ -18,6 +18,7 @@
 #[macro_use]
 mod macros;
 mod client;
+mod cookie;
 mod error;
 mod extractor;
 mod header;
@@ -120,6 +121,7 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     gem_module.define_module_function("patch", magnus::function!(patch, -1))?;
     http::include(ruby, &gem_module)?;
     header::include(ruby, &gem_module)?;
+    cookie::include(ruby, &gem_module)?;
     client::include(ruby, &gem_module)?;
     error::include(ruby);
     Ok(())
