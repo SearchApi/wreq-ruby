@@ -20,7 +20,7 @@ begin
     proxy: "http:://localhost:8080",
   )
   puts "Client created successfully: #{client.inspect}"
-  s = client.get("https://httpbin.org/anything", headers: { "Custom-Header" => "CustomValue" }, basic_auth: ["user", "pass"])
+  s = client.get("https://httpbin.io/anything", headers: { "Custom-Header" => "CustomValue" }, basic_auth: ["user", "pass"])
   code = s.code()
   puts "Response code: #{code}"
 rescue Wreq::BuilderError => e
