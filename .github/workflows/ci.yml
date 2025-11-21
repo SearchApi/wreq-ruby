@@ -2,9 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [ main, header ]
+    tags:
+      - '*'
   pull_request:
-    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - 'benchmark/**'
+      - '*.md'
+      - '.github/**'
+      - 'README.md'
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
