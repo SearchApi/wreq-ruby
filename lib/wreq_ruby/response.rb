@@ -117,45 +117,53 @@ end
 
 module Wreq
   class Response
-    # Returns a string representation of the response.
+    # Returns a compact string representation of the response.
     #
-    # Includes status code, HTTP version, URL, and key headers.
+    # Format: #<Wreq::Response STATUS content-type="..." body=SIZE>
     #
-    # @return [String] Formatted response information
+    # @return [String] Compact formatted response information
     # @example
     #   puts response.to_s
-    #   # => HTTP/1.1 200 OK
-    #   #    URL: https://example.com/api
-    #   #    Content-Type: application/json
-    #   #    Content-Length: 1024
-    #   #    ...
+    #   # => #<Wreq::Response 200 content-type="application/json" body=456B>
     def to_s
-      lines = []
-
-      # Status line
-      lines << "#{version.to_s} #{status.to_s}"
-
-      # URL
-      lines << "URL: #{url}"
-
-      # Headers
-      if headers.respond_to?(:each)
-        headers.each do |name, value|
-          lines << "#{name}: #{value}"
-        end
+      parts = ["#<Wreq::Response"]
+      
+      # Status code
+      parts << code.to_s
+      
+      # Content-Type header if present
+      if headers.respond_to?(:get)
+        content_type = headers.get("content-type")
+        parts << "content-type=#{content_type.inspect}" if content_type
       end
-
-      # Body preview (first 200 chars if reasonable size)
-      if content_length && content_length > 0
-        body = text rescue nil
-        if body && !body.empty?
-          lines << ""
-          preview = body.length > 200 ? "#{body[0...200]}..." : body
-          lines << preview
-        end
+      
+      # Body size
+      if content_length
+        parts << "body=#{format_bytes(content_length)}"
       end
-
-      lines.join("\n")
+      
+      parts.join(" ") + ">"
+    end
+    
+    private
+    
+    def format_bytes(bytes)
+      return "0B" if bytes.zero?
+      
+      units = ["B", "KB", "MB", "GB"]
+      size = bytes.to_f
+      unit_index = 0
+      
+      while size >= 1024 && unit_index < units.length - 1
+        size /= 1024.0
+        unit_index += 1
+      end
+      
+      if unit_index == 0
+        "#{size.to_i}#{units[unit_index]}"
+      else
+        "#{size.round(1)}#{units[unit_index]}"
+      end
     end
   end
 end
