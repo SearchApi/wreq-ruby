@@ -183,6 +183,12 @@ impl Client {
 
                 // Cookie options.
                 apply_option!(set_if_some, builder, params.cookie_store, cookie_store);
+                apply_option!(
+                    set_if_some,
+                    builder,
+                    params.cookie_provider,
+                    cookie_provider
+                );
 
                 // TCP options.
                 apply_option!(
