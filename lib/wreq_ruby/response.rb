@@ -112,3 +112,58 @@ unless defined?(:Wreq)
     end
   end
 end
+
+# ======================== Ruby API Extensions ========================
+
+module Wreq
+  class Response
+    # Returns a compact string representation of the response.
+    #
+    # Format: #<Wreq::Response STATUS content-type="..." body=SIZE>
+    #
+    # @return [String] Compact formatted response information
+    # @example
+    #   puts response.to_s
+    #   # => #<Wreq::Response 200 content-type="application/json" body=456B>
+    def to_s
+      parts = ["#<Wreq::Response"]
+
+      # Status code
+      parts << code.to_s
+
+      # Content-Type header if present
+      if headers.respond_to?(:get)
+        content_type = headers.get("content-type")
+        parts << "content-type=#{content_type.inspect}" if content_type
+      end
+
+      # Body size
+      if content_length
+        parts << "body=#{format_bytes(content_length)}"
+      end
+
+      parts.join(" ") + ">"
+    end
+
+    private
+
+    def format_bytes(bytes)
+      return "0B" if bytes.zero?
+
+      units = ["B", "KB", "MB", "GB"]
+      size = bytes.to_f
+      unit_index = 0
+
+      while size >= 1024 && unit_index < units.length - 1
+        size /= 1024.0
+        unit_index += 1
+      end
+
+      if unit_index == 0
+        "#{size.to_i}#{units[unit_index]}"
+      else
+        "#{size.round(1)}#{units[unit_index]}"
+      end
+    end
+  end
+end

@@ -1,4 +1,5 @@
-use magnus::{Error, Module, RModule, Ruby, method};
+#![allow(clippy::wrong_self_convention)]
+use magnus::{Error, Module, RModule, Ruby, method, typed_data::Inspect};
 
 define_ruby_enum!(
     /// An HTTP version.
@@ -32,6 +33,18 @@ define_ruby_enum!(
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[magnus::wrap(class = "Wreq::StatusCode", free_immediately, size)]
 pub struct StatusCode(pub wreq::StatusCode);
+
+// ===== impl Version =====
+
+impl Version {
+    /// Convert version to string.
+    #[inline]
+    pub fn to_s(&self) -> String {
+        self.into_ffi().inspect()
+    }
+}
+
+// ===== impl StatusCode =====
 
 impl StatusCode {
     /// Return the status code as an integer.
@@ -69,6 +82,12 @@ impl StatusCode {
     pub fn is_server_error(&self) -> bool {
         self.0.is_server_error()
     }
+
+    /// Convert status code to string.
+    #[inline]
+    pub fn to_s(&self) -> String {
+        self.0.to_string()
+    }
 }
 
 impl From<wreq::StatusCode> for StatusCode {
@@ -94,6 +113,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     version_class.const_set("HTTP_11", Version::HTTP_11)?;
     version_class.const_set("HTTP_2", Version::HTTP_2)?;
     version_class.const_set("HTTP_3", Version::HTTP_3)?;
+    version_class.define_method("to_s", method!(Version::to_s, 0))?;
 
     let status_code_class = gem_module.define_class("StatusCode", ruby.class_object())?;
     status_code_class.define_method("as_int", method!(StatusCode::as_int, 0))?;
@@ -102,6 +122,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     status_code_class.define_method("redirection?", method!(StatusCode::is_redirection, 0))?;
     status_code_class.define_method("client_error?", method!(StatusCode::is_client_error, 0))?;
     status_code_class.define_method("server_error?", method!(StatusCode::is_server_error, 0))?;
+    status_code_class.define_method("to_s", method!(StatusCode::to_s, 0))?;
 
     Ok(())
 }

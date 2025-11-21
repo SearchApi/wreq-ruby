@@ -42,6 +42,12 @@ module Wreq
       HTTP_2 = nil # @return [Wreq::Version] HTTP/2
       HTTP_3 = nil # @return [Wreq::Version] HTTP/3
     end
+
+    # Returns a string representation of the HTTP version.
+    # @return [String] HTTP version as string
+    unless method_defined?(:to_s)
+      def to_s; end
+    end
   end
 
   # HTTP status code wrapper.
@@ -109,6 +115,10 @@ module Wreq
       #
       # @return [Boolean] true if status is 500-599
       def server_error?; end
+
+      # Returns a string representation of the status code.
+      # @return [String] Status code as string
+      def to_s; end
     end
   end
 end
