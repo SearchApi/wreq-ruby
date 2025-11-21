@@ -10,7 +10,7 @@ use crate::error::{header_name_error_to_magnus, header_value_error_to_magnus};
 ///
 /// This class wraps HTTP headers and provides convenient methods for
 /// accessing, modifying, and iterating over header name-value pairs.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[magnus::wrap(class = "Wreq::Headers", free_immediately, size)]
 pub struct Headers(RefCell<HeaderMap>);
 

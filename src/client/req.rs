@@ -87,7 +87,7 @@ impl Request {
     /// Create a new [`Request`] from Ruby keyword arguments.
     pub fn new(ruby: &magnus::Ruby, kwargs: RHash) -> Result<Self, magnus::Error> {
         let kwargs = kwargs.as_value();
-        let mut builder: Self = serde_magnus::deserialize(&ruby, kwargs)?;
+        let mut builder: Self = serde_magnus::deserialize(ruby, kwargs)?;
 
         // extra version handling
         builder.version = Extractor::<Version>::try_convert(kwargs)?.into_inner();
