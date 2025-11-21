@@ -15,7 +15,7 @@ response = client.post("https://httpbin.org/anything",
                                   "user" => "test_user" })
 
 puts "\n=== Iterating Over All Headers ==="
-response.each_header do |name, value|
+response.headers.each do |name, value|
   puts "#{name}: #{value}"
 end
 
