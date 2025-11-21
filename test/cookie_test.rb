@@ -77,7 +77,7 @@ class CookieTest < Minitest::Test
     # Expires only
     @jar.clear
     t = Time.now + 3600
-    @jar.add_cookie_str("exp=1; Expires=#{t.gmtime.strftime('%a, %d %b %Y %H:%M:%S GMT')}; Path=/", @base_url)
+    @jar.add_cookie_str("exp=1; Expires=#{t.gmtime.strftime("%a, %d %b %Y %H:%M:%S GMT")}; Path=/", @base_url)
     c2 = @jar.get_all.find { |c| c.name == "exp" }
     assert c2
     # expires returns Float (unix seconds) or nil
@@ -90,7 +90,7 @@ class CookieTest < Minitest::Test
   # -------- Wreq::Cookie unit tests --------
 
   def test_cookie_new_minimal
-    c = Wreq::Cookie.new("sid", "abc", nil, nil, nil, nil, nil, nil)
+    c = Wreq::Cookie.new("sid", "abc")
 
     assert_instance_of Wreq::Cookie, c
     assert_equal "sid", c.name
@@ -109,7 +109,14 @@ class CookieTest < Minitest::Test
 
   def test_cookie_new_full_attributes
     exp = Time.now.to_f + 7200.0
-    c = Wreq::Cookie.new("sess", "v", "example.com", "/", 3600, exp, true, true)
+    c = Wreq::Cookie.new("sess", "v",
+                         domain: "example.com",
+                         path: "/",
+                         max_age: 3600,
+                         expires: exp,
+                         http_only: true,
+                         secure: true,
+                         same_site: Wreq::SameSite::Lax)
 
     assert_equal "sess", c.name
     assert_equal "v", c.value
@@ -127,7 +134,7 @@ class CookieTest < Minitest::Test
     assert_equal true, (c.http_only || c.http_only?)
     assert_equal true, (c.secure || c.secure?)
     # constructor currently sets SameSite to none
-    assert_equal false, c.same_site_lax?
+    assert_equal true, c.same_site_lax?
     assert_equal false, c.same_site_strict?
   end
 

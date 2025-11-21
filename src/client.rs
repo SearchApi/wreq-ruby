@@ -290,63 +290,63 @@ impl Client {
     /// Send a HTTP request.
     #[inline]
     pub fn request(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((method, url), request) = extract_args!(args, (Obj<Method>, String));
+        let ((method, url), request) = extract_request!(args, (Obj<Method>, String));
         rb_self.execute_request(*method, url, request)
     }
 
     /// Send a GET request.
     #[inline]
     pub fn get(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_args!(args, (String,));
+        let ((url,), request) = extract_request!(args, (String,));
         rb_self.execute_request(Method::GET, url, request)
     }
 
     /// Send a POST request.
     #[inline]
     pub fn post(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_args!(args, (String,));
+        let ((url,), request) = extract_request!(args, (String,));
         rb_self.execute_request(Method::POST, url, request)
     }
 
     /// Send a PUT request.
     #[inline]
     pub fn put(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_args!(args, (String,));
+        let ((url,), request) = extract_request!(args, (String,));
         rb_self.execute_request(Method::PUT, url, request)
     }
 
     /// Send a DELETE request.
     #[inline]
     pub fn delete(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_args!(args, (String,));
+        let ((url,), request) = extract_request!(args, (String,));
         rb_self.execute_request(Method::DELETE, url, request)
     }
 
     /// Send a HEAD request.
     #[inline]
     pub fn head(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_args!(args, (String,));
+        let ((url,), request) = extract_request!(args, (String,));
         rb_self.execute_request(Method::HEAD, url, request)
     }
 
     /// Send an OPTIONS request.
     #[inline]
     pub fn options(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_args!(args, (String,));
+        let ((url,), request) = extract_request!(args, (String,));
         rb_self.execute_request(Method::OPTIONS, url, request)
     }
 
     /// Send a TRACE request.
     #[inline]
     pub fn trace(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_args!(args, (String,));
+        let ((url,), request) = extract_request!(args, (String,));
         rb_self.execute_request(Method::TRACE, url, request)
     }
 
     /// Send a PATCH request.
     #[inline]
     pub fn patch(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_args!(args, (String,));
+        let ((url,), request) = extract_request!(args, (String,));
         rb_self.execute_request(Method::PATCH, url, request)
     }
 

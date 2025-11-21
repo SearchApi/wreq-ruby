@@ -54,7 +54,7 @@ unless defined?(:Wreq)
       # @param cookie_store [Boolean, nil] Enable an in-memory cookie jar
       #   that automatically handles Set-Cookie headers and sends appropriate
       #   Cookie headers on subsequent requests.
-      #   
+      #
       # @param cookie_provider [Wreq::Jar, nil] Custom cookie jar provider
       #   used to store and retrieve cookies for all requests made by this
       #   client. Typically used together with `cookie_store: true`.

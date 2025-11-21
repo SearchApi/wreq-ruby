@@ -109,7 +109,7 @@ macro_rules! ruby {
     };
 }
 
-macro_rules! extract_args {
+macro_rules! extract_request {
     ($args:expr, $required:ty) => {{
         let args = magnus::scan_args::scan_args::<$required, (), (), (), magnus::RHash, ()>($args)?;
         let required = args.required;

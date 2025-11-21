@@ -1,7 +1,10 @@
 use std::{fmt, sync::Arc, time::SystemTime};
 
 use cookie::{Cookie as RawCookie, Expiration, ParseError, time::Duration};
-use magnus::{Error, Module, Object, RModule, Ruby, Value, function, method, value::ReprValue};
+use magnus::{
+    Error, Module, Object, RModule, Ruby, Value, function, method, typed_data::Obj,
+    value::ReprValue,
+};
 use wreq::{
     Uri,
     cookie::CookieStore,
@@ -39,40 +42,64 @@ pub struct Jar(Arc<wreq::cookie::Jar>);
 
 impl Cookie {
     /// Create a new [`Cookie`].
-    pub fn new(
-        name: String,
-        value: String,
-        domain: Option<String>,
-        path: Option<String>,
-        max_age: Option<u64>,
-        expires: Option<f64>,
-        http_only: Option<bool>,
-        secure: Option<bool>,
-    ) -> Result<Self, Error> {
+    pub fn new(args: &[Value]) -> Result<Self, Error> {
+        let args =
+            magnus::scan_args::scan_args::<(String, String), (), (), (), magnus::RHash, ()>(args)?;
+        let keywords: magnus::scan_args::KwArgs<
+            (),
+            (
+                Option<String>,
+                Option<String>,
+                Option<u64>,
+                Option<f64>,
+                Option<bool>,
+                Option<bool>,
+                Option<Obj<SameSite>>,
+            ),
+            (),
+        > = magnus::scan_args::get_kwargs(
+            args.keywords,
+            &[],
+            &[
+                "domain",
+                "path",
+                "max_age",
+                "expires",
+                "http_only",
+                "secure",
+                "same_site",
+            ],
+        )?;
+
+        let (name, value) = args.required;
+
         let mut cookie = RawCookie::new(name, value);
 
-        if let Some(domain) = domain {
+        if let Some(domain) = keywords.optional.0 {
             cookie.set_domain(domain);
         }
 
-        if let Some(path) = path {
+        if let Some(path) = keywords.optional.1 {
             cookie.set_path(path);
         }
 
-        if let Some(max_age) = max_age {
+        if let Some(max_age) = keywords.optional.2 {
             cookie.set_max_age(Duration::seconds(max_age as i64));
         }
 
-        if let Some(expires) = expires {
+        if let Some(expires) = keywords.optional.3 {
             let duration = std::time::Duration::from_secs_f64(expires);
             if let Some(system_time) = SystemTime::UNIX_EPOCH.checked_add(duration) {
                 cookie.set_expires(Expiration::DateTime(system_time.into()));
             }
         }
 
-        cookie.set_http_only(http_only);
-        cookie.set_secure(secure);
-        cookie.set_same_site(None);
+        cookie.set_http_only(keywords.optional.4);
+        cookie.set_secure(keywords.optional.5);
+
+        if let Some(same_site) = keywords.optional.6 {
+            cookie.set_same_site(same_site.into_ffi());
+        }
 
         Ok(Self(cookie))
     }
@@ -238,7 +265,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
 
     // Cookie class
     let cookie_class = gem_module.define_class("Cookie", ruby.class_object())?;
-    cookie_class.define_singleton_method("new", function!(Cookie::new, 8))?;
+    cookie_class.define_singleton_method("new", function!(Cookie::new, -1))?;
     cookie_class.define_method("name", method!(Cookie::name, 0))?;
     cookie_class.define_method("value", method!(Cookie::value, 0))?;
     cookie_class.define_method("http_only", method!(Cookie::http_only, 0))?;

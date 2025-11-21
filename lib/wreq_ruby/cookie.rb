@@ -16,8 +16,8 @@ unless defined?(:Wreq)
     #
     # Thread-safe: instances are backed by an immutable Rust value and can be
     # shared across threads safely. This mirrors the native `Wreq::Cookie`.
-    # Constructor accepts 8 positional arguments; all after name and value are
-    # optional.
+    # Constructor accepts `name`, `value`, plus optional keyword arguments for
+    # other attributes.
     class Cookie
       # Create a new Cookie instance.
       #
@@ -25,16 +25,26 @@ unless defined?(:Wreq)
       #
       # @param name [String] Cookie name
       # @param value [String] Cookie value
-      # @param domain [String, nil] Domain attribute
-      # @param path [String, nil] Path attribute
-      # @param max_age [Integer, nil] Max-Age in seconds
-      # @param expires [Float, nil] Unix timestamp (seconds, float)
-      # @param http_only [Boolean, nil] HttpOnly flag
-      # @param secure [Boolean, nil] Secure flag
+      # @param options [Hash] Optional keyword arguments
+      # @option options [String] :domain Domain attribute
+      # @option options [String] :path Path attribute
+      # @option options [Integer] :max_age Max-Age in seconds
+      # @option options [Float] :expires Unix timestamp (seconds, float)
+      # @option options [Boolean] :http_only HttpOnly flag
+      # @option options [Boolean] :secure Secure flag
+      # @option options [Wreq::SameSite] :same_site SameSite attribute
       # @return [Wreq::Cookie]
       # @example
-      #   c = Wreq::Cookie.new("sid", "abc", "example.com", "/", 3600, nil, true, true)
-      def new(name, value, domain = nil, path = nil, max_age = nil, expires = nil, http_only = nil, secure = nil); end
+      #   c = Wreq::Cookie.new(
+      #     "sid", "abc",
+      #     domain: "example.com",
+      #     path: "/",
+      #     max_age: 3600,
+      #     http_only: true,
+      #     secure: true,
+      #     same_site: Wreq::SameSite::Lax
+      #   )
+      def new(name, value, **options); end
 
       # @return [String] Cookie name
       def name; end
