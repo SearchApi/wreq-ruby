@@ -14,7 +14,7 @@ doc = false
 name = "wreq_ruby"
 
 [dependencies]
-magnus = { version = "0.8", features = ["bytes", "io"] }
+magnus = { version = "0.8", features = ["bytes"] }
 rb-sys = { version = "0.9.110", default-features = false }
 tokio = { version = "1", features = ["full"] }
 wreq = { version = "6.0.0-rc.21", features = [

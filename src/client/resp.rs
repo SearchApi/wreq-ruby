@@ -2,16 +2,16 @@ use std::{net::SocketAddr, sync::Arc};
 
 use arc_swap::ArcSwapOption;
 use bytes::Bytes;
-use http::{Extensions, response::Response as HttpResponse};
+use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RModule, Ruby, Value, block::Yield};
-use wreq::{Uri, header::HeaderMap};
+use magnus::{Error, Module, RModule, Ruby, Value};
+use wreq::Uri;
 
 use crate::{
     RUNTIME,
     client::body::{Json, Streamer},
     error::{memory_error, wreq_error_to_magnus},
-    header::HeaderIterator,
+    header::Headers,
     http::{StatusCode, Version},
     nogvl,
 };
@@ -134,9 +134,9 @@ impl Response {
         self.content_length
     }
 
-    /// Iterate over headers with Ruby block support.
-    pub fn each_header(&self) -> Result<Yield<HeaderIterator>, Error> {
-        Ok(Yield::Iter(HeaderIterator::new(&self.headers)))
+    /// Get the response headers.
+    pub fn headers(&self) -> Headers {
+        Headers::from(self.headers.clone())
     }
 
     /// Get the local socket address, if available.
@@ -155,16 +155,6 @@ impl Response {
         nogvl::nogvl(|| {
             RUNTIME
                 .block_on(response.bytes())
-                .map_err(wreq_error_to_magnus)
-        })
-    }
-
-    /// Get the response body as text.
-    pub fn text(&self) -> Result<String, Error> {
-        let response = self.response(false)?;
-        nogvl::nogvl(|| {
-            RUNTIME
-                .block_on(response.text())
                 .map_err(wreq_error_to_magnus)
         })
     }
@@ -210,15 +200,14 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response_class.define_method("status", magnus::method!(Response::status, 0))?;
     response_class.define_method("version", magnus::method!(Response::version, 0))?;
     response_class.define_method("url", magnus::method!(Response::url, 0))?;
-    response_class.define_method("each_header", magnus::method!(Response::each_header, 0))?;
     response_class.define_method(
         "content_length",
         magnus::method!(Response::content_length, 0),
     )?;
+    response_class.define_method("headers", magnus::method!(Response::headers, 0))?;
     response_class.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
     response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
-    response_class.define_method("bytes", magnus::method!(Response::bytes, 0))?;
-    response_class.define_method("text", magnus::method!(Response::text, 0))?;
+    response_class.define_method("text", magnus::method!(Response::bytes, 0))?;
     response_class.define_method("json", magnus::method!(Response::json, 0))?;
     response_class.define_method("stream", magnus::method!(Response::stream, 0))?;
     response_class.define_method("close", magnus::method!(Response::close, 0))?;

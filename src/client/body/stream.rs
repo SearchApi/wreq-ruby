@@ -34,7 +34,7 @@ impl Streamer {
     /// @yard
     /// @def each
     /// Returns the next element.
-    /// @return [Entry]
+    /// @return [String]
     fn each(&self) -> Result<Yield<Streamer>, Error> {
         // Magnus handles yielding to Ruby using an unsafe internal function,
         // so we don’t manage the actual iteration loop ourselves.

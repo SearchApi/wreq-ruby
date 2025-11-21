@@ -17,12 +17,6 @@ class ResponseTest < Minitest::Test
     assert @response.text.length > 0
   end
 
-  def test_response_bytes
-    assert_respond_to @response, :bytes
-    assert_instance_of String, @response.bytes
-    assert_equal @response.text, @response.bytes
-  end
-
   def test_response_json
     assert_respond_to @response, :json
     json_data = @response.json
@@ -33,10 +27,10 @@ class ResponseTest < Minitest::Test
   end
 
   def test_response_each_header
-    assert_respond_to @response, :each_header
+    assert_respond_to @response, :headers
 
     header_count = 0
-    @response.each_header do |name, value|
+    @response.headers.each do |name, value|
       assert_instance_of String, name
       assert_instance_of String, value
       header_count += 1
