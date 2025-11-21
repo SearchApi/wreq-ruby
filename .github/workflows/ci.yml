@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    tags:
+      - '*'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'benchmark/**'
+      - '*.md'
+      - '.github/**'
+      - 'README.md'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust-checks:
+    name: Rust Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    
+    - name: Run cargo fmt
+      run: cargo fmt -- --check
+    
+    - name: Run cargo clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+  ruby-binding-tests:
+    name: Ruby Binding Tests
+    runs-on: ${{ matrix.os }}
+    services:
+      httpbin:
+        image: kennethreitz/httpbin
+        ports:
+          - 8080:80
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        ruby: ['3.2', '3.3']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby }}
+        bundler-cache: true
+    
+    - name: Install dependencies
+      run: bundle install
+    
+    - name: Compile native extension
+      run: bundle exec rake compile
+    
+    - name: Run tests
+      run: bundle exec rake test

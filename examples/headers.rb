@@ -8,7 +8,7 @@ client = Wreq::Client.new
 response = client.get("https://httpbin.org/headers")
 
 puts "\n=== Iterating Over All Headers ==="
-response.each_header do |name, value|
+response.headers.each do |name, value|
   puts "#{name}: #{value}"
 end
 

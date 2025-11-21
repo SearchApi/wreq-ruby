@@ -118,7 +118,7 @@ impl Builder {
     /// Create a new [`Builder`] from Ruby keyword arguments.
     fn new(ruby: &magnus::Ruby, keyword: &Value) -> Result<Self, magnus::Error> {
         if let Ok(hash) = RHash::try_convert(*keyword) {
-            let mut builder: Self = serde_magnus::deserialize(&ruby, hash)?;
+            let mut builder: Self = serde_magnus::deserialize(ruby, hash)?;
 
             // extra user agent handling
             builder.user_agent = Extractor::<HeaderValue>::try_convert(*keyword)?.into_inner();

@@ -10,7 +10,6 @@ class WreqHttpbinTest < Minitest::Test
     response = Wreq.get("http://localhost:8080/get")
     assert_equal 200, response.code
     assert_respond_to response, :text
-    assert_respond_to response, :bytes
   end
 
   def test_module_post_with_json

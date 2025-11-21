@@ -59,19 +59,6 @@ unless defined?(:Wreq)
       #   response.content_length  # => 1024
       def content_length; end
 
-      # Iterate over response headers.
-      #
-      # @yieldparam name [String] Header name
-      # @yieldparam value [String] Header value
-      # @return [Enumerator, self] Returns enumerator if no block given
-      # @example With block
-      #   response.each_header do |name, value|
-      #     puts "#{name}: #{value}"
-      #   end
-      # @example As enumerator
-      #   headers = response.each_header.to_a
-      def each_header; end
-
       # Get the local socket address.
       #
       # @return [String, nil] Local address (e.g., "127.0.0.1:54321"), or nil
@@ -85,14 +72,6 @@ unless defined?(:Wreq)
       # @example
       #   response.remote_addr  # => "93.184.216.34:443"
       def remote_addr; end
-
-      # Get the response body as raw bytes.
-      #
-      # @return [String] Raw binary data (8-bit encoding)
-      # @example
-      #   bytes = response.bytes
-      #   File.binwrite("output.bin", bytes)
-      def bytes; end
 
       # Get the response body as text.
       #
