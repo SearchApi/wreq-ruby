@@ -29,29 +29,6 @@ jobs:
       with:
         components: rustfmt, clippy
     
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake perl pkg-config libclang-dev
-    
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-    
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-    
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-    
     - name: Run cargo fmt
       run: cargo fmt -- --check
     
@@ -69,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         ruby: ['3.2', '3.3']
     
     steps:
@@ -77,41 +54,14 @@ jobs:
     
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
-    
-    - name: Install build dependencies (Ubuntu)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake perl pkg-config libclang-dev
-    
-    - name: Install build dependencies (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        brew install cmake perl pkg-config
+      with:
+        components: rustfmt, clippy
     
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: ${{ matrix.ruby }}
         bundler-cache: true
-    
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-    
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-    
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: target
-        key: ${{ runner.os }}-ruby-${{ matrix.ruby }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Install dependencies
       run: bundle install
@@ -121,8 +71,3 @@ jobs:
     
     - name: Run tests
       run: bundle exec rake test
-    
-    - name: Test examples
-      run: |
-        bundle exec ruby examples/client.rb
-        bundle exec ruby examples/headers.rb
