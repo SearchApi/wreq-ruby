@@ -45,6 +45,7 @@ impl Cookie {
     pub fn new(args: &[Value]) -> Result<Self, Error> {
         let args =
             magnus::scan_args::scan_args::<(String, String), (), (), (), magnus::RHash, ()>(args)?;
+        #[allow(clippy::type_complexity)]
         let keywords: magnus::scan_args::KwArgs<
             (),
             (
