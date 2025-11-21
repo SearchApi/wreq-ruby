@@ -16,6 +16,7 @@ use wreq::{
 use crate::{
     RUNTIME,
     client::{req::Request, resp::Response},
+    cookie::Jar,
     error::wreq_error_to_magnus,
     extractor::Extractor,
     http::Method,
@@ -23,7 +24,7 @@ use crate::{
 };
 
 /// A builder for `Client`.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Default, Deserialize)]
 struct Builder {
     /// The user agent to use for the client.
     #[serde(skip)]
@@ -46,6 +47,9 @@ struct Builder {
     // ========= Cookie options =========
     /// Whether to use cookie store.
     cookie_store: Option<bool>,
+    /// Whether to use cookie store provider.
+    #[serde(skip)]
+    cookie_provider: Option<Jar>,
 
     // ========= Timeout options =========
     /// The timeout to use for the client. (in seconds)
@@ -131,6 +135,11 @@ impl Builder {
 
             // extra proxy handling
             builder.proxy = Extractor::<Proxy>::try_convert(*keyword)?.into_inner();
+
+            // extra cookie store handling
+            if let Some(jar) = hash.get(ruby.to_symbol("cookie_provider")) {
+                builder.cookie_provider = Some((*Obj::<Jar>::try_convert(jar)?).clone());
+            }
 
             return Ok(builder);
         }

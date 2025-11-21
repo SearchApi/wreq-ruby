@@ -14,8 +14,10 @@ unless defined?(:Wreq)
 
     # A single HTTP cookie.
     #
-    # This mirrors the native Wreq::Cookie. Constructor accepts 8 positional
-    # arguments; all after name and value are optional.
+    # Thread-safe: instances are backed by an immutable Rust value and can be
+    # shared across threads safely. This mirrors the native `Wreq::Cookie`.
+    # Constructor accepts 8 positional arguments; all after name and value are
+    # optional.
     class Cookie
       # Create a new Cookie instance.
       #
