@@ -19,9 +19,9 @@ define_ruby_enum!(
     SameSite,
     "Wreq::SameSite",
     cookie::SameSite,
-    (Strict, Strict),
-    (Lax, Lax),
-    (Empty, None),
+    Strict,
+    Lax,
+    None,
 );
 
 /// A single HTTP cookie.
@@ -262,7 +262,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     let same_site_class = gem_module.define_class("SameSite", ruby.class_object())?;
     same_site_class.const_set("Strict", SameSite::Strict)?;
     same_site_class.const_set("Lax", SameSite::Lax)?;
-    same_site_class.const_set("Empty", SameSite::Empty)?;
+    same_site_class.const_set("None", SameSite::None)?;
 
     // Cookie class
     let cookie_class = gem_module.define_class("Cookie", ruby.class_object())?;

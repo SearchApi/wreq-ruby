@@ -8,8 +8,8 @@ unless defined?(:Wreq)
       Strict = nil
       # Strict same-site policy.
       Lax = nil
-      # Empty/None same-site policy.
-      Empty = nil
+      # None same-site policy.
+      None = nil
     end
 
     # A single HTTP cookie.
