@@ -1,8 +1,11 @@
-use std::{cell::RefCell, sync::atomic::Ordering};
+use std::{
+    cell::RefCell,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use bytes::Bytes;
 use http::{HeaderMap, HeaderName, HeaderValue};
-use magnus::{Error, Module, Object, RModule, Ruby, block::Yield, function, method};
+use magnus::{Error, Module, Object, RArray, RModule, Ruby, block::Yield, function, method};
 
 use crate::error::{header_name_error_to_magnus, header_value_error_to_magnus};
 
@@ -16,23 +19,29 @@ pub struct Headers(RefCell<HeaderMap>);
 
 impl Headers {
     /// Create a new empty Headers instance.
+    #[inline]
     pub fn new() -> Self {
         Self::from(HeaderMap::new())
     }
 
     /// Get a header value by name (case-insensitive).
+    #[inline]
     pub fn get(&self, name: String) -> Option<Bytes> {
         self.0.borrow().get(&name).cloned().map(Bytes::from_owner)
     }
 
     /// Get all values for a header name (case-insensitive).
-    pub fn get_all(&self, name: String) -> Vec<String> {
-        self.0
-            .borrow()
-            .get_all(&name)
-            .iter()
-            .map(|v| String::from_utf8_lossy(v.as_bytes()).to_string())
-            .collect()
+    #[inline]
+    pub fn get_all(ruby: &Ruby, rb_self: &Self, name: String) -> RArray {
+        ruby.ary_from_iter(
+            rb_self
+                .0
+                .borrow()
+                .get_all(&name)
+                .iter()
+                .cloned()
+                .map(Bytes::from_owner),
+        )
     }
 
     /// Set a header, replacing any existing values.
@@ -60,51 +69,51 @@ impl Headers {
     }
 
     /// Remove all values for a header name.
+    #[inline]
     pub fn remove(&self, name: String) -> Option<Bytes> {
         self.0.borrow_mut().remove(&name).map(Bytes::from_owner)
     }
 
     /// Check if a header exists (case-insensitive).
+    #[inline]
     pub fn contains(&self, name: String) -> bool {
         self.0.borrow().contains_key(&name)
     }
 
     /// Get the number of headers.
+    #[inline]
     pub fn len(&self) -> usize {
         self.0.borrow().len()
     }
 
     /// Check if headers are empty.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.0.borrow().is_empty()
     }
 
     /// Clear all headers.
+    #[inline]
     pub fn clear(&self) {
         self.0.borrow_mut().clear();
     }
 
     /// Get all header names.
-    pub fn keys(&self) -> Vec<String> {
-        self.0
-            .borrow()
-            .keys()
-            .map(|k| k.as_str().to_string())
-            .collect()
+    #[inline]
+    pub fn keys(ruby: &Ruby, rb_self: &Self) -> RArray {
+        ruby.ary_from_iter(rb_self.0.borrow().keys().cloned().map(Bytes::from_owner))
     }
 
     /// Get all header values.
-    pub fn values(&self) -> Vec<String> {
-        self.0
-            .borrow()
-            .values()
-            .map(|v| String::from_utf8_lossy(v.as_bytes()).to_string())
-            .collect()
+    #[inline]
+    pub fn values(ruby: &Ruby, rb_self: &Self) -> RArray {
+        ruby.ary_from_iter(rb_self.0.borrow().values().cloned().map(Bytes::from_owner))
     }
 
     /// Iterate over headers with Ruby block support.
-    pub fn each(&self) -> Result<Yield<HeaderIterator>, Error> {
-        Ok(Yield::Iter(HeaderIterator::new(&self.0.borrow())))
+    #[inline]
+    pub fn each(&self) -> Yield<HeaderIterator> {
+        Yield::Iter(HeaderIterator::new(&self.0.borrow()))
     }
 }
 
@@ -118,7 +127,7 @@ impl From<HeaderMap> for Headers {
 #[magnus::wrap(class = "Wreq::HeaderIterator", free_immediately, size)]
 pub struct HeaderIterator {
     headers: Vec<(Bytes, Bytes)>,
-    index: std::sync::atomic::AtomicUsize,
+    index: AtomicUsize,
 }
 
 impl HeaderIterator {
@@ -134,7 +143,7 @@ impl HeaderIterator {
                     )
                 })
                 .collect(),
-            index: std::sync::atomic::AtomicUsize::new(0),
+            index: AtomicUsize::new(0),
         }
     }
 }

@@ -84,6 +84,7 @@ macro_rules! define_ruby_enum {
         }
 
         impl $enum_type {
+            #[allow(dead_code)]
             pub const fn into_ffi(self) -> $ffi_type {
                 match self {
                     $(<$enum_type>::$rust_variant => <$ffi_type>::$ffi_variant,)*
@@ -108,7 +109,7 @@ macro_rules! ruby {
     };
 }
 
-macro_rules! extract_args {
+macro_rules! extract_request {
     ($args:expr, $required:ty) => {{
         let args = magnus::scan_args::scan_args::<$required, (), (), (), magnus::RHash, ()>($args)?;
         let required = args.required;

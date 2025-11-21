@@ -184,7 +184,6 @@ impl TryConvert for Extractor<Proxy> {
             .get(ruby.to_symbol(Proxy::NAME))
             .and_then(RString::from_value)
         {
-            dbg!(&proxy);
             return Proxy::all(proxy.to_bytes().as_ref())
                 .map(Some)
                 .map(Extractor)

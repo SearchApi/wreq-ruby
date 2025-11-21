@@ -8,6 +8,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - 'benchmark/**'
+      - 'examples/**'
       - '*.md'
       - '.github/**'
       - 'README.md'

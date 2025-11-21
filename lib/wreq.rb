@@ -14,6 +14,7 @@ require_relative "wreq_ruby/response"
 require_relative "wreq_ruby/streamer"
 require_relative "wreq_ruby/header"
 require_relative "wreq_ruby/error"
+require_relative "wreq_ruby/cookie"
 
 unless defined?(:Wreq)
   module Wreq
