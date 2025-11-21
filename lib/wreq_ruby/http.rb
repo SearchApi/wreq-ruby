@@ -25,6 +25,12 @@ module Wreq
       TRACE = nil # @return [Wreq::Method] HTTP TRACE method
       PATCH = nil # @return [Wreq::Method] HTTP PATCH method
     end
+
+    # Returns a string representation of the HTTP method.
+    # @return [String] HTTP method as string
+    unless method_defined?(:to_s)
+      def to_s; end
+    end
   end
 
   # HTTP version enumeration backed by Rust.
@@ -41,6 +47,12 @@ module Wreq
       HTTP_11 = nil # @return [Wreq::Version] HTTP/1.1
       HTTP_2 = nil # @return [Wreq::Version] HTTP/2
       HTTP_3 = nil # @return [Wreq::Version] HTTP/3
+    end
+
+    # Returns a string representation of the HTTP version.
+    # @return [String] HTTP version as string
+    unless method_defined?(:to_s)
+      def to_s; end
     end
   end
 
@@ -109,6 +121,10 @@ module Wreq
       #
       # @return [Boolean] true if status is 500-599
       def server_error?; end
+
+      # Returns a string representation of the status code.
+      # @return [String] Status code as string
+      def to_s; end
     end
   end
 end

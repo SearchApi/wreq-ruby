@@ -112,3 +112,50 @@ unless defined?(:Wreq)
     end
   end
 end
+
+# ======================== Ruby API Extensions ========================
+
+module Wreq
+  class Response
+    # Returns a string representation of the response.
+    #
+    # Includes status code, HTTP version, URL, and key headers.
+    #
+    # @return [String] Formatted response information
+    # @example
+    #   puts response.to_s
+    #   # => HTTP/1.1 200 OK
+    #   #    URL: https://example.com/api
+    #   #    Content-Type: application/json
+    #   #    Content-Length: 1024
+    #   #    ...
+    def to_s
+      lines = []
+
+      # Status line
+      lines << "#{version.to_s} #{status.to_s}"
+
+      # URL
+      lines << "URL: #{url}"
+
+      # Headers
+      if headers.respond_to?(:each)
+        headers.each do |name, value|
+          lines << "#{name}: #{value}"
+        end
+      end
+
+      # Body preview (first 200 chars if reasonable size)
+      if content_length && content_length > 0
+        body = text rescue nil
+        if body && !body.empty?
+          lines << ""
+          preview = body.length > 200 ? "#{body[0...200]}..." : body
+          lines << preview
+        end
+      end
+
+      lines.join("\n")
+    end
+  end
+end

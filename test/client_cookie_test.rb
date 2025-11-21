@@ -10,7 +10,7 @@ class ClientCookieProviderTest < Minitest::Test
     @client = Wreq::Client.new(
       cookie_store: true,
       cookie_provider: @jar,
-      allow_redirects: true
+      allow_redirects: true,
     )
   end
 
