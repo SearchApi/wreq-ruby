@@ -25,12 +25,6 @@ module Wreq
       TRACE = nil # @return [Wreq::Method] HTTP TRACE method
       PATCH = nil # @return [Wreq::Method] HTTP PATCH method
     end
-
-    # Returns a string representation of the HTTP method.
-    # @return [String] HTTP method as string
-    unless method_defined?(:to_s)
-      def to_s; end
-    end
   end
 
   # HTTP version enumeration backed by Rust.

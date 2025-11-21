@@ -44,16 +44,6 @@ impl Version {
     }
 }
 
-// ===== impl Method =====
-
-impl Method {
-    /// Convert method to string.
-    #[inline]
-    pub fn to_s(&self) -> String {
-        self.into_ffi().to_string()
-    }
-}
-
 // ===== impl StatusCode =====
 
 impl StatusCode {
@@ -116,7 +106,6 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     method_class.const_set("HEAD", Method::HEAD)?;
     method_class.const_set("TRACE", Method::TRACE)?;
     method_class.const_set("OPTIONS", Method::OPTIONS)?;
-    method_class.define_method("to_s", method!(Method::to_s, 0))?;
 
     let version_class = gem_module.define_class("Version", ruby.class_object())?;
     version_class.const_set("HTTP_09", Version::HTTP_09)?;
