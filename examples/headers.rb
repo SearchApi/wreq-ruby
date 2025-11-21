@@ -5,7 +5,7 @@ require "wreq"
 
 # Make a request
 client = Wreq::Client.new
-response = client.get("https://httpbin.org/headers")
+response = client.get("https://httpbin.io/headers")
 
 puts "\n=== Iterating Over All Headers ==="
 response.headers.each do |name, value|

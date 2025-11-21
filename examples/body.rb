@@ -8,7 +8,7 @@ require "wreq"
 
 # Make a request
 client = Wreq::Client.new
-response = client.post("https://httpbin.org/anything",
+response = client.post("https://httpbin.io/anything",
                        json: { foo: "bar", baz: "qux" },
                        headers: { "Content-Type" => "application/json" },
                        cookies: { "session_id" => "abc123",

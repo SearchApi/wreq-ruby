@@ -5,7 +5,7 @@ require "wreq"
 
 # Make a request
 client = Wreq::Client.new()
-response = client.get("https://httpbin.org/stream/20")
+response = client.get("https://httpbin.io/stream/20")
 streamer = response.stream()
 
 puts "\n=== Streaming Response Body ==="
