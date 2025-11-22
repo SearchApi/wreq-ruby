@@ -13,4 +13,6 @@ group :development, :test do
   gem "standard", "~> 1.44" # linter with pre-specified rules
   gem "redcarpet", "~> 3.6" # for documentation markdown parsing
   gem "ruby-lsp", "~> 0.22" # Ruby language server for IDE support
+  gem "racc", "~> 1.8.1" # for parsing
+  gem "observer", "~> 0.1.2" # for parsing
 end
