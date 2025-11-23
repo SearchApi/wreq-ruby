@@ -465,7 +465,7 @@ impl Client {
                     biased;
 
                     // Check for cancellation first (Thread.kill was called)
-                    _ = poll_cancel_flag(&cancel_flag) => {
+                    _ = cancel_flag.cancelled() => {
                         Err(interrupt_error())
                     }
 
@@ -476,18 +476,6 @@ impl Client {
                 }
             })
         })
-    }
-}
-
-/// Async function that polls a CancelFlag and completes when cancelled.
-/// Used with tokio::select! to race against the actual request.
-async fn poll_cancel_flag(flag: &nogvl::CancelFlag) {
-    loop {
-        if flag.is_cancelled() {
-            return;
-        }
-        // Check every 10ms to balance responsiveness vs overhead
-        tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
 

@@ -1,17 +1,10 @@
 //! Allow usage of unsafe code for FFI with Ruby's GVL functions.
 #![allow(unsafe_code)]
 
-use std::{
-    ffi::c_void,
-    mem::MaybeUninit,
-    ptr::null_mut,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-};
+use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use rb_sys::rb_thread_call_without_gvl;
+use tokio::sync::watch;
 
 /// Container for safely passing closure and result through C callback
 struct Args<F, R> {
@@ -19,29 +12,59 @@ struct Args<F, R> {
     result: MaybeUninit<R>,
 }
 
-/// Cancellation flag that can be checked from async code
+/// Cancellation flag using tokio's watch channel for efficient async notification.
+///
+/// This provides zero-latency cancellation without polling - the async code
+/// is notified immediately when `cancel()` is called.
 #[derive(Clone)]
-pub struct CancelFlag(Arc<AtomicBool>);
+pub struct CancelFlag {
+    rx: watch::Receiver<bool>,
+}
+
+/// Internal sender half of the cancellation flag.
+struct CancelSender {
+    tx: watch::Sender<bool>,
+}
+
+impl CancelSender {
+    fn new() -> (Self, CancelFlag) {
+        let (tx, rx) = watch::channel(false);
+        (Self { tx }, CancelFlag { rx })
+    }
+
+    /// Signal cancellation to all receivers.
+    fn cancel(&self) {
+        let _ = self.tx.send(true);
+    }
+}
 
 impl CancelFlag {
-    fn new() -> Self {
-        Self(Arc::new(AtomicBool::new(false)))
-    }
-
-    /// Check if cancellation was requested
-    pub fn is_cancelled(&self) -> bool {
-        self.0.load(Ordering::SeqCst)
-    }
-
-    /// Signal cancellation
-    fn cancel(&self) {
-        self.0.store(true, Ordering::SeqCst);
+    /// Wait until cancellation is signaled.
+    ///
+    /// This is an async function that completes immediately if already cancelled,
+    /// or waits efficiently (no polling) until `cancel()` is called.
+    pub async fn cancelled(&self) {
+        let mut rx = self.rx.clone();
+        // If already cancelled, return immediately
+        if *rx.borrow_and_update() {
+            return;
+        }
+        // Wait for cancellation signal
+        loop {
+            if rx.changed().await.is_err() {
+                // Sender dropped - treat as cancelled
+                return;
+            }
+            if *rx.borrow() {
+                return;
+            }
+        }
     }
 }
 
 /// Data passed to the unblock function for cancellation
 struct UnblockData {
-    flag: CancelFlag,
+    sender: CancelSender,
 }
 
 unsafe extern "C" fn call_without_gvl<F, R>(arg: *mut c_void) -> *mut c_void
@@ -61,11 +84,11 @@ where
 }
 
 /// Unblock function called by Ruby when thread is interrupted.
-/// This sets the cancellation flag.
+/// This signals cancellation via the watch channel.
 unsafe extern "C" fn unblock_func(arg: *mut c_void) {
     if !arg.is_null() {
         let data = unsafe { &*(arg as *const UnblockData) };
-        data.flag.cancel();
+        data.sender.cancel();
     }
 }
 
@@ -92,22 +115,33 @@ where
 
 /// Execute a closure without holding the GVL, with support for thread interruption.
 ///
-/// The closure receives a `CancelFlag` that will be set when Ruby wants to
+/// The closure receives a `CancelFlag` that will be signaled when Ruby wants to
 /// interrupt the thread (e.g., via `Thread.kill` or `Thread.raise`).
 ///
-/// The closure should periodically check `flag.is_cancelled()` or use it
-/// with async code to properly handle interruption.
+/// Use `flag.cancelled().await` in async code to efficiently wait for cancellation.
+///
+/// # Example
+///
+/// ```rust
+/// nogvl_cancellable(|cancel_flag| {
+///     RUNTIME.block_on(async move {
+///         tokio::select! {
+///             biased;
+///             _ = cancel_flag.cancelled() => Err(interrupted_error()),
+///             result = some_async_operation() => result,
+///         }
+///     })
+/// })
+/// ```
 pub fn nogvl_cancellable<F, R>(func: F) -> R
 where
     F: FnOnce(CancelFlag) -> R,
     R: Sized,
 {
-    let unblock_data = UnblockData {
-        flag: CancelFlag::new(),
-    };
-    let flag = unblock_data.flag.clone();
+    let (sender, flag) = CancelSender::new();
+    let unblock_data = UnblockData { sender };
 
-    // Create a wrapper that takes the flag and calls the original function
+    // Create a wrapper that holds the function, flag, and result
     struct Wrapper<F, R> {
         func: Option<F>,
         flag: CancelFlag,
