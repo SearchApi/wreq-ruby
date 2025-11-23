@@ -5,7 +5,7 @@ use futures_util::{Stream, StreamExt};
 use magnus::{Error, Module, RModule, Ruby, block::Yield};
 use tokio::sync::mpsc::{self};
 
-use crate::RUNTIME;
+use crate::{RUNTIME, nogvl};
 
 /// A byte stream response.
 /// An asynchronous iterator yielding data chunks from the response stream.
@@ -16,7 +16,7 @@ use crate::RUNTIME;
 pub struct Streamer(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
 
 impl Streamer {
-    /// Create a new `Streamer` instance.
+    /// Create a new [`Streamer`] instance.
     pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> Streamer {
         let (tx, rx) = mpsc::channel(8);
         RUNTIME.spawn(async move {
@@ -53,14 +53,16 @@ impl Iterator for Streamer {
 
     fn next(&mut self) -> Option<Self::Item> {
         // assumes low contention. also we want an entry eventually
-        if let Ok(mut inner) = self.0.lock() {
-            match inner.blocking_recv() {
-                Some(Ok(entry)) => Some(entry),
-                _ => None,
+        nogvl::nogvl(|| {
+            if let Ok(mut inner) = self.0.lock() {
+                match inner.blocking_recv() {
+                    Some(Ok(entry)) => Some(entry),
+                    _ => None,
+                }
+            } else {
+                None
             }
-        } else {
-            None
-        }
+        })
     }
 }
 
