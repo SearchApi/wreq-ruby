@@ -1,29 +1,69 @@
+mod json;
 mod stream;
 
-use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use bytes::Bytes;
+use magnus::{Error, RModule, RString, Ruby, TryConvert, Value, typed_data::Obj};
 
-pub use self::stream::{Streamer, include};
-
-/// Represents a JSON value for HTTP requests.
-/// Supports objects, arrays, numbers, strings, booleans, and null.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Json {
-    Object(IndexMap<String, Json>),
-    Boolean(bool),
-    Number(isize),
-    Float(f64),
-    String(String),
-    Null(Option<isize>),
-    Array(Vec<Json>),
-}
+pub use self::{
+    json::Json,
+    stream::{Streamer, UploadStream},
+};
 
 /// Represents the body of an HTTP request.
-/// Supports text, bytes, form, json, synchronous and asynchronous streaming bodies.
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
+/// Supports text, bytes, and streaming bodies (Proc/Enumerator).
 pub enum Body {
-    Text(String),
-    Bytes(Vec<u8>),
+    /// Static bytes body
+    Bytes(Bytes),
+    /// Streaming body from Ruby `Wreq::UploadStream`
+    UploadStream(Value),
+}
+
+/// Convert Ruby Value to bytes Vec (binary-safe; prefers raw RString bytes)
+pub(crate) fn value_to_bytes(val: Value) -> Result<Bytes, Error> {
+    // Prefer raw bytes from Ruby String without UTF-8 coercion
+    if let Ok(rs) = RString::try_convert(val) {
+        return Ok(rs.to_bytes());
+    }
+
+    Err(Error::new(
+        ruby!().exception_type_error(),
+        "chunk must be String or bytes",
+    ))
+}
+
+pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
+    stream::include(ruby, gem_module)?;
+    Ok(())
+}
+
+impl TryConvert for Body {
+    fn try_convert(val: Value) -> Result<Self, Error> {
+        if let Ok(s) = RString::try_convert(val) {
+            return Ok(Body::Bytes(s.to_bytes()));
+        }
+
+        return Ok(Body::UploadStream(val));
+    }
+}
+
+impl Body {
+    /// Convert to wreq::Body with true streaming via Ruby Queue.
+    ///
+    /// **Streaming Implementation:**
+    /// This uses Ruby's Queue (thread-safe) and spawns a Ruby Thread to read data.
+    /// The Ruby thread has GVL access and can safely call Proc/Enumerator methods.
+    /// Data is passed through the Queue to Rust, enabling true streaming without
+    /// loading everything into memory first.
+    pub fn into_wreq_body(self) -> Result<wreq::Body, Error> {
+        match self {
+            Body::Bytes(b) => Ok(wreq::Body::from(b)),
+            Body::UploadStream(val) => {
+                // Take receiver from the Ruby UploadStream and build a ChannelStream
+                let obj = Obj::<UploadStream>::try_convert(val)?;
+                let rx = obj.take_receiver()?;
+                let stream = stream::ChannelStream::new(rx);
+                Ok(wreq::Body::wrap_stream(Box::pin(stream)))
+            }
+        }
+    }
 }

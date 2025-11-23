@@ -1,11 +1,17 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    io,
+    sync::{Arc, Mutex},
+};
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt};
-use magnus::{Error, Module, RModule, Ruby, block::Yield};
+use magnus::{
+    Error, Module, Object, RModule, Ruby, TryConvert, Value, block::Yield, function, method,
+};
 use tokio::sync::mpsc::{self};
 
-use crate::{RUNTIME, nogvl};
+use super::value_to_bytes;
+use crate::{RUNTIME, gvl};
 
 /// A byte stream response.
 /// An asynchronous iterator yielding data chunks from the response stream.
@@ -53,7 +59,7 @@ impl Iterator for Streamer {
 
     fn next(&mut self) -> Option<Self::Item> {
         // assumes low contention. also we want an entry eventually
-        nogvl::nogvl(|| {
+        gvl::nogvl(|| {
             if let Ok(mut inner) = self.0.lock() {
                 match inner.blocking_recv() {
                     Some(Ok(entry)) => Some(entry),
@@ -69,5 +75,153 @@ impl Iterator for Streamer {
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     let streamer_class = gem_module.define_class("Streamer", ruby.class_object())?;
     streamer_class.define_method("each", magnus::method!(Streamer::each, 0))?;
+
+    let upload_class = gem_module.define_class("UploadStream", ruby.class_object())?;
+    upload_class.define_singleton_method("new", function!(UploadStream::new, -1))?;
+    upload_class.define_method("push", method!(UploadStream::push, 1))?;
+    upload_class.define_method("close", method!(UploadStream::close, 0))?;
+    upload_class.define_method("abort", method!(UploadStream::abort, -1))?;
     Ok(())
+}
+
+#[derive(Default)]
+struct Inner {
+    tx: Option<mpsc::Sender<Result<Bytes, io::Error>>>,
+    rx: Option<mpsc::Receiver<Result<Bytes, io::Error>>>,
+    closed: bool,
+}
+
+#[magnus::wrap(class = "Wreq::UploadStream", free_immediately, size)]
+pub struct UploadStream(Arc<Mutex<Inner>>);
+
+impl UploadStream {
+    /// Ruby: `Wreq::UploadStream.new(capacity = 8)`
+    pub fn new(args: &[Value]) -> Result<Self, Error> {
+        let capacity: usize = if let Some(v) = args.first() {
+            usize::try_convert(*v).unwrap_or(8)
+        } else {
+            8
+        };
+
+        // channel
+        let (tx, rx) = mpsc::channel::<Result<Bytes, io::Error>>(capacity);
+        Ok(UploadStream(Arc::new(Mutex::new(Inner {
+            tx: Some(tx),
+            rx: Some(rx),
+            closed: false,
+        }))))
+    }
+
+    /// Ruby: `push(data)` where data is String or bytes
+    pub fn push(&self, data: Value) -> Result<(), Error> {
+        let bytes = value_to_bytes(data)?;
+        let bytes = Bytes::from(bytes);
+        // send with blocking_send without holding GVL
+        let sender = {
+            if let Ok(inner) = self.0.lock() {
+                inner.tx.clone()
+            } else {
+                None
+            }
+        };
+        if let Some(tx) = sender {
+            let res: Result<(), mpsc::error::SendError<Result<Bytes, io::Error>>> =
+                gvl::nogvl(|| tx.blocking_send(Ok(bytes)));
+            match res {
+                Ok(()) => Ok(()),
+                Err(_closed) => {
+                    let ruby = unsafe { Ruby::get_unchecked() };
+                    Err(Error::new(
+                        ruby.exception_runtime_error(),
+                        "stream already closed",
+                    ))
+                }
+            }
+        } else {
+            let ruby = unsafe { Ruby::get_unchecked() };
+            Err(Error::new(
+                ruby.exception_runtime_error(),
+                "stream already closed",
+            ))
+        }
+    }
+
+    /// Ruby: `close()`
+    pub fn close(&self) -> Result<(), Error> {
+        if let Ok(mut inner) = self.0.lock() {
+            inner.closed = true;
+            inner.tx.take(); // drop sender, receiver will see EOF
+            Ok(())
+        } else {
+            let ruby = unsafe { Ruby::get_unchecked() };
+            Err(Error::new(
+                ruby.exception_runtime_error(),
+                "stream lock poisoned",
+            ))
+        }
+    }
+
+    /// Ruby: `abort(message = nil)` sends an error then closes
+    pub fn abort(&self, args: &[Value]) -> Result<(), Error> {
+        let message = args.get(0).and_then(|v| String::try_convert(*v).ok());
+        let err = io::Error::new(
+            io::ErrorKind::Other,
+            message.unwrap_or_else(|| "aborted".to_string()),
+        );
+        let sender = {
+            if let Ok(inner) = self.0.lock() {
+                inner.tx.clone()
+            } else {
+                None
+            }
+        };
+        if let Some(tx) = sender {
+            let _ = gvl::nogvl(|| tx.blocking_send(Err(err)));
+        }
+        self.close()
+    }
+
+    /// Take the receiver to build a request body stream. Errors if already taken.
+    pub fn take_receiver(&self) -> Result<mpsc::Receiver<Result<Bytes, io::Error>>, Error> {
+        if let Ok(mut inner) = self.0.lock() {
+            if let Some(rx) = inner.rx.take() {
+                Ok(rx)
+            } else {
+                let ruby = unsafe { Ruby::get_unchecked() };
+                Err(Error::new(
+                    ruby.exception_runtime_error(),
+                    "upload stream already consumed",
+                ))
+            }
+        } else {
+            let ruby = unsafe { Ruby::get_unchecked() };
+            Err(Error::new(
+                ruby.exception_runtime_error(),
+                "stream lock poisoned",
+            ))
+        }
+    }
+}
+
+pub struct ChannelStream {
+    rx: mpsc::Receiver<Result<Bytes, io::Error>>,
+}
+
+impl ChannelStream {
+    pub fn new(rx: mpsc::Receiver<Result<Bytes, io::Error>>) -> Self {
+        Self { rx }
+    }
+}
+
+impl Unpin for ChannelStream {}
+
+impl Stream for ChannelStream {
+    type Item = Result<Bytes, io::Error>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.rx.poll_recv(cx)
+    }
 }

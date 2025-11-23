@@ -11,7 +11,7 @@ use wreq::{
     header::{self, HeaderMap, HeaderValue},
 };
 
-use crate::nogvl;
+use crate::gvl;
 
 define_ruby_enum!(
     /// The Cookie SameSite attribute.
@@ -238,22 +238,22 @@ impl Jar {
 
     /// Add a cookie to this jar.
     pub fn add_cookie(&self, cookie: &Cookie, url: String) {
-        nogvl::nogvl(|| self.0.add_cookie(cookie.0.clone(), &url))
+        gvl::nogvl(|| self.0.add_cookie(cookie.0.clone(), &url))
     }
 
     /// Add a cookie str to this jar.
     pub fn add_cookie_str(&self, cookie: String, url: String) {
-        nogvl::nogvl(|| self.0.add_cookie_str(&cookie, &url))
+        gvl::nogvl(|| self.0.add_cookie_str(&cookie, &url))
     }
 
     /// Remove a cookie from this jar by name and URL.
     pub fn remove(&self, name: String, url: String) {
-        nogvl::nogvl(|| self.0.remove(name, &url))
+        gvl::nogvl(|| self.0.remove(name, &url))
     }
 
     /// Clear all cookies in this jar.
     pub fn clear(&self) {
-        nogvl::nogvl(|| self.0.clear())
+        gvl::nogvl(|| self.0.clear())
     }
 }
 

@@ -12,9 +12,9 @@ use crate::{
     client::body::{Json, Streamer},
     cookie::Cookie,
     error::{memory_error, wreq_error_to_magnus},
+    gvl,
     header::Headers,
     http::{StatusCode, Version},
-    nogvl,
 };
 
 /// A response from a request.
@@ -66,7 +66,7 @@ impl Response {
 
     /// Internal method to get the wreq::Response, optionally streaming the body.
     fn response(&self, stream: bool) -> Result<wreq::Response, Error> {
-        nogvl::nogvl(|| {
+        gvl::nogvl(|| {
             let build_response = |body: wreq::Body| -> wreq::Response {
                 let mut response = HttpResponse::new(body);
                 *response.version_mut() = self.version.into_ffi();
@@ -171,7 +171,7 @@ impl Response {
     /// Get the response body as bytes.
     pub fn bytes(&self) -> Result<Bytes, Error> {
         let response = self.response(false)?;
-        nogvl::nogvl(|| {
+        gvl::nogvl(|| {
             RUNTIME
                 .block_on(response.bytes())
                 .map_err(wreq_error_to_magnus)
@@ -181,7 +181,7 @@ impl Response {
     /// Get the response body as JSON.
     pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
         let response = rb_self.response(false)?;
-        nogvl::nogvl(|| {
+        gvl::nogvl(|| {
             let json: Json = RUNTIME
                 .block_on(response.json())
                 .map_err(wreq_error_to_magnus)?;
@@ -198,7 +198,7 @@ impl Response {
 
     /// Close the response body, dropping any resources.
     pub fn close(&self) {
-        nogvl::nogvl(|| self.body.swap(None));
+        gvl::nogvl(|| self.body.swap(None));
     }
 }
 
