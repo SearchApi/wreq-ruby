@@ -17,7 +17,7 @@ use crate::{
     RUNTIME,
     client::{req::Request, resp::Response},
     cookie::Jar,
-    error::wreq_error_to_magnus,
+    error::{interrupt_error, wreq_error_to_magnus},
     extractor::Extractor,
     http::Method,
     nogvl,
@@ -362,7 +362,7 @@ impl Client {
         url: U,
         mut request: Request,
     ) -> Result<Response, magnus::Error> {
-        nogvl::nogvl(|| {
+        nogvl::nogvl_cancellable(|cancel_flag| {
             let client = self.0.clone();
             RUNTIME.block_on(async move {
                 let mut builder = client.request(method.into_ffi(), url.as_ref());
@@ -459,14 +459,35 @@ impl Client {
                     }
                 }
 
-                // Send request.
-                builder
-                    .send()
-                    .await
-                    .map(Response::new)
-                    .map_err(wreq_error_to_magnus)
+                // Send request with cancellation support.
+                // Use tokio::select! to race the request against thread interruption.
+                tokio::select! {
+                    biased;
+
+                    // Check for cancellation first (Thread.kill was called)
+                    _ = poll_cancel_flag(&cancel_flag) => {
+                        Err(interrupt_error())
+                    }
+
+                    // Otherwise, perform the request
+                    result = builder.send() => {
+                        result.map(Response::new).map_err(wreq_error_to_magnus)
+                    }
+                }
             })
         })
+    }
+}
+
+/// Async function that polls a CancelFlag and completes when cancelled.
+/// Used with tokio::select! to race against the actual request.
+async fn poll_cancel_flag(flag: &nogvl::CancelFlag) {
+    loop {
+        if flag.is_cancelled() {
+            return;
+        }
+        // Check every 10ms to balance responsiveness vs overhead
+        tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
 

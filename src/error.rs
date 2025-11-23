@@ -66,9 +66,20 @@ define_exception!(DECODING_ERROR, "DecodingError", exception_runtime_error);
 // Configuration and builder errors
 define_exception!(BUILDER_ERROR, "BuilderError", exception_runtime_error);
 
+// Thread interruption error
+define_exception!(INTERRUPT_ERROR, "InterruptError", exception_interrupt);
+
 /// Memory error constant
 pub fn memory_error() -> MagnusError {
     MagnusError::new(ruby!().get_inner(&MEMORY), RACE_CONDITION_ERROR_MSG)
+}
+
+/// Thread interruption error (raised when Thread.kill cancels a request)
+pub fn interrupt_error() -> MagnusError {
+    MagnusError::new(
+        ruby!().get_inner(&INTERRUPT_ERROR),
+        "request interrupted",
+    )
 }
 
 /// Map [`wreq::header::InvalidHeaderName`] to corresponding [`magnus::Error`]
@@ -119,4 +130,5 @@ pub fn include(ruby: &Ruby) {
     Lazy::force(&BODY_ERROR, ruby);
     Lazy::force(&DECODING_ERROR, ruby);
     Lazy::force(&BUILDER_ERROR, ruby);
+    Lazy::force(&INTERRUPT_ERROR, ruby);
 }
