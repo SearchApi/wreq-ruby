@@ -51,7 +51,7 @@ results << test_interrupt("Body reading") {
 # Test 4: Body streaming phase
 results << test_interrupt("Body streaming") {
   resp = Wreq.get(SLOW_BODY_URL)
-  resp.stream.each { |chunk| chunk } rescue nil
+  resp.chunks { |chunk| chunk } rescue nil
 }
 
 puts "=" * 40

@@ -32,4 +32,66 @@ class StreamTest < Minitest::Test
       assert parsed.is_a?(Hash)
     end
   end
+
+  def test_thread_interrupt_connect
+    url = "http://10.255.255.1:12345/"
+    killed = false
+    thread = Thread.new do
+      begin
+        Wreq.get(url)
+      rescue => _
+      end
+    end
+    sleep 2
+    thread.kill
+    killed = thread.join(5)
+    assert killed, "Connect phase should be interruptible"
+  end
+
+  def test_thread_interrupt_connect_with_timeout
+    url = "http://10.255.255.1:12345/"
+    killed = false
+    thread = Thread.new do
+      begin
+        Wreq.get(url, timeout: 60)
+      rescue => _
+      end
+    end
+    sleep 2
+    thread.kill
+    killed = thread.join(5)
+    assert killed, "Connect+timeout phase should be interruptible"
+  end
+
+  def test_thread_interrupt_body_reading
+    url = "https://httpbin.io/drip?duration=5&numbytes=5"
+    killed = false
+    thread = Thread.new do
+      begin
+        resp = Wreq.get(url)
+        resp.text
+      rescue => _
+      end
+    end
+    sleep 2
+    thread.kill
+    killed = thread.join(5)
+    assert killed, "Body reading should be interruptible"
+  end
+
+  def test_thread_interrupt_body_streaming
+    url = "https://httpbin.io/drip?duration=5&numbytes=5"
+    killed = false
+    thread = Thread.new do
+      begin
+        resp = Wreq.get(url)
+        resp.chunks { |chunk| chunk }
+      rescue => _
+      end
+    end
+    sleep 2
+    thread.kill
+    killed = thread.join(5)
+    assert killed, "Body streaming should be interruptible"
+  end
 end
