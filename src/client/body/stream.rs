@@ -1,17 +1,20 @@
 use std::{
+    cell::RefCell,
     io,
+    pin::Pin,
     sync::{Arc, Mutex},
+    task::{Context, Poll},
 };
 
 use bytes::Bytes;
-use futures_util::{Stream, StreamExt};
+use futures_util::{Stream, StreamExt, TryFutureExt};
 use magnus::{
     Error, Module, Object, RModule, RString, Ruby, TryConvert, Value, block::Yield, function,
     method,
 };
 use tokio::sync::mpsc::{self};
 
-use crate::{gvl, rt};
+use crate::{error::mpsc_send_error_to_magnus, gvl, rt};
 
 #[magnus::wrap(class = "Wreq::Receiver", free_immediately, size)]
 pub struct Receiver(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
@@ -49,7 +52,6 @@ impl Iterator for Receiver {
     type Item = Bytes;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Assumes low contention. Also we want an entry eventually.
         gvl::nogvl_cancellable(|cancel_flag| {
             if let Ok(mut inner) = self.0.lock() {
                 rt::block_on(async {
@@ -66,150 +68,91 @@ impl Iterator for Receiver {
     }
 }
 
-#[derive(Default)]
-struct Inner {
-    tx: Option<mpsc::Sender<Result<Bytes, io::Error>>>,
-    rx: Option<mpsc::Receiver<Result<Bytes, io::Error>>>,
-    closed: bool,
-}
-
 #[magnus::wrap(class = "Wreq::Sender", free_immediately, size)]
-pub struct Sender(Arc<Mutex<Inner>>);
+pub struct Sender {
+    tx: mpsc::Sender<Result<Bytes, io::Error>>,
+    rx: RefCell<Option<mpsc::Receiver<Result<Bytes, io::Error>>>>,
+}
 
 impl Sender {
     /// Ruby: `Wreq::Sender.new(capacity = 8)`
-    pub fn new(args: &[Value]) -> Result<Self, Error> {
+    pub fn new(args: &[Value]) -> Self {
         let capacity: usize = if let Some(v) = args.first() {
             usize::try_convert(*v).unwrap_or(8)
         } else {
             8
         };
 
-        // channel
-        let (tx, rx) = mpsc::channel::<Result<Bytes, io::Error>>(capacity);
-        Ok(Sender(Arc::new(Mutex::new(Inner {
-            tx: Some(tx),
-            rx: Some(rx),
-            closed: false,
-        }))))
+        let (tx, rx) = mpsc::channel(capacity);
+        Sender {
+            tx,
+            rx: RefCell::new(Some(rx)),
+        }
     }
 
     /// Ruby: `push(data)` where data is String or bytes
-    pub fn push(&self, data: RString) -> Result<(), Error> {
+    pub fn push(rb_self: &Self, data: RString) -> Result<(), Error> {
         let bytes = data.to_bytes();
-        // send with blocking_send without holding GVL
-        let sender = {
-            if let Ok(inner) = self.0.lock() {
-                inner.tx.clone()
-            } else {
-                None
-            }
-        };
-        if let Some(tx) = sender {
-            let res: Result<(), mpsc::error::SendError<Result<Bytes, io::Error>>> =
-                gvl::nogvl(|| tx.blocking_send(Ok(bytes)));
-            match res {
-                Ok(()) => Ok(()),
-                Err(_closed) => {
-                    let ruby = unsafe { Ruby::get_unchecked() };
-                    Err(Error::new(
-                        ruby.exception_runtime_error(),
-                        "stream already closed",
-                    ))
-                }
-            }
-        } else {
-            let ruby = unsafe { Ruby::get_unchecked() };
-            Err(Error::new(
-                ruby.exception_runtime_error(),
-                "stream already closed",
-            ))
-        }
-    }
-
-    /// Ruby: `close()`
-    pub fn close(&self) -> Result<(), Error> {
-        if let Ok(mut inner) = self.0.lock() {
-            inner.closed = true;
-            inner.tx.take(); // drop sender, receiver will see EOF
-            Ok(())
-        } else {
-            let ruby = unsafe { Ruby::get_unchecked() };
-            Err(Error::new(
-                ruby.exception_runtime_error(),
-                "stream lock poisoned",
-            ))
-        }
-    }
-
-    /// Ruby: `abort(message = nil)` sends an error then closes
-    pub fn abort(&self, args: &[Value]) -> Result<(), Error> {
-        let message = args.first().and_then(|v| String::try_convert(*v).ok());
-        let err = io::Error::other(message.unwrap_or_else(|| "aborted".to_string()));
-        let sender = {
-            if let Ok(inner) = self.0.lock() {
-                inner.tx.clone()
-            } else {
-                None
-            }
-        };
-        if let Some(tx) = sender {
-            let _ = gvl::nogvl(|| tx.blocking_send(Err(err)));
-        }
-        self.close()
-    }
-
-    /// Take the receiver to build a request body stream. Errors if already taken.
-    pub fn take_receiver(&self) -> Result<mpsc::Receiver<Result<Bytes, io::Error>>, Error> {
-        if let Ok(mut inner) = self.0.lock() {
-            if let Some(rx) = inner.rx.take() {
-                Ok(rx)
-            } else {
-                Err(Error::new(
-                    ruby!().exception_runtime_error(),
-                    "upload stream already consumed",
-                ))
-            }
-        } else {
-            Err(Error::new(
-                ruby!().exception_runtime_error(),
-                "stream lock poisoned",
-            ))
-        }
+        let tx = rb_self.tx.clone();
+        rt::block_on_nogvl_cancellable(tx.send(Ok(bytes)).map_err(mpsc_send_error_to_magnus))
     }
 }
 
-pub struct ChannelStream {
-    rx: mpsc::Receiver<Result<Bytes, io::Error>>,
-}
-
-impl ChannelStream {
-    pub fn new(rx: mpsc::Receiver<Result<Bytes, io::Error>>) -> Self {
-        Self { rx }
+impl From<&Sender> for ReceiverStream<Result<Bytes, io::Error>> {
+    fn from(sender: &Sender) -> Self {
+        let mut inner = sender.rx.borrow_mut();
+        let rx = inner.take().expect("[BUG]: stream already consumed");
+        ReceiverStream::new(rx)
     }
 }
 
-impl Unpin for ChannelStream {}
+/// A wrapper around [`tokio::sync::mpsc::Receiver`] that implements [`Stream`].
+pub struct ReceiverStream<T> {
+    inner: mpsc::Receiver<T>,
+}
 
-impl Stream for ChannelStream {
-    type Item = Result<Bytes, io::Error>;
+impl<T> ReceiverStream<T> {
+    /// Create a new `ReceiverStream`.
+    #[inline]
+    pub fn new(recv: mpsc::Receiver<T>) -> Self {
+        Self { inner: recv }
+    }
+}
 
-    fn poll_next(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        self.rx.poll_recv(cx)
+impl<T> Stream for ReceiverStream<T> {
+    type Item = T;
+
+    #[inline]
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.inner.poll_recv(cx)
+    }
+
+    /// Returns the bounds of the stream based on the underlying receiver.
+    ///
+    /// For open channels, it returns `(receiver.len(), None)`.
+    ///
+    /// For closed channels, it returns `(receiver.len(), Some(used_capacity))`
+    /// where `used_capacity` is calculated as `receiver.max_capacity() -
+    /// receiver.capacity()`. This accounts for any [`Permit`] that is still
+    /// able to send a message.
+    ///
+    /// [`Permit`]: struct@tokio::sync::mpsc::Permit
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.inner.is_closed() {
+            let used_capacity = self.inner.max_capacity() - self.inner.capacity();
+            (self.inner.len(), Some(used_capacity))
+        } else {
+            (self.inner.len(), None)
+        }
     }
 }
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
-    let streamer_class = gem_module.define_class("Receiver", ruby.class_object())?;
-    streamer_class.define_method("each", magnus::method!(Receiver::each, 0))?;
+    let receiver_class = gem_module.define_class("Receiver", ruby.class_object())?;
+    receiver_class.define_method("each", magnus::method!(Receiver::each, 0))?;
 
-    let upload_class = gem_module.define_class("Sender", ruby.class_object())?;
-    upload_class.define_singleton_method("new", function!(Sender::new, -1))?;
-    upload_class.define_method("push", method!(Sender::push, 1))?;
-    upload_class.define_method("close", method!(Sender::close, 0))?;
-    upload_class.define_method("abort", method!(Sender::abort, -1))?;
+    let sender_class = gem_module.define_class("Sender", ruby.class_object())?;
+    sender_class.define_singleton_method("new", function!(Sender::new, -1))?;
+    sender_class.define_method("push", method!(Sender::push, 1))?;
     Ok(())
 }

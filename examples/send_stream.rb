@@ -19,7 +19,6 @@ def example1_simple_push
       us.push("chunk-#{i}\n")
       sleep 0.05
     end
-    us.close
   end
 
   resp = client.post(ENDPOINT, body: us, headers: { "Content-Type" => "text/plain" })
@@ -46,7 +45,6 @@ def example2_file_stream
         us.push(chunk)
       end
     end
-    us.close
   end
 
   resp = client.post(ENDPOINT, body: us, headers: { "Content-Type" => "application/octet-stream" })
@@ -69,7 +67,6 @@ def example3_background_producer
       us.push("data-#{i},")
       sleep 0.01
     end
-    us.close
   end
 
   resp = client.post(ENDPOINT, body: us)
@@ -79,29 +76,8 @@ def example3_background_producer
   producer.join
 end
 
-def example4_abort_error
-  puts "\n=== Example 4: Abort with error ==="
-  client = Wreq::Client.new
-  us = Wreq::Sender.new
-
-  producer = Thread.new do
-    us.push("hello")
-    us.abort("boom")
-  end
-
-  begin
-    client.post(ENDPOINT, body: us)
-    puts "Unexpected: request succeeded"
-  rescue => e
-    puts "Request failed as expected: #{e.class}: #{e.message}"
-  ensure
-    producer.join
-  end
-end
-
 if __FILE__ == $0
   example1_simple_push
   example2_file_stream
   example3_background_producer
-  example4_abort_error
 end

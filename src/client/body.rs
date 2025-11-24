@@ -6,7 +6,7 @@ use magnus::{Error, RModule, RString, Ruby, TryConvert, Value, typed_data::Obj};
 
 pub use self::{
     json::Json,
-    stream::{Receiver, Sender},
+    stream::{Receiver, ReceiverStream, Sender},
 };
 
 /// Represents the body of an HTTP request.
@@ -15,7 +15,7 @@ pub enum Body {
     /// Static bytes body
     Bytes(Bytes),
     /// Streaming body
-    Stream(Value),
+    Stream(ReceiverStream<Result<Bytes, std::io::Error>>),
 }
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
@@ -29,7 +29,9 @@ impl TryConvert for Body {
             return Ok(Body::Bytes(s.to_bytes()));
         }
 
-        Ok(Body::Stream(val))
+        let obj = Obj::<Sender>::try_convert(val)?;
+        let stream = ReceiverStream::from(&*obj);
+        Ok(Body::Stream(stream))
     }
 }
 
@@ -44,13 +46,7 @@ impl Body {
     pub fn into_wreq_body(self) -> Result<wreq::Body, Error> {
         match self {
             Body::Bytes(b) => Ok(wreq::Body::from(b)),
-            Body::Stream(val) => {
-                // Take receiver from the Ruby UploadStream and build a ChannelStream
-                let obj = Obj::<Sender>::try_convert(val)?;
-                let rx = obj.take_receiver()?;
-                let stream = stream::ChannelStream::new(rx);
-                Ok(wreq::Body::wrap_stream(Box::pin(stream)))
-            }
+            Body::Stream(stream) => Ok(wreq::Body::wrap_stream(stream)),
         }
     }
 }

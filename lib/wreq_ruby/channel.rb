@@ -9,7 +9,6 @@ unless defined?(:Wreq)
     #   sender = Wreq::Sender.new(8)
     #   Thread.new do
     #     File.open("big.bin", "rb") { |f| while (chunk = f.read(65536)); sender.push(chunk); end }
-    #     sender.close
     #   end
     #   resp = client.post(url, body: sender)
     #
@@ -20,12 +19,6 @@ unless defined?(:Wreq)
 
       # @param data [String] binary chunk
       def push(data); end
-
-      # Close the stream
-      def close; end
-
-      # Abort the stream
-      def abort(message = nil); end
     end
 
     # Receiver: for streaming response bodies, supports enumerator/iterator chunk reading.
