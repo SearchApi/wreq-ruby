@@ -11,7 +11,7 @@ end
 require_relative "wreq_ruby/http"
 require_relative "wreq_ruby/client"
 require_relative "wreq_ruby/response"
-require_relative "wreq_ruby/streamer"
+require_relative "wreq_ruby/body"
 require_relative "wreq_ruby/header"
 require_relative "wreq_ruby/error"
 require_relative "wreq_ruby/cookie"

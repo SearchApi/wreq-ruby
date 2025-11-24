@@ -18,8 +18,9 @@ use crate::{
     cookie::Jar,
     error::wreq_error_to_magnus,
     extractor::Extractor,
+    gvl,
     http::Method,
-    nogvl, rt,
+    rt,
 };
 
 /// A builder for `Client`.
@@ -154,7 +155,7 @@ impl Client {
     pub fn new(ruby: &Ruby, kwargs: &[Value]) -> Result<Self, magnus::Error> {
         if let Some(kwargs) = kwargs.first() {
             let mut params = Builder::new(ruby, kwargs)?;
-            nogvl::nogvl(|| {
+            gvl::nogvl(|| {
                 let mut builder = wreq::Client::builder();
 
                 // User agent options.
@@ -286,7 +287,7 @@ impl Client {
                 builder.build().map(Client).map_err(wreq_error_to_magnus)
             })
         } else {
-            nogvl::nogvl(|| Ok(Self(wreq::Client::new())))
+            gvl::nogvl(|| Ok(Self(wreq::Client::new())))
         }
     }
 }
@@ -451,10 +452,7 @@ impl Client {
 
             // Body options.
             if let Some(body) = request.body.take() {
-                builder = match body {
-                    body::Body::Text(str) => builder.body(wreq::Body::from(str)),
-                    body::Body::Bytes(bytes) => builder.body(wreq::Body::from(bytes)),
-                }
+                builder = builder.body(wreq::Body::from(body));
             }
 
             // Send request with cancellation support.

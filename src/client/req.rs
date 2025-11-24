@@ -11,7 +11,7 @@ use super::body::{Body, Json};
 use crate::extractor::Extractor;
 
 /// The parameters for a request.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Default, Deserialize)]
 #[non_exhaustive]
 pub struct Request {
     /// The proxy to use for the request.
@@ -80,13 +80,14 @@ pub struct Request {
     pub json: Option<Json>,
 
     /// The body to use for the request.
+    #[serde(skip)]
     pub body: Option<Body>,
 }
 
 impl Request {
     /// Create a new [`Request`] from Ruby keyword arguments.
-    pub fn new(ruby: &magnus::Ruby, kwargs: RHash) -> Result<Self, magnus::Error> {
-        let kwargs = kwargs.as_value();
+    pub fn new(ruby: &magnus::Ruby, hash: RHash) -> Result<Self, magnus::Error> {
+        let kwargs = hash.as_value();
         let mut builder: Self = serde_magnus::deserialize(ruby, kwargs)?;
 
         // extra version handling
@@ -103,6 +104,11 @@ impl Request {
 
         // extra proxy handling
         builder.proxy = Extractor::<Proxy>::try_convert(kwargs)?.into_inner();
+
+        // extra body handling
+        if let Some(body) = hash.get(ruby.to_symbol("body")) {
+            builder.body = Some(Body::try_convert(body)?);
+        }
 
         Ok(builder)
     }

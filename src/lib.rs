@@ -4,9 +4,9 @@ mod client;
 mod cookie;
 mod error;
 mod extractor;
+mod gvl;
 mod header;
 mod http;
-mod nogvl;
 mod rt;
 
 use magnus::{Error, Ruby, Value, typed_data::Obj};

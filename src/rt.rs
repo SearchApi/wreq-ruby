@@ -5,7 +5,7 @@ use tokio::{
     task::JoinHandle,
 };
 
-use crate::{error::interrupt_error, nogvl};
+use crate::{error::interrupt_error, gvl};
 
 static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
     Builder::new_multi_thread()
@@ -20,7 +20,7 @@ pub fn block_on_nogvl_cancellable<F, T>(future: F) -> Result<T, magnus::Error>
 where
     F: Future<Output = Result<T, magnus::Error>>,
 {
-    nogvl::nogvl_cancellable(|flag| {
+    gvl::nogvl_cancellable(|flag| {
         RUNTIME.block_on(async move {
             tokio::select! {
                 biased;
