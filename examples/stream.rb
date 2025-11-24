@@ -6,10 +6,10 @@ require "wreq"
 # Make a request
 client = Wreq::Client.new()
 response = client.get("https://httpbin.io/stream/20")
-streamer = response.stream()
 
+# Get the streaming body receiver
 puts "\n=== Streaming Response Body ==="
-streamer.each do |chunk|
+response.chunks do |chunk|
   puts chunk
   sleep 0.1 # Simulate processing time
 end

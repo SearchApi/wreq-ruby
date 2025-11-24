@@ -90,20 +90,25 @@ unless defined?(:Wreq)
       #   puts data["key"]
       def json; end
 
-      # Get a streaming iterator for the response body.
+      # Get a streaming iterator for the response body, yielding each chunk.
       #
-      # Allows processing large responses in chunks without loading
-      # the entire body into memory.
+      # This method allows you to process large HTTP responses efficiently,
+      # by yielding each chunk of the body as it arrives, without loading
+      # the entire response into memory.
       #
-      # @return [Wreq::Receiver] Chunk iterator for response body
-      # @example
-      #   receiver = response.stream
-      #   receiver.each do |chunk|
-      #     puts chunk
+      # @return [Wreq::Receiver] An iterator over response body chunks (binary String)
+      # @yield [chunk] Each chunk of the response body as a binary String
+      # @example Save response to file
+      #   File.open("output.bin", "wb") do |f|
+      #     response.chunks { |chunk| f.write(chunk) }
       #   end
+      # @example Count total bytes streamed
+      #   total = 0
+      #   response.chunks { |chunk| total += chunk.bytesize }
+      #   puts "Downloaded #{total} bytes"
       #
       # Note: The returned Receiver is only for reading response bodies, not for uploads.
-      def stream; end
+      def chunks; end
 
       # Close the response and free associated resources.
       #

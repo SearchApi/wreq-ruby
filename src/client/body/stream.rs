@@ -7,13 +7,12 @@ use std::{
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt, TryFutureExt};
-use magnus::{Error, RString, TryConvert, Value, block::Yield};
+use magnus::{Error, RString, TryConvert, Value};
 use tokio::sync::mpsc::{self};
 
 use crate::{error::mpsc_send_error_to_magnus, gvl, rt};
 
 /// A receiver for streaming HTTP response bodies.
-#[magnus::wrap(class = "Wreq::BodyReceiver", free_immediately, size)]
 pub struct BodyReceiver(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
 
 /// A sender for streaming HTTP request bodies.
@@ -41,18 +40,6 @@ impl BodyReceiver {
         });
 
         BodyReceiver(Arc::new(Mutex::new(rx)))
-    }
-
-    pub fn each(&self) -> Result<Yield<BodyReceiver>, Error> {
-        // Magnus handles yielding to Ruby using an unsafe internal function,
-        // so we don’t manage the actual iteration loop ourselves.
-        //
-        // Since Ruby controls when values are pulled from the iterator,
-        // and could potentially call `each` from multiple threads or fibers,
-        // we wrap the underlying lister in `Arc<Mutex<_>>` to ensure thread safety.
-        //
-        // Multi-threaded iteration is rare in Ruby, but this design ensures thread safety.
-        Ok(Yield::Iter(BodyReceiver(self.0.clone())))
     }
 }
 
