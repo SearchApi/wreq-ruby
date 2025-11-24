@@ -7,8 +7,7 @@ mod extractor;
 mod header;
 mod http;
 mod nogvl;
-
-use std::sync::LazyLock;
+mod rt;
 
 use magnus::{Error, Ruby, Value, typed_data::Obj};
 
@@ -16,13 +15,6 @@ use crate::{
     client::{Client, resp::Response},
     http::Method,
 };
-
-static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Failed to initialize Tokio runtime")
-});
 
 const RUBY_MODULE_NAME: &str = "Wreq";
 

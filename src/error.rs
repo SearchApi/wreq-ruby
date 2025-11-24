@@ -79,11 +79,6 @@ pub fn interrupt_error() -> MagnusError {
     MagnusError::new(ruby!().get_inner(&INTERRUPT_ERROR), "request interrupted")
 }
 
-/// JSON decoding error
-pub fn json_decode_error(err: serde_json::Error) -> MagnusError {
-    MagnusError::new(ruby!().get_inner(&DECODING_ERROR), err.to_string())
-}
-
 /// Map [`wreq::header::InvalidHeaderName`] to corresponding [`magnus::Error`]
 pub fn header_name_error_to_magnus(err: wreq::header::InvalidHeaderName) -> MagnusError {
     MagnusError::new(
