@@ -6,18 +6,29 @@ use std::{
 };
 
 use bytes::Bytes;
-use futures_util::{Stream, StreamExt};
+use futures_util::{Stream, StreamExt, TryFutureExt};
 use magnus::{
     Error, Module, Object, RModule, RString, Ruby, TryConvert, Value, block::Yield, function,
     method,
 };
 use tokio::sync::mpsc::{self};
 
-use crate::{error::mpsc_try_send_error_to_magnus, gvl, rt};
+use crate::{error::mpsc_send_error_to_magnus, gvl, rt};
 
 /// A receiver for streaming HTTP response bodies.
 #[magnus::wrap(class = "Wreq::BodyReceiver", free_immediately, size)]
 pub struct BodyReceiver(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
+
+/// A sender for streaming HTTP request bodies.
+#[magnus::wrap(class = "Wreq::BodySender", free_immediately, size)]
+pub struct BodySender(RefCell<InnerBodySender>);
+
+struct InnerBodySender {
+    tx: Option<mpsc::Sender<Bytes>>,
+    rx: Option<mpsc::Receiver<Bytes>>,
+}
+
+// ===== impl BodyReceiver =====
 
 impl BodyReceiver {
     /// Create a new [`Receiver`] instance.
@@ -68,12 +79,7 @@ impl Iterator for BodyReceiver {
     }
 }
 
-/// A sender for streaming HTTP request bodies.
-#[magnus::wrap(class = "Wreq::BodySender", free_immediately, size)]
-pub struct BodySender {
-    tx: mpsc::Sender<Bytes>,
-    rx: RefCell<Option<mpsc::Receiver<Bytes>>>,
-}
+// ===== impl BodySender =====
 
 impl BodySender {
     /// Ruby: `Wreq::Sender.new(capacity = 8)`
@@ -85,25 +91,38 @@ impl BodySender {
         };
 
         let (tx, rx) = mpsc::channel(capacity);
-        BodySender {
-            tx,
-            rx: RefCell::new(Some(rx)),
-        }
+        BodySender(RefCell::new(InnerBodySender {
+            tx: Some(tx),
+            rx: Some(rx),
+        }))
     }
 
     /// Ruby: `push(data)` where data is String or bytes
     pub fn push(rb_self: &Self, data: RString) -> Result<(), Error> {
         let bytes = data.to_bytes();
-        let tx = rb_self.tx.clone();
-        gvl::nogvl(|| tx.blocking_send(bytes));
+        let inner = rb_self.0.borrow();
+        if let Some(ref tx) = inner.tx {
+            rt::block_on_nogvl_cancellable(tx.send(bytes).map_err(mpsc_send_error_to_magnus))?;
+        }
         Ok(())
+    }
+
+    /// Ruby: `close` to close the sender
+    pub fn close(&self) {
+        let mut inner = self.0.borrow_mut();
+        inner.tx.take();
+        inner.rx.take();
     }
 }
 
 impl From<&BodySender> for ReceiverStream<Bytes> {
     fn from(sender: &BodySender) -> Self {
-        let mut inner = sender.rx.borrow_mut();
-        let rx = inner.take().expect("[BUG]: stream already consumed");
+        let rx = sender
+            .0
+            .borrow_mut()
+            .rx
+            .take()
+            .expect("[BUG]: stream already consumed");
         ReceiverStream::new(rx)
     }
 }
@@ -156,5 +175,6 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     let sender_class = gem_module.define_class("BodySender", ruby.class_object())?;
     sender_class.define_singleton_method("new", function!(BodySender::new, -1))?;
     sender_class.define_method("push", method!(BodySender::push, 1))?;
+    sender_class.define_method("close", magnus::method!(BodySender::close, 0))?;
     Ok(())
 }
