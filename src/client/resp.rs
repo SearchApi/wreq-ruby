@@ -66,48 +66,46 @@ impl Response {
 
     /// Internal method to get the wreq::Response, optionally streaming the body.
     fn response(&self, stream: bool) -> Result<wreq::Response, Error> {
-        nogvl::nogvl(|| {
-            let build_response = |body: wreq::Body| -> wreq::Response {
-                let mut response = HttpResponse::new(body);
-                *response.version_mut() = self.version.into_ffi();
-                *response.status_mut() = self.status.0;
-                *response.headers_mut() = self.headers.clone();
-                *response.extensions_mut() = self.extensions.clone();
-                wreq::Response::from(response)
-            };
+        let build_response = |body: wreq::Body| -> wreq::Response {
+            let mut response = HttpResponse::new(body);
+            *response.version_mut() = self.version.into_ffi();
+            *response.status_mut() = self.status.0;
+            *response.headers_mut() = self.headers.clone();
+            *response.extensions_mut() = self.extensions.clone();
+            wreq::Response::from(response)
+        };
 
-            if let Some(arc) = self.body.swap(None) {
-                match Arc::try_unwrap(arc) {
-                    Ok(Body::Streamable(body)) => {
-                        return if stream {
-                            Ok(build_response(body))
-                        } else {
-                            let bytes = rt::block_on_nogvl_cancellable(
-                                BodyExt::collect(body)
-                                    .map_ok(|buf| buf.to_bytes())
-                                    .map_err(wreq_error_to_magnus),
-                            )?;
+        if let Some(arc) = self.body.swap(None) {
+            match Arc::try_unwrap(arc) {
+                Ok(Body::Streamable(body)) => {
+                    return if stream {
+                        Ok(build_response(body))
+                    } else {
+                        let bytes = rt::block_on_nogvl_cancellable(
+                            BodyExt::collect(body)
+                                .map_ok(|buf| buf.to_bytes())
+                                .map_err(wreq_error_to_magnus),
+                        )?;
 
-                            self.body
-                                .store(Some(Arc::new(Body::Reusable(bytes.clone()))));
-
-                            Ok(build_response(wreq::Body::from(bytes)))
-                        };
-                    }
-                    Ok(Body::Reusable(bytes)) => {
                         self.body
                             .store(Some(Arc::new(Body::Reusable(bytes.clone()))));
 
-                        if !stream {
-                            return Ok(build_response(wreq::Body::from(bytes)));
-                        }
-                    }
-                    _ => {}
-                };
-            }
+                        Ok(build_response(wreq::Body::from(bytes)))
+                    };
+                }
+                Ok(Body::Reusable(bytes)) => {
+                    self.body
+                        .store(Some(Arc::new(Body::Reusable(bytes.clone()))));
 
-            Err(memory_error())
-        })
+                    if !stream {
+                        return Ok(build_response(wreq::Body::from(bytes)));
+                    }
+                }
+                _ => {}
+            };
+        }
+
+        Err(memory_error())
     }
 }
 
