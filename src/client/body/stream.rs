@@ -11,7 +11,7 @@ use magnus::{
 };
 use tokio::sync::mpsc::{self};
 
-use crate::{RUNTIME, gvl};
+use crate::{gvl, rt};
 
 #[magnus::wrap(class = "Wreq::Receiver", free_immediately, size)]
 pub struct Receiver(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
@@ -20,7 +20,7 @@ impl Receiver {
     /// Create a new [`Receiver`] instance.
     pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> Receiver {
         let (tx, rx) = mpsc::channel(8);
-        RUNTIME.spawn(async move {
+        rt::spawn(async move {
             futures_util::pin_mut!(stream);
             while let Some(item) = stream.next().await {
                 if tx.send(item).await.is_err() {
@@ -49,13 +49,16 @@ impl Iterator for Receiver {
     type Item = Bytes;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // assumes low contention. also we want an entry eventually
-        gvl::nogvl(|| {
+        // Assumes low contention. Also we want an entry eventually.
+        gvl::nogvl_cancellable(|cancel_flag| {
             if let Ok(mut inner) = self.0.lock() {
-                match inner.blocking_recv() {
-                    Some(Ok(entry)) => Some(entry),
-                    _ => None,
-                }
+                rt::block_on(async {
+                    tokio::select! {
+                        biased;
+                        _ = cancel_flag.cancelled() => None,
+                        result = inner.recv() => result.and_then(|r| r.ok()),
+                    }
+                })
             } else {
                 None
             }

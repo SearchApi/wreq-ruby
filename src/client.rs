@@ -14,13 +14,13 @@ use wreq::{
 };
 
 use crate::{
-    RUNTIME,
     client::{req::Request, resp::Response},
     cookie::Jar,
     error::wreq_error_to_magnus,
     extractor::Extractor,
     gvl,
     http::Method,
+    rt,
 };
 
 /// A builder for `Client`.
@@ -362,107 +362,105 @@ impl Client {
         url: U,
         mut request: Request,
     ) -> Result<Response, magnus::Error> {
-        gvl::nogvl(|| {
-            let client = self.0.clone();
-            RUNTIME.block_on(async move {
-                let mut builder = client.request(method.into_ffi(), url.as_ref());
+        let client = self.0.clone();
+        rt::block_on_nogvl_cancellable(async move {
+            let mut builder = client.request(method.into_ffi(), url.as_ref());
 
-                // Version options.
-                apply_option!(set_if_some, builder, request.version, version);
+            // Version options.
+            apply_option!(set_if_some, builder, request.version, version);
 
-                // Timeout options.
-                apply_option!(
-                    set_if_some_map,
-                    builder,
-                    request.timeout,
-                    timeout,
-                    Duration::from_secs
-                );
-                apply_option!(
-                    set_if_some_map,
-                    builder,
-                    request.read_timeout,
-                    read_timeout,
-                    Duration::from_secs
-                );
+            // Timeout options.
+            apply_option!(
+                set_if_some_map,
+                builder,
+                request.timeout,
+                timeout,
+                Duration::from_secs
+            );
+            apply_option!(
+                set_if_some_map,
+                builder,
+                request.read_timeout,
+                read_timeout,
+                Duration::from_secs
+            );
 
-                // Network options.
-                apply_option!(set_if_some, builder, request.proxy, proxy);
+            // Network options.
+            apply_option!(set_if_some, builder, request.proxy, proxy);
 
-                // Headers options.
-                apply_option!(set_if_some, builder, request.headers, headers);
-                apply_option!(set_if_some, builder, request.orig_headers, orig_headers);
-                apply_option!(
-                    set_if_some,
-                    builder,
-                    request.default_headers,
-                    default_headers
-                );
+            // Headers options.
+            apply_option!(set_if_some, builder, request.headers, headers);
+            apply_option!(set_if_some, builder, request.orig_headers, orig_headers);
+            apply_option!(
+                set_if_some,
+                builder,
+                request.default_headers,
+                default_headers
+            );
 
-                // Authentication options.
-                apply_option!(
-                    set_if_some_map_ref,
-                    builder,
-                    request.auth,
-                    auth,
-                    AsRef::<str>::as_ref
-                );
-                apply_option!(set_if_some, builder, request.bearer_auth, bearer_auth);
-                if let Some(basic_auth) = request.basic_auth.take() {
-                    builder = builder.basic_auth(basic_auth.0, basic_auth.1);
+            // Authentication options.
+            apply_option!(
+                set_if_some_map_ref,
+                builder,
+                request.auth,
+                auth,
+                AsRef::<str>::as_ref
+            );
+            apply_option!(set_if_some, builder, request.bearer_auth, bearer_auth);
+            if let Some(basic_auth) = request.basic_auth.take() {
+                builder = builder.basic_auth(basic_auth.0, basic_auth.1);
+            }
+
+            // Cookies options.
+            if let Some(cookies) = request.cookies.take() {
+                for cookie in cookies {
+                    builder = builder.header_append(header::COOKIE, cookie);
                 }
+            }
 
-                // Cookies options.
-                if let Some(cookies) = request.cookies.take() {
-                    for cookie in cookies {
-                        builder = builder.header_append(header::COOKIE, cookie);
-                    }
+            // Allow redirects options.
+            match request.allow_redirects {
+                Some(false) => {
+                    builder = builder.redirect(wreq::redirect::Policy::none());
                 }
-
-                // Allow redirects options.
-                match request.allow_redirects {
-                    Some(false) => {
-                        builder = builder.redirect(wreq::redirect::Policy::none());
-                    }
-                    Some(true) => {
-                        builder = builder.redirect(
-                            request
-                                .max_redirects
-                                .take()
-                                .map(wreq::redirect::Policy::limited)
-                                .unwrap_or_default(),
-                        );
-                    }
-                    None => {}
-                };
-
-                // Compression options.
-                apply_option!(set_if_some, builder, request.gzip, gzip);
-                apply_option!(set_if_some, builder, request.brotli, brotli);
-                apply_option!(set_if_some, builder, request.deflate, deflate);
-                apply_option!(set_if_some, builder, request.zstd, zstd);
-
-                // Query options.
-                apply_option!(set_if_some_ref, builder, request.query, query);
-
-                // Form options.
-                apply_option!(set_if_some_ref, builder, request.form, form);
-
-                // JSON options.
-                apply_option!(set_if_some_ref, builder, request.json, json);
-
-                // Body options.
-                if let Some(body) = request.body.take() {
-                    builder = builder.body(body.into_wreq_body()?);
+                Some(true) => {
+                    builder = builder.redirect(
+                        request
+                            .max_redirects
+                            .take()
+                            .map(wreq::redirect::Policy::limited)
+                            .unwrap_or_default(),
+                    );
                 }
+                None => {}
+            };
 
-                // Send request.
-                builder
-                    .send()
-                    .await
-                    .map(Response::new)
-                    .map_err(wreq_error_to_magnus)
-            })
+            // Compression options.
+            apply_option!(set_if_some, builder, request.gzip, gzip);
+            apply_option!(set_if_some, builder, request.brotli, brotli);
+            apply_option!(set_if_some, builder, request.deflate, deflate);
+            apply_option!(set_if_some, builder, request.zstd, zstd);
+
+            // Query options.
+            apply_option!(set_if_some_ref, builder, request.query, query);
+
+            // Form options.
+            apply_option!(set_if_some_ref, builder, request.form, form);
+
+            // JSON options.
+            apply_option!(set_if_some_ref, builder, request.json, json);
+
+            // Body options.
+            if let Some(body) = request.body.take() {
+                builder = builder.body(body.into_wreq_body()?);
+            }
+
+            // Send request with cancellation support.
+            builder
+                .send()
+                .await
+                .map(Response::new)
+                .map_err(wreq_error_to_magnus)
         })
     }
 }

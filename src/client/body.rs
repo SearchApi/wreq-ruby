@@ -15,7 +15,7 @@ pub enum Body {
     /// Static bytes body
     Bytes(Bytes),
     /// Streaming body
-    UploadStream(Value),
+    Stream(Value),
 }
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
@@ -29,7 +29,7 @@ impl TryConvert for Body {
             return Ok(Body::Bytes(s.to_bytes()));
         }
 
-        Ok(Body::UploadStream(val))
+        Ok(Body::Stream(val))
     }
 }
 
@@ -44,7 +44,7 @@ impl Body {
     pub fn into_wreq_body(self) -> Result<wreq::Body, Error> {
         match self {
             Body::Bytes(b) => Ok(wreq::Body::from(b)),
-            Body::UploadStream(val) => {
+            Body::Stream(val) => {
                 // Take receiver from the Ruby UploadStream and build a ChannelStream
                 let obj = Obj::<Sender>::try_convert(val)?;
                 let rx = obj.take_receiver()?;
