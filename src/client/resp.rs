@@ -9,7 +9,7 @@ use magnus::{Error, Module, RArray, RModule, Ruby, Value};
 use wreq::Uri;
 
 use crate::{
-    client::body::{Json, Receiver},
+    client::body::{BodyReceiver, Json},
     cookie::Cookie,
     error::{memory_error, wreq_error_to_magnus},
     gvl,
@@ -188,10 +188,10 @@ impl Response {
     }
 
     /// Get a streamer for the response body.
-    pub fn stream(&self) -> Result<Receiver, Error> {
+    pub fn stream(&self) -> Result<BodyReceiver, Error> {
         self.response(true)
             .map(wreq::Response::bytes_stream)
-            .map(Receiver::new)
+            .map(BodyReceiver::new)
     }
 
     /// Close the response body, dropping any resources.

@@ -2,11 +2,12 @@ mod json;
 mod stream;
 
 use bytes::Bytes;
+use futures_util::StreamExt;
 use magnus::{Error, RModule, RString, Ruby, TryConvert, Value, typed_data::Obj};
 
 pub use self::{
     json::Json,
-    stream::{Receiver, ReceiverStream, Sender},
+    stream::{BodyReceiver, BodySender, ReceiverStream},
 };
 
 /// Represents the body of an HTTP request.
@@ -15,7 +16,7 @@ pub enum Body {
     /// Static bytes body
     Bytes(Bytes),
     /// Streaming body
-    Stream(ReceiverStream<Result<Bytes, std::io::Error>>),
+    Stream(ReceiverStream<Bytes>),
 }
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
@@ -29,7 +30,7 @@ impl TryConvert for Body {
             return Ok(Body::Bytes(s.to_bytes()));
         }
 
-        let obj = Obj::<Sender>::try_convert(val)?;
+        let obj = Obj::<BodySender>::try_convert(val)?;
         let stream = ReceiverStream::from(&*obj);
         Ok(Body::Stream(stream))
     }
@@ -46,7 +47,10 @@ impl Body {
     pub fn into_wreq_body(self) -> Result<wreq::Body, Error> {
         match self {
             Body::Bytes(b) => Ok(wreq::Body::from(b)),
-            Body::Stream(stream) => Ok(wreq::Body::wrap_stream(stream)),
+            Body::Stream(stream) => {
+                let try_stream = stream.map(|b| Ok::<Bytes, std::io::Error>(b));
+                Ok(wreq::Body::wrap_stream(try_stream))
+            }
         }
     }
 }

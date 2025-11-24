@@ -12,7 +12,7 @@ CHUNK = 64 * 1024
 def example1_simple_push
   puts "\n=== Example 1: Simple push ==="
   client = Wreq::Client.new
-  us = Wreq::Sender.new(8)
+  us = Wreq::BodySender.new(8)
 
   producer = Thread.new do
     5.times do |i|
@@ -23,6 +23,7 @@ def example1_simple_push
 
   resp = client.post(ENDPOINT, body: us, headers: { "Content-Type" => "text/plain" })
   body = resp.json
+  puts body
   data = body["data"] || body["json"].to_json
   puts "Echoed bytes: #{data.bytesize}"
   producer.join
@@ -31,7 +32,7 @@ end
 def example2_file_stream
   puts "\n=== Example 2: File streaming ==="
   client = Wreq::Client.new
-  us = Wreq::Sender.new(16)
+  us = Wreq::BodySender.new(16)
 
   # Prepare a temp file (~250KB)
   path = File.join(Dir.tmpdir, "wreq_upload_sample.bin")
@@ -59,18 +60,18 @@ end
 def example3_background_producer
   puts "\n=== Example 3: Background thread producer ==="
   client = Wreq::Client.new
-  us = Wreq::Sender.new(4)
+  us = Wreq::BodySender.new(4)
 
   # Simulate streaming generation
   producer = Thread.new do
     (1..20).each do |i|
       us.push("data-#{i},")
-      sleep 0.01
     end
   end
 
   resp = client.post(ENDPOINT, body: us)
   json = resp.json
+  puts "Full echoed data:" + resp.text
   data = json["data"] || ""
   puts "Received length: #{data.bytesize}"
   producer.join
