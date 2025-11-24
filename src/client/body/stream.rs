@@ -52,13 +52,16 @@ impl Iterator for Streamer {
     type Item = Bytes;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // assumes low contention. also we want an entry eventually
-        nogvl::nogvl(|| {
+        // Assumes low contention. Also we want an entry eventually.
+        nogvl::nogvl_cancellable(|cancel_flag| {
             if let Ok(mut inner) = self.0.lock() {
-                match inner.blocking_recv() {
-                    Some(Ok(entry)) => Some(entry),
-                    _ => None,
-                }
+                RUNTIME.block_on(async {
+                    tokio::select! {
+                        biased;
+                        _ = cancel_flag.cancelled() => None,
+                        result = inner.recv() => result.and_then(|r| r.ok()),
+                    }
+                })
             } else {
                 None
             }

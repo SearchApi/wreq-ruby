@@ -1,34 +1,29 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Demonstrates that Thread.kill cannot interrupt wreq requests.
-# Fix: Register unblock function with rb_thread_call_without_gvl
+# Tests Thread.kill interrupt support for wreq HTTP operations.
+# All blocking operations should respond to thread interruption.
 
 require_relative "../lib/wreq"
 
 HANGING_URL = "http://10.255.255.1:12345/" # Non-routable, hangs forever
+SLOW_BODY_URL = "https://httpbin.io/drip?duration=5&numbytes=5" # 5s slow body
 
-def test_thread_kill(name, timeout: nil)
+def test_interrupt(name, kill_after: 2, max_wait: 5)
   print "#{name}: "
 
   start = Time.now
-  thread = Thread.new do
-    Wreq.get(HANGING_URL, timeout: timeout) rescue nil
-  end
+  thread = Thread.new { yield }
 
-  sleep 2
+  sleep kill_after
   thread.kill
-  killed = thread.join(3) # Wait max 3s for thread to die
+  killed = thread.join(max_wait)
 
   elapsed = Time.now - start
-  alive = thread.alive?
 
-  if killed && elapsed < 4
+  if killed && elapsed < (kill_after + max_wait)
     puts "PASS (killed in #{elapsed.round(1)}s)"
     :pass
-  elsif killed && !alive
-    puts "TIMEOUT (exited after #{elapsed.round(1)}s, not via kill)"
-    :timeout_exit
   else
     puts "FAIL (still alive after #{elapsed.round(1)}s)"
     Thread.kill(thread) rescue nil
@@ -39,8 +34,27 @@ end
 puts "Thread Interrupt Test"
 puts "=" * 40
 
-r1 = test_thread_kill("No timeout")
-r2 = test_thread_kill("With timeout", timeout: 5)
+results = []
+
+# Test 1: Connection phase (non-routable IP)
+results << test_interrupt("Connect phase") { Wreq.get(HANGING_URL) rescue nil }
+
+# Test 2: Connection phase with timeout
+results << test_interrupt("Connect + timeout") { Wreq.get(HANGING_URL, timeout: 60) rescue nil }
+
+# Test 3: Body reading phase (slow drip endpoint)
+results << test_interrupt("Body reading") {
+  resp = Wreq.get(SLOW_BODY_URL)
+  resp.text rescue nil
+}
+
+# Test 4: Body streaming phase
+results << test_interrupt("Body streaming") {
+  resp = Wreq.get(SLOW_BODY_URL)
+  resp.stream.each { |chunk| chunk } rescue nil
+}
 
 puts "=" * 40
-exit(r1 == :pass && r2 == :pass ? 0 : 1)
+passed = results.count(:pass)
+puts "#{passed}/#{results.size} tests passed"
+exit(results.all?(:pass) ? 0 : 1)

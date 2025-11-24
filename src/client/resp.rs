@@ -11,7 +11,7 @@ use crate::{
     RUNTIME,
     client::body::{Json, Streamer},
     cookie::Cookie,
-    error::{memory_error, wreq_error_to_magnus},
+    error::{interrupt_error, memory_error, wreq_error_to_magnus},
     header::Headers,
     http::{StatusCode, Version},
     nogvl,
@@ -170,23 +170,56 @@ impl Response {
 
     /// Get the response body as bytes.
     pub fn bytes(&self) -> Result<Bytes, Error> {
-        let response = self.response(false)?;
-        nogvl::nogvl(|| {
-            RUNTIME
-                .block_on(response.bytes())
-                .map_err(wreq_error_to_magnus)
+        nogvl::nogvl_cancellable(|cancel_flag| {
+            if let Some(arc) = self.body.load_full() {
+                if let Body::Reusable(bytes) = arc.as_ref() {
+                    return Ok(bytes.clone());
+                }
+            }
+
+            if let Some(arc) = self.body.swap(None) {
+                match Arc::try_unwrap(arc) {
+                    Ok(Body::Streamable(body)) => {
+                        let result = RUNTIME.block_on(async {
+                            tokio::select! {
+                                biased;
+                                _ = cancel_flag.cancelled() => Err(interrupt_error()),
+                                result = BodyExt::collect(body) => {
+                                    result.map(|buf| buf.to_bytes()).map_err(wreq_error_to_magnus)
+                                }
+                            }
+                        });
+
+                        if let Ok(bytes) = &result {
+                            self.body
+                                .store(Some(Arc::new(Body::Reusable(bytes.clone()))));
+                        }
+
+                        result
+                    }
+                    Ok(Body::Reusable(bytes)) => {
+                        self.body
+                            .store(Some(Arc::new(Body::Reusable(bytes.clone()))));
+                        Ok(bytes)
+                    }
+                    Err(arc) => {
+                        self.body.store(Some(arc));
+                        Err(memory_error())
+                    }
+                }
+            } else {
+                Err(memory_error())
+            }
         })
     }
 
     /// Get the response body as JSON.
     pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
-        let response = rb_self.response(false)?;
-        nogvl::nogvl(|| {
-            let json: Json = RUNTIME
-                .block_on(response.json())
-                .map_err(wreq_error_to_magnus)?;
-            serde_magnus::serialize(ruby, &json)
-        })
+        let bytes = rb_self.bytes()?;
+        let json: Json = serde_json::from_slice(&bytes)
+            .map_err(|e| magnus::Error::new(ruby.exception_runtime_error(), e.to_string()))?;
+
+        serde_magnus::serialize(ruby, &json)
     }
 
     /// Get a streamer for the response body.

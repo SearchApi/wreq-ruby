@@ -460,19 +460,10 @@ impl Client {
                 }
 
                 // Send request with cancellation support.
-                // Use tokio::select! to race the request against thread interruption.
                 tokio::select! {
                     biased;
-
-                    // Check for cancellation first (Thread.kill was called)
-                    _ = cancel_flag.cancelled() => {
-                        Err(interrupt_error())
-                    }
-
-                    // Otherwise, perform the request
-                    result = builder.send() => {
-                        result.map(Response::new).map_err(wreq_error_to_magnus)
-                    }
+                    _ = cancel_flag.cancelled() => Err(interrupt_error()),
+                    result = builder.send() => result.map(Response::new).map_err(wreq_error_to_magnus),
                 }
             })
         })

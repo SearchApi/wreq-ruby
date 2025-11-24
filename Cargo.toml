@@ -31,6 +31,7 @@ wreq = { version = "6.0.0-rc.21", features = [
 ] }
 wreq-util = { version = "3.0.0-rc.7", features = ["emulation-rand"] }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 serde_magnus = "0.10.0"
 indexmap = { version = "2.12.1", features = ["serde"] }
 cookie = "0.18"

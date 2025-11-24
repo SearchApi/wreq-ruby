@@ -76,10 +76,7 @@ pub fn memory_error() -> MagnusError {
 
 /// Thread interruption error (raised when Thread.kill cancels a request)
 pub fn interrupt_error() -> MagnusError {
-    MagnusError::new(
-        ruby!().get_inner(&INTERRUPT_ERROR),
-        "request interrupted",
-    )
+    MagnusError::new(ruby!().get_inner(&INTERRUPT_ERROR), "request interrupted")
 }
 
 /// Map [`wreq::header::InvalidHeaderName`] to corresponding [`magnus::Error`]
