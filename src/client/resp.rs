@@ -196,6 +196,7 @@ impl Response {
     }
 
     /// Close the response body, dropping any resources.
+    #[inline]
     pub fn close(&self) {
         gvl::nogvl(|| self.body.swap(None));
     }
