@@ -1,6 +1,4 @@
-# test/request_stream_test.rb
 require "test_helper"
-require "wreq"
 
 class RequestStreamTest < Minitest::Test
   ENDPOINT = ENV["WREQ_ECHO_URL"] || "https://httpbin.io/post"
