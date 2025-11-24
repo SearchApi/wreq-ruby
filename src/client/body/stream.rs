@@ -5,7 +5,7 @@ use futures_util::{Stream, StreamExt};
 use magnus::{Error, Module, RModule, Ruby, block::Yield};
 use tokio::sync::mpsc::{self};
 
-use crate::{RUNTIME, nogvl};
+use crate::{nogvl, rt};
 
 /// A byte stream response.
 /// An asynchronous iterator yielding data chunks from the response stream.
@@ -19,7 +19,7 @@ impl Streamer {
     /// Create a new [`Streamer`] instance.
     pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> Streamer {
         let (tx, rx) = mpsc::channel(8);
-        RUNTIME.spawn(async move {
+        rt::spawn(async move {
             futures_util::pin_mut!(stream);
             while let Some(item) = stream.next().await {
                 if tx.send(item).await.is_err() {
@@ -52,13 +52,16 @@ impl Iterator for Streamer {
     type Item = Bytes;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // assumes low contention. also we want an entry eventually
-        nogvl::nogvl(|| {
+        // Assumes low contention. Also we want an entry eventually.
+        nogvl::nogvl_cancellable(|cancel_flag| {
             if let Ok(mut inner) = self.0.lock() {
-                match inner.blocking_recv() {
-                    Some(Ok(entry)) => Some(entry),
-                    _ => None,
-                }
+                rt::block_on(async {
+                    tokio::select! {
+                        biased;
+                        _ = cancel_flag.cancelled() => None,
+                        result = inner.recv() => result.and_then(|r| r.ok()),
+                    }
+                })
             } else {
                 None
             }
