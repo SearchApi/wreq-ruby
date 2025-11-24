@@ -11,7 +11,7 @@ use crate::{
     RUNTIME,
     client::body::{Json, Streamer},
     cookie::Cookie,
-    error::{interrupt_error, memory_error, wreq_error_to_magnus},
+    error::{interrupt_error, json_decode_error, memory_error, wreq_error_to_magnus},
     header::Headers,
     http::{StatusCode, Version},
     nogvl,
@@ -216,9 +216,7 @@ impl Response {
     /// Get the response body as JSON.
     pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
         let bytes = rb_self.bytes()?;
-        let json: Json = serde_json::from_slice(&bytes)
-            .map_err(|e| magnus::Error::new(ruby.exception_runtime_error(), e.to_string()))?;
-
+        let json: Json = serde_json::from_slice(&bytes).map_err(json_decode_error)?;
         serde_magnus::serialize(ruby, &json)
     }
 
