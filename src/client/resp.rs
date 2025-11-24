@@ -11,7 +11,7 @@ use wreq::Uri;
 use crate::{
     client::body::{Json, Streamer},
     cookie::Cookie,
-    error::{interrupt_error, memory_error, wreq_error_to_magnus},
+    error::{memory_error, wreq_error_to_magnus},
     header::Headers,
     http::{StatusCode, Version},
     nogvl, rt,
@@ -66,7 +66,7 @@ impl Response {
 
     /// Internal method to get the wreq::Response, optionally streaming the body.
     fn response(&self, stream: bool) -> Result<wreq::Response, Error> {
-        nogvl::nogvl_cancellable(|flag| {
+        nogvl::nogvl(|| {
             let build_response = |body: wreq::Body| -> wreq::Response {
                 let mut response = HttpResponse::new(body);
                 *response.version_mut() = self.version.into_ffi();
@@ -82,21 +82,16 @@ impl Response {
                         return if stream {
                             Ok(build_response(body))
                         } else {
-                            let result = rt::block_on(async {
-                                tokio::select! {
-                                    biased;
-                                    _ = flag.cancelled() => Err(interrupt_error()),
-                                    result = BodyExt::collect(body) => {
-                                        result.map(|buf| buf.to_bytes()).map_err(wreq_error_to_magnus)
-                                    }
-                                }
-                            });
+                            let bytes = rt::block_on_nogvl_cancellable(
+                                BodyExt::collect(body)
+                                    .map_ok(|buf| buf.to_bytes())
+                                    .map_err(wreq_error_to_magnus),
+                            )?;
 
-                            if let Ok(bytes) = &result {
-                                self.body
-                                    .store(Some(Arc::new(Body::Reusable(bytes.clone()))));
-                            }
-                            result.map(wreq::Body::from).map(build_response)
+                            self.body
+                                .store(Some(Arc::new(Body::Reusable(bytes.clone()))));
+
+                            Ok(build_response(wreq::Body::from(bytes)))
                         };
                     }
                     Ok(Body::Reusable(bytes)) => {
