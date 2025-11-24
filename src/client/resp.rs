@@ -5,7 +5,7 @@ use bytes::Bytes;
 use futures_util::TryFutureExt;
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RArray, RModule, Ruby, Value};
+use magnus::{Error, Module, RArray, RModule, Ruby, Value, block::Yield};
 use wreq::Uri;
 
 use crate::{
@@ -187,11 +187,12 @@ impl Response {
         })
     }
 
-    /// Get a streamer for the response body.
-    pub fn stream(&self) -> Result<BodyReceiver, Error> {
+    /// Get a chunk iterator for the response body.
+    pub fn chunks(&self) -> Result<Yield<BodyReceiver>, Error> {
         self.response(true)
             .map(wreq::Response::bytes_stream)
             .map(BodyReceiver::new)
+            .map(Yield::Iter)
     }
 
     /// Close the response body, dropping any resources.
@@ -223,7 +224,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
     response_class.define_method("text", magnus::method!(Response::bytes, 0))?;
     response_class.define_method("json", magnus::method!(Response::json, 0))?;
-    response_class.define_method("stream", magnus::method!(Response::stream, 0))?;
+    response_class.define_method("chunks", magnus::method!(Response::chunks, 0))?;
     response_class.define_method("close", magnus::method!(Response::close, 0))?;
     Ok(())
 }

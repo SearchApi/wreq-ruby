@@ -20,21 +20,5 @@ unless defined?(:Wreq)
       # @param data [String] binary chunk
       def push(data); end
     end
-
-    # BodySender: for streaming response bodies, supports enumerator/iterator chunk reading.
-    # Backed by a Rust channel, automatically receives remote data in chunks.
-    #
-    # Usage:
-    #   resp = client.get(url)
-    #   receiver = resp.stream
-    #   receiver.each { |chunk| ... }
-    #
-    # Note: BodySender is for response download only, not for request upload.
-    class BodyReceiver
-      include Enumerable
-
-      # Enumerate all chunks
-      def each; end
-    end
   end
 end
