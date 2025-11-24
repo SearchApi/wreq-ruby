@@ -7,10 +7,7 @@ use std::{
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt, TryFutureExt};
-use magnus::{
-    Error, Module, Object, RModule, RString, Ruby, TryConvert, Value, block::Yield, function,
-    method,
-};
+use magnus::{Error, RString, TryConvert, Value, block::Yield};
 use tokio::sync::mpsc::{self};
 
 use crate::{error::mpsc_send_error_to_magnus, gvl, rt};
@@ -46,7 +43,7 @@ impl BodyReceiver {
         BodyReceiver(Arc::new(Mutex::new(rx)))
     }
 
-    fn each(&self) -> Result<Yield<BodyReceiver>, Error> {
+    pub fn each(&self) -> Result<Yield<BodyReceiver>, Error> {
         // Magnus handles yielding to Ruby using an unsafe internal function,
         // so we don’t manage the actual iteration loop ourselves.
         //
@@ -166,15 +163,4 @@ impl<T> Stream for ReceiverStream<T> {
             (self.inner.len(), None)
         }
     }
-}
-
-pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
-    let receiver_class = gem_module.define_class("BodyReceiver", ruby.class_object())?;
-    receiver_class.define_method("each", magnus::method!(BodyReceiver::each, 0))?;
-
-    let sender_class = gem_module.define_class("BodySender", ruby.class_object())?;
-    sender_class.define_singleton_method("new", function!(BodySender::new, -1))?;
-    sender_class.define_method("push", method!(BodySender::push, 1))?;
-    sender_class.define_method("close", magnus::method!(BodySender::close, 0))?;
-    Ok(())
 }

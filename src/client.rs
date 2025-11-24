@@ -452,7 +452,7 @@ impl Client {
 
             // Body options.
             if let Some(body) = request.body.take() {
-                builder = builder.body(body.into_wreq_body()?);
+                builder = builder.body(wreq::Body::from(body));
             }
 
             // Send request with cancellation support.

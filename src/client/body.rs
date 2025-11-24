@@ -3,7 +3,10 @@ mod stream;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
-use magnus::{Error, RModule, RString, Ruby, TryConvert, Value, typed_data::Obj};
+use magnus::{
+    Error, Module, Object, RModule, RString, Ruby, TryConvert, Value, function, method,
+    typed_data::Obj,
+};
 
 pub use self::{
     json::Json,
@@ -19,11 +22,6 @@ pub enum Body {
     Stream(ReceiverStream<Bytes>),
 }
 
-pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
-    stream::include(ruby, gem_module)?;
-    Ok(())
-}
-
 impl TryConvert for Body {
     fn try_convert(val: Value) -> Result<Self, Error> {
         if let Ok(s) = RString::try_convert(val) {
@@ -36,21 +34,25 @@ impl TryConvert for Body {
     }
 }
 
-impl Body {
-    /// Convert to wreq::Body with true streaming via Ruby Queue.
-    ///
-    /// **Streaming Implementation:**
-    /// This uses Ruby's Queue (thread-safe) and spawns a Ruby Thread to read data.
-    /// The Ruby thread has GVL access and can safely call Proc/Enumerator methods.
-    /// Data is passed through the Queue to Rust, enabling true streaming without
-    /// loading everything into memory first.
-    pub fn into_wreq_body(self) -> Result<wreq::Body, Error> {
-        match self {
-            Body::Bytes(b) => Ok(wreq::Body::from(b)),
+impl From<Body> for wreq::Body {
+    fn from(body: Body) -> Self {
+        match body {
+            Body::Bytes(b) => wreq::Body::from(b),
             Body::Stream(stream) => {
                 let try_stream = stream.map(Ok::<Bytes, std::io::Error>);
-                Ok(wreq::Body::wrap_stream(try_stream))
+                wreq::Body::wrap_stream(try_stream)
             }
         }
     }
+}
+
+pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
+    let receiver_class = gem_module.define_class("BodyReceiver", ruby.class_object())?;
+    receiver_class.define_method("each", magnus::method!(BodyReceiver::each, 0))?;
+
+    let sender_class = gem_module.define_class("BodySender", ruby.class_object())?;
+    sender_class.define_singleton_method("new", function!(BodySender::new, -1))?;
+    sender_class.define_method("push", method!(BodySender::push, 1))?;
+    sender_class.define_method("close", magnus::method!(BodySender::close, 0))?;
+    Ok(())
 }
