@@ -1,7 +1,7 @@
 use magnus::{
     Error as MagnusError, RModule, Ruby, exception::ExceptionClass, prelude::*, value::Lazy,
 };
-use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::mpsc::error::SendError;
 
 const RACE_CONDITION_ERROR_MSG: &str = r#"Due to Rust's memory management with borrowing,
 you cannot use certain instances multiple times as they may be consumed.
@@ -81,17 +81,11 @@ pub fn interrupt_error() -> MagnusError {
 }
 
 /// Map [`tokio::sync::mpsc::error::SendError`] to corresponding [`magnus::Error`]
-pub fn mpsc_try_send_error_to_magnus<T>(err: TrySendError<T>) -> MagnusError {
-    match err {
-        TrySendError::Closed(_) => MagnusError::new(
-            ruby!().get_inner(&BODY_ERROR),
-            "cannot send data: channel closed",
-        ),
-        TrySendError::Full(_) => MagnusError::new(
-            ruby!().get_inner(&BODY_ERROR),
-            "cannot send data: channel full",
-        ),
-    }
+pub fn mpsc_send_error_to_magnus<T>(err: SendError<T>) -> MagnusError {
+    MagnusError::new(
+        ruby!().get_inner(&BODY_ERROR),
+        format!("failed to send body chunk: {}", err),
+    )
 }
 
 /// Map [`wreq::header::InvalidHeaderName`] to corresponding [`magnus::Error`]

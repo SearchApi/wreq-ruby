@@ -19,11 +19,11 @@ def example1_simple_push
       us.push("chunk-#{i}\n")
       sleep 0.05
     end
+    us.close
   end
 
   resp = client.post(ENDPOINT, body: us, headers: { "Content-Type" => "text/plain" })
   body = resp.json
-  puts body
   data = body["data"] || body["json"].to_json
   puts "Echoed bytes: #{data.bytesize}"
   producer.join
@@ -46,6 +46,7 @@ def example2_file_stream
         us.push(chunk)
       end
     end
+    us.close
   end
 
   resp = client.post(ENDPOINT, body: us, headers: { "Content-Type" => "application/octet-stream" })
@@ -66,12 +67,13 @@ def example3_background_producer
   producer = Thread.new do
     (1..20).each do |i|
       us.push("data-#{i},")
+      sleep 0.01
     end
+    us.close
   end
 
   resp = client.post(ENDPOINT, body: us)
   json = resp.json
-  puts "Full echoed data:" + resp.text
   data = json["data"] || ""
   puts "Received length: #{data.bytesize}"
   producer.join

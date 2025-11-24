@@ -48,7 +48,7 @@ impl Body {
         match self {
             Body::Bytes(b) => Ok(wreq::Body::from(b)),
             Body::Stream(stream) => {
-                let try_stream = stream.map(|b| Ok::<Bytes, std::io::Error>(b));
+                let try_stream = stream.map(Ok::<Bytes, std::io::Error>);
                 Ok(wreq::Body::wrap_stream(try_stream))
             }
         }
