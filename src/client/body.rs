@@ -6,7 +6,7 @@ use magnus::{Error, RModule, RString, Ruby, TryConvert, Value, typed_data::Obj};
 
 pub use self::{
     json::Json,
-    stream::{Streamer, UploadStream},
+    stream::{Receiver, Sender},
 };
 
 /// Represents the body of an HTTP request.
@@ -14,21 +14,8 @@ pub use self::{
 pub enum Body {
     /// Static bytes body
     Bytes(Bytes),
-    /// Streaming body from Ruby `Wreq::UploadStream`
+    /// Streaming body
     UploadStream(Value),
-}
-
-/// Convert Ruby Value to bytes Vec (binary-safe; prefers raw RString bytes)
-pub(crate) fn value_to_bytes(val: Value) -> Result<Bytes, Error> {
-    // Prefer raw bytes from Ruby String without UTF-8 coercion
-    if let Ok(rs) = RString::try_convert(val) {
-        return Ok(rs.to_bytes());
-    }
-
-    Err(Error::new(
-        ruby!().exception_type_error(),
-        "chunk must be String or bytes",
-    ))
 }
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
@@ -42,7 +29,7 @@ impl TryConvert for Body {
             return Ok(Body::Bytes(s.to_bytes()));
         }
 
-        return Ok(Body::UploadStream(val));
+        Ok(Body::UploadStream(val))
     }
 }
 
@@ -59,7 +46,7 @@ impl Body {
             Body::Bytes(b) => Ok(wreq::Body::from(b)),
             Body::UploadStream(val) => {
                 // Take receiver from the Ruby UploadStream and build a ChannelStream
-                let obj = Obj::<UploadStream>::try_convert(val)?;
+                let obj = Obj::<Sender>::try_convert(val)?;
                 let rx = obj.take_receiver()?;
                 let stream = stream::ChannelStream::new(rx);
                 Ok(wreq::Body::wrap_stream(Box::pin(stream)))

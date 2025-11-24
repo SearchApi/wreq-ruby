@@ -6,24 +6,19 @@ use std::{
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt};
 use magnus::{
-    Error, Module, Object, RModule, Ruby, TryConvert, Value, block::Yield, function, method,
+    Error, Module, Object, RModule, RString, Ruby, TryConvert, Value, block::Yield, function,
+    method,
 };
 use tokio::sync::mpsc::{self};
 
-use super::value_to_bytes;
 use crate::{RUNTIME, gvl};
 
-/// A byte stream response.
-/// An asynchronous iterator yielding data chunks from the response stream.
-/// Used to stream response content.
-/// Implemented in the `stream` method of the `Response` class.
-/// Can be used in an asynchronous for loop in Python.
-#[magnus::wrap(class = "Wreq::Streamer", free_immediately, size)]
-pub struct Streamer(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
+#[magnus::wrap(class = "Wreq::Receiver", free_immediately, size)]
+pub struct Receiver(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
 
-impl Streamer {
-    /// Create a new [`Streamer`] instance.
-    pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> Streamer {
+impl Receiver {
+    /// Create a new [`Receiver`] instance.
+    pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> Receiver {
         let (tx, rx) = mpsc::channel(8);
         RUNTIME.spawn(async move {
             futures_util::pin_mut!(stream);
@@ -34,14 +29,10 @@ impl Streamer {
             }
         });
 
-        Streamer(Arc::new(Mutex::new(rx)))
+        Receiver(Arc::new(Mutex::new(rx)))
     }
 
-    /// @yard
-    /// @def each
-    /// Returns the next element.
-    /// @return [String]
-    fn each(&self) -> Result<Yield<Streamer>, Error> {
+    fn each(&self) -> Result<Yield<Receiver>, Error> {
         // Magnus handles yielding to Ruby using an unsafe internal function,
         // so we don’t manage the actual iteration loop ourselves.
         //
@@ -50,11 +41,11 @@ impl Streamer {
         // we wrap the underlying lister in `Arc<Mutex<_>>` to ensure thread safety.
         //
         // Multi-threaded iteration is rare in Ruby, but this design ensures thread safety.
-        Ok(Yield::Iter(Streamer(self.0.clone())))
+        Ok(Yield::Iter(Receiver(self.0.clone())))
     }
 }
 
-impl Iterator for Streamer {
+impl Iterator for Receiver {
     type Item = Bytes;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -72,18 +63,6 @@ impl Iterator for Streamer {
     }
 }
 
-pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
-    let streamer_class = gem_module.define_class("Streamer", ruby.class_object())?;
-    streamer_class.define_method("each", magnus::method!(Streamer::each, 0))?;
-
-    let upload_class = gem_module.define_class("UploadStream", ruby.class_object())?;
-    upload_class.define_singleton_method("new", function!(UploadStream::new, -1))?;
-    upload_class.define_method("push", method!(UploadStream::push, 1))?;
-    upload_class.define_method("close", method!(UploadStream::close, 0))?;
-    upload_class.define_method("abort", method!(UploadStream::abort, -1))?;
-    Ok(())
-}
-
 #[derive(Default)]
 struct Inner {
     tx: Option<mpsc::Sender<Result<Bytes, io::Error>>>,
@@ -91,10 +70,10 @@ struct Inner {
     closed: bool,
 }
 
-#[magnus::wrap(class = "Wreq::UploadStream", free_immediately, size)]
-pub struct UploadStream(Arc<Mutex<Inner>>);
+#[magnus::wrap(class = "Wreq::Sender", free_immediately, size)]
+pub struct Sender(Arc<Mutex<Inner>>);
 
-impl UploadStream {
+impl Sender {
     /// Ruby: `Wreq::UploadStream.new(capacity = 8)`
     pub fn new(args: &[Value]) -> Result<Self, Error> {
         let capacity: usize = if let Some(v) = args.first() {
@@ -105,7 +84,7 @@ impl UploadStream {
 
         // channel
         let (tx, rx) = mpsc::channel::<Result<Bytes, io::Error>>(capacity);
-        Ok(UploadStream(Arc::new(Mutex::new(Inner {
+        Ok(Sender(Arc::new(Mutex::new(Inner {
             tx: Some(tx),
             rx: Some(rx),
             closed: false,
@@ -113,9 +92,8 @@ impl UploadStream {
     }
 
     /// Ruby: `push(data)` where data is String or bytes
-    pub fn push(&self, data: Value) -> Result<(), Error> {
-        let bytes = value_to_bytes(data)?;
-        let bytes = Bytes::from(bytes);
+    pub fn push(&self, data: RString) -> Result<(), Error> {
+        let bytes = data.to_bytes();
         // send with blocking_send without holding GVL
         let sender = {
             if let Ok(inner) = self.0.lock() {
@@ -163,11 +141,8 @@ impl UploadStream {
 
     /// Ruby: `abort(message = nil)` sends an error then closes
     pub fn abort(&self, args: &[Value]) -> Result<(), Error> {
-        let message = args.get(0).and_then(|v| String::try_convert(*v).ok());
-        let err = io::Error::new(
-            io::ErrorKind::Other,
-            message.unwrap_or_else(|| "aborted".to_string()),
-        );
+        let message = args.first().and_then(|v| String::try_convert(*v).ok());
+        let err = io::Error::other(message.unwrap_or_else(|| "aborted".to_string()));
         let sender = {
             if let Ok(inner) = self.0.lock() {
                 inner.tx.clone()
@@ -187,16 +162,14 @@ impl UploadStream {
             if let Some(rx) = inner.rx.take() {
                 Ok(rx)
             } else {
-                let ruby = unsafe { Ruby::get_unchecked() };
                 Err(Error::new(
-                    ruby.exception_runtime_error(),
+                    ruby!().exception_runtime_error(),
                     "upload stream already consumed",
                 ))
             }
         } else {
-            let ruby = unsafe { Ruby::get_unchecked() };
             Err(Error::new(
-                ruby.exception_runtime_error(),
+                ruby!().exception_runtime_error(),
                 "stream lock poisoned",
             ))
         }
@@ -224,4 +197,16 @@ impl Stream for ChannelStream {
     ) -> std::task::Poll<Option<Self::Item>> {
         self.rx.poll_recv(cx)
     }
+}
+
+pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
+    let streamer_class = gem_module.define_class("Receiver", ruby.class_object())?;
+    streamer_class.define_method("each", magnus::method!(Receiver::each, 0))?;
+
+    let upload_class = gem_module.define_class("Sender", ruby.class_object())?;
+    upload_class.define_singleton_method("new", function!(Sender::new, -1))?;
+    upload_class.define_method("push", method!(Sender::push, 1))?;
+    upload_class.define_method("close", method!(Sender::close, 0))?;
+    upload_class.define_method("abort", method!(Sender::abort, -1))?;
+    Ok(())
 }

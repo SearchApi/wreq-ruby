@@ -95,12 +95,14 @@ unless defined?(:Wreq)
       # Allows processing large responses in chunks without loading
       # the entire body into memory.
       #
-      # @return [Wreq::Streamer] Chunk iterator
+      # @return [Wreq::Receiver] Chunk iterator for response body
       # @example
-      #   streamer = response.stream
-      #   streamer.each do |chunk|
-      #     process_chunk(chunk)
+      #   receiver = response.stream
+      #   receiver.each do |chunk|
+      #     puts chunk
       #   end
+      #
+      # Note: The returned Receiver is only for reading response bodies, not for uploads.
       def stream; end
 
       # Close the response and free associated resources.

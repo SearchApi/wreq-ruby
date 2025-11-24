@@ -9,7 +9,7 @@ use wreq::Uri;
 
 use crate::{
     RUNTIME,
-    client::body::{Json, Streamer},
+    client::body::{Json, Receiver},
     cookie::Cookie,
     error::{memory_error, wreq_error_to_magnus},
     gvl,
@@ -190,10 +190,10 @@ impl Response {
     }
 
     /// Get a streamer for the response body.
-    pub fn stream(&self) -> Result<Streamer, Error> {
+    pub fn stream(&self) -> Result<Receiver, Error> {
         self.response(true)
             .map(wreq::Response::bytes_stream)
-            .map(Streamer::new)
+            .map(Receiver::new)
     }
 
     /// Close the response body, dropping any resources.
