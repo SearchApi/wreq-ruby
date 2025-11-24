@@ -1,8 +1,6 @@
 require "test_helper"
 
-class RequestStreamTest < Minitest::Test
-  ENDPOINT = ENV["WREQ_ECHO_URL"] || "https://httpbin.io/post"
-
+class StreamTest < Minitest::Test
   def test_simple_push_stream
     client = Wreq::Client.new
     sender = Wreq::BodySender.new(4)
@@ -10,7 +8,7 @@ class RequestStreamTest < Minitest::Test
       3.times { |i| sender.push("chunk-#{i}\n") }
       sender.close
     end
-    resp = client.post(ENDPOINT, body: sender, headers: { "Content-Type" => "text/plain" })
+    resp = client.post("http://localhost:8080/post", body: sender, headers: { "Content-Type" => "text/plain" })
     assert_equal 200, resp.code
     echoed = resp.json["data"]
     assert_includes echoed, "chunk-0"
@@ -18,14 +16,10 @@ class RequestStreamTest < Minitest::Test
     assert_includes echoed, "chunk-2"
     producer.join
   end
-end
-
-class ResponseStreamTest < Minitest::Test
-  ENDPOINT = ENV["WREQ_ECHO_URL"] || "https://httpbin.io/stream/5"
 
   def test_response_body_chunks_stream
     client = Wreq::Client.new
-    resp = client.get(ENDPOINT)
+    resp = client.get("http://localhost:8080/stream/5")
     chunks = []
     resp.chunks do |chunk|
       chunks << chunk
