@@ -12,7 +12,7 @@ module Wreq
   class EmulationDevice
     # Constants are set by the native extension at initialization.
     # These stubs are for documentation only.
-    unless const_defined?(:Chrome117)
+    unless const_defined?(:Chrome100)
       Chrome100 = nil
       Chrome101 = nil
       Chrome104 = nil
@@ -147,7 +147,7 @@ module Wreq
   class Emulation
     # Native fields and methods are set by the extension.
     # This stub is for documentation only.
-    unless method_defined?(:initialize)
+    unless method_defined?(:new)
       # @param device [Wreq::EmulationDevice] Device profile (optional)
       # @param os [Wreq::EmulationOS] Operating system profile (optional)
       # @param skip_http2 [Boolean] Whether to skip HTTP/2 (optional)
