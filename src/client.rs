@@ -16,6 +16,7 @@ use wreq::{
 use crate::{
     client::{req::Request, resp::Response},
     cookie::Jar,
+    emulation::Emulation,
     error::wreq_error_to_magnus,
     extractor::Extractor,
     gvl,
@@ -26,6 +27,9 @@ use crate::{
 /// A builder for `Client`.
 #[derive(Default, Deserialize)]
 struct Builder {
+    // The emulation option for the client.
+    #[serde(skip)]
+    emulation: Option<Emulation>,
     /// The user agent to use for the client.
     #[serde(skip)]
     user_agent: Option<HeaderValue>,
@@ -123,6 +127,11 @@ impl Builder {
     fn new(ruby: &magnus::Ruby, keyword: &Value) -> Result<Self, magnus::Error> {
         if let Ok(hash) = RHash::try_convert(*keyword) {
             let mut builder: Self = serde_magnus::deserialize(ruby, hash)?;
+            // extra emulation handling
+            if let Some(v) = hash.get(ruby.to_symbol("emulation")) {
+                let emulation_obj = Obj::<Emulation>::try_convert(v)?;
+                builder.emulation = Some((*emulation_obj).clone());
+            }
 
             // extra user agent handling
             builder.user_agent = Extractor::<HeaderValue>::try_convert(*keyword)?.into_inner();
@@ -157,6 +166,9 @@ impl Client {
             let mut params = Builder::new(ruby, kwargs)?;
             gvl::nogvl(|| {
                 let mut builder = wreq::Client::builder();
+
+                // Emulation options.
+                apply_option!(set_if_some_inner, builder, params.emulation, emulation);
 
                 // User agent options.
                 apply_option!(set_if_some, builder, params.user_agent, user_agent);
@@ -365,6 +377,9 @@ impl Client {
         let client = self.0.clone();
         rt::block_on_nogvl_cancellable(async move {
             let mut builder = client.request(method.into_ffi(), url.as_ref());
+
+            // Emulation options.
+            apply_option!(set_if_some_inner, builder, request.emulation, emulation);
 
             // Version options.
             apply_option!(set_if_some, builder, request.version, version);

@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-# frozen_string_literal: true
 
 # Tests Thread.kill interrupt support for wreq HTTP operations.
 # All blocking operations should respond to thread interruption.

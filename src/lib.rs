@@ -2,6 +2,7 @@
 mod macros;
 mod client;
 mod cookie;
+mod emulation;
 mod error;
 mod extractor;
 mod gvl;
@@ -98,6 +99,7 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     header::include(ruby, &gem_module)?;
     cookie::include(ruby, &gem_module)?;
     client::include(ruby, &gem_module)?;
+    emulation::include(ruby, &gem_module)?;
     error::include(ruby);
     Ok(())
 }

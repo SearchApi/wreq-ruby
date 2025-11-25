@@ -1,6 +1,6 @@
 use http::HeaderValue;
 use indexmap::IndexMap;
-use magnus::{RHash, TryConvert, value::ReprValue};
+use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
 use serde::Deserialize;
 use wreq::{
     Proxy, Version,
@@ -8,12 +8,16 @@ use wreq::{
 };
 
 use super::body::{Body, Json};
-use crate::extractor::Extractor;
+use crate::{emulation::Emulation, extractor::Extractor};
 
 /// The parameters for a request.
 #[derive(Default, Deserialize)]
 #[non_exhaustive]
 pub struct Request {
+    /// The emulation option for the request.
+    #[serde(skip)]
+    pub emulation: Option<Emulation>,
+
     /// The proxy to use for the request.
     #[serde(skip)]
     pub proxy: Option<Proxy>,
@@ -89,6 +93,12 @@ impl Request {
     pub fn new(ruby: &magnus::Ruby, hash: RHash) -> Result<Self, magnus::Error> {
         let kwargs = hash.as_value();
         let mut builder: Self = serde_magnus::deserialize(ruby, kwargs)?;
+
+        // extra emulation handling
+        if let Some(v) = hash.get(ruby.to_symbol("emulation")) {
+            let emulation_obj = Obj::<Emulation>::try_convert(v)?;
+            builder.emulation = Some((*emulation_obj).clone());
+        }
 
         // extra version handling
         builder.version = Extractor::<Version>::try_convert(kwargs)?.into_inner();

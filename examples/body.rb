@@ -3,8 +3,7 @@
 # Example: Using Wreq::Response headers methods
 # Demonstrates the different ways to access HTTP response headers
 
-$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "wreq"
+require_relative "../lib/wreq"
 
 # Make a request
 client = Wreq::Client.new
