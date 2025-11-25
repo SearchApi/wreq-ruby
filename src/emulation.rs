@@ -1,5 +1,6 @@
 use magnus::{
-    Error, Module, Object, RHash, RModule, Ruby, TryConvert, Value, function, typed_data::Obj,
+    Error, Module, Object, RHash, RModule, Ruby, TryConvert, Value, function, method,
+    typed_data::{Inspect, Obj},
 };
 
 define_ruby_enum!(
@@ -111,6 +112,24 @@ define_ruby_enum!(
 #[magnus::wrap(class = "Wreq::Emulation", free_immediately, size)]
 pub struct Emulation(pub wreq_util::EmulationOption);
 
+// ===== impl EmulationDevice =====
+
+impl EmulationDevice {
+    pub fn to_s(&self) -> String {
+        self.into_ffi().inspect()
+    }
+}
+
+// ===== impl EmulationOS =====
+
+impl EmulationOS {
+    pub fn to_s(&self) -> String {
+        self.into_ffi().inspect()
+    }
+}
+
+// ===== impl Emulation =====
+
 impl Emulation {
     fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
         let mut device = None;
@@ -147,6 +166,7 @@ impl Emulation {
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     // EmulationDevice enum binding
     let emulation_class = gem_module.define_class("EmulationDevice", ruby.class_object())?;
+    emulation_class.define_method("to_s", method!(EmulationDevice::to_s, 0))?;
     emulation_class.const_set("Chrome100", EmulationDevice::Chrome100)?;
     emulation_class.const_set("Chrome101", EmulationDevice::Chrome101)?;
     emulation_class.const_set("Chrome104", EmulationDevice::Chrome104)?;
@@ -233,6 +253,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
 
     // EmulationOS enum binding
     let emulation_os_class = gem_module.define_class("EmulationOS", ruby.class_object())?;
+    emulation_os_class.define_method("to_s", method!(EmulationOS::to_s, 0))?;
     emulation_os_class.const_set("Windows", EmulationOS::Windows)?;
     emulation_os_class.const_set("MacOS", EmulationOS::MacOS)?;
     emulation_os_class.const_set("Linux", EmulationOS::Linux)?;
