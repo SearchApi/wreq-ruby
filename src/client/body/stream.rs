@@ -1,13 +1,12 @@
 use std::{
-    cell::RefCell,
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
     task::{Context, Poll},
 };
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt, TryFutureExt};
-use magnus::{Error, RString, TryConvert, Value};
+use magnus::{Error, RString, Ruby, TryConvert, Value};
 use tokio::sync::mpsc::{self};
 
 use crate::{error::mpsc_send_error_to_magnus, gvl, rt};
@@ -17,7 +16,7 @@ pub struct BodyReceiver(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
 
 /// A sender for streaming HTTP request bodies.
 #[magnus::wrap(class = "Wreq::BodySender", free_immediately, size)]
-pub struct BodySender(RefCell<InnerBodySender>);
+pub struct BodySender(RwLock<InnerBodySender>);
 
 struct InnerBodySender {
     tx: Option<mpsc::Sender<Bytes>>,
@@ -75,7 +74,7 @@ impl BodySender {
         };
 
         let (tx, rx) = mpsc::channel(capacity);
-        BodySender(RefCell::new(InnerBodySender {
+        BodySender(RwLock::new(InnerBodySender {
             tx: Some(tx),
             rx: Some(rx),
         }))
@@ -84,7 +83,7 @@ impl BodySender {
     /// Ruby: `push(data)` where data is String or bytes
     pub fn push(rb_self: &Self, data: RString) -> Result<(), Error> {
         let bytes = data.to_bytes();
-        let inner = rb_self.0.borrow();
+        let inner = rb_self.0.read().unwrap();
         if let Some(ref tx) = inner.tx {
             rt::block_on_nogvl_cancellable(tx.send(bytes).map_err(mpsc_send_error_to_magnus))?;
         }
@@ -93,21 +92,24 @@ impl BodySender {
 
     /// Ruby: `close` to close the sender
     pub fn close(&self) {
-        let mut inner = self.0.borrow_mut();
+        let mut inner = self.0.write().unwrap();
         inner.tx.take();
         inner.rx.take();
     }
 }
 
-impl From<&BodySender> for ReceiverStream<Bytes> {
-    fn from(sender: &BodySender) -> Self {
-        let rx = sender
-            .0
-            .borrow_mut()
-            .rx
-            .take()
-            .expect("[BUG]: stream already consumed");
-        ReceiverStream::new(rx)
+impl TryFrom<&BodySender> for ReceiverStream<Bytes> {
+    type Error = magnus::Error;
+
+    fn try_from(sender: &BodySender) -> Result<Self, Self::Error> {
+        let rx_opt = sender.0.write().unwrap().rx.take();
+        match rx_opt {
+            Some(rx) => Ok(ReceiverStream::new(rx)),
+            None => Err(magnus::Error::new(
+                ruby!().exception_runtime_error(),
+                "stream already consumed",
+            )),
+        }
     }
 }
 
