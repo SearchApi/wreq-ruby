@@ -75,7 +75,7 @@ class StreamTest < Minitest::Test
   end
 
   def test_thread_interrupt_body_streaming
-    url = "http://localhost:8080drip?duration=5&numbytes=5"
+    url = "http://localhost:8080/drip?duration=5&numbytes=5"
     thread = Thread.new do
       resp = Wreq.get(url)
       resp.chunks { |chunk| chunk }
