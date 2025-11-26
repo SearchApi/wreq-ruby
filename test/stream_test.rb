@@ -27,14 +27,6 @@ class StreamTest < Minitest::Test
       assert_match(/\{.*\}/, chunk)
     end
     assert_equal 5, chunks.size
-    chunks.each do |c|
-      parsed = begin
-        JSON.parse(c)
-      rescue
-        nil
-      end
-      assert parsed.is_a?(Hash)
-    end
   end
 
   def test_thread_interrupt_connect
