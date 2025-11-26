@@ -105,7 +105,7 @@ macro_rules! define_ruby_enum {
 
 macro_rules! ruby {
     () => {
-        Ruby::get().expect("Failed to get Ruby VM instance")
+        magnus::Ruby::get().expect("Failed to get Ruby VM instance")
     };
 }
 
