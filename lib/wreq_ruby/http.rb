@@ -46,7 +46,8 @@ module Wreq
     # Returns a string representation of the HTTP version.
     # @return [String] HTTP version as string
     unless method_defined?(:to_s)
-      def to_s; end
+      def to_s
+      end
     end
   end
 
@@ -74,7 +75,8 @@ module Wreq
       # Returns the status code as an integer.
       #
       # @return [Integer] the numeric HTTP status code (100-599)
-      def as_int; end
+      def as_int
+      end
 
       # Checks if status code is informational (1xx).
       #
@@ -82,7 +84,8 @@ module Wreq
       # and the process is continuing.
       #
       # @return [Boolean] true if status is 100-199
-      def informational?; end
+      def informational?
+      end
 
       # Checks if status code indicates success (2xx).
       #
@@ -90,7 +93,8 @@ module Wreq
       # received, understood, and accepted.
       #
       # @return [Boolean] true if status is 200-299
-      def success?; end
+      def success?
+      end
 
       # Checks if status code indicates redirection (3xx).
       #
@@ -98,7 +102,8 @@ module Wreq
       # taken to complete the request.
       #
       # @return [Boolean] true if status is 300-399
-      def redirection?; end
+      def redirection?
+      end
 
       # Checks if status code indicates client error (4xx).
       #
@@ -106,7 +111,8 @@ module Wreq
       # syntax or cannot be fulfilled.
       #
       # @return [Boolean] true if status is 400-499
-      def client_error?; end
+      def client_error?
+      end
 
       # Checks if status code indicates server error (5xx).
       #
@@ -114,11 +120,13 @@ module Wreq
       # fulfill a valid request.
       #
       # @return [Boolean] true if status is 500-599
-      def server_error?; end
+      def server_error?
+      end
 
       # Returns a string representation of the status code.
       # @return [String] Status code as string
-      def to_s; end
+      def to_s
+      end
     end
   end
 end

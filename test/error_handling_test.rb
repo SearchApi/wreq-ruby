@@ -2,24 +2,20 @@ require "test_helper"
 
 class ErrorHandlingTest < Minitest::Test
   def test_network_error_handling
-    begin
-      # Try to connect to a non-existent domain
-      response = Wreq.get("https://definitely-not-a-real-domain-12345.com")
-      flunk "Expected network error but got response: #{response.code}"
-    rescue => e
-      assert_instance_of Wreq::ConnectionError, e
-      # Network errors should be caught and wrapped appropriately
-    end
+    # Try to connect to a non-existent domain
+    response = Wreq.get("https://definitely-not-a-real-domain-12345.com")
+    flunk "Expected network error but got response: #{response.code}"
+  rescue => e
+    assert_instance_of Wreq::ConnectionError, e
+    # Network errors should be caught and wrapped appropriately
   end
 
   def test_invalid_url_handling
-    begin
-      # Invalid URL format
-      response = Wreq.get("not-a-valid-url")
-      flunk "Expected URL error but got response: #{response.code}"
-    rescue => e
-      assert_instance_of Wreq::BuilderError, e
-    end
+    # Invalid URL format
+    response = Wreq.get("not-a-valid-url")
+    flunk "Expected URL error but got response: #{response.code}"
+  rescue => e
+    assert_instance_of Wreq::BuilderError, e
   end
 
   def test_http_error_status_codes
@@ -33,16 +29,15 @@ class ErrorHandlingTest < Minitest::Test
 
   def test_timeout_handling
     # Test timeout with a delay that should definitely cause timeout
-    begin
-      # Request with a very short timeout that should fail
-      response = Wreq.get("http://localhost:8080/delay/10", timeout: 1)
-      # If we get here, the request didn't timeout (unexpected)
-      flunk "Expected timeout error but got response: #{response.code}"
-    rescue => e
-      # Timeout error is expected
-      assert_instance_of Wreq::TimeoutError, e
-      # Could also check error message contains timeout-related keywords
-    end
+
+    # Request with a very short timeout that should fail
+    response = Wreq.get("http://localhost:8080/delay/10", timeout: 1)
+    # If we get here, the request didn't timeout (unexpected)
+    flunk "Expected timeout error but got response: #{response.code}"
+  rescue => e
+    # Timeout error is expected
+    assert_instance_of Wreq::TimeoutError, e
+    # Could also check error message contains timeout-related keywords
   end
 
   def test_invalid_json_response

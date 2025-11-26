@@ -1,4 +1,4 @@
-unless defined?(:Wreq)
+unless defined?(Wreq)
   module Wreq
     # Cookie SameSite attribute.
     #
@@ -44,82 +44,101 @@ unless defined?(:Wreq)
       #     secure: true,
       #     same_site: Wreq::SameSite::Lax
       #   )
-      def new(name, value, **options); end
+      def new(name, value, **options)
+      end
 
       # @return [String] Cookie name
-      def name; end
+      def name
+      end
 
       # @return [String] Cookie value
-      def value; end
+      def value
+      end
 
       # Returns true if the HttpOnly directive is enabled.
       # @return [Boolean]
-      def http_only; end
+      def http_only
+      end
 
       # Predicate version of http_only.
       # @return [Boolean]
-      def http_only?; end
+      def http_only?
+      end
 
       # Returns true if the Secure directive is enabled.
       # @return [Boolean]
-      def secure; end
+      def secure
+      end
 
       # Predicate version of secure.
       # @return [Boolean]
-      def secure?; end
+      def secure?
+      end
 
       # Returns true if SameSite is Lax.
       # @return [Boolean]
-      def same_site_lax?; end
+      def same_site_lax?
+      end
 
       # Returns true if SameSite is Strict.
       # @return [Boolean]
-      def same_site_strict?; end
+      def same_site_strict?
+      end
 
       # @return [String, nil] Path attribute
-      def path; end
+      def path
+      end
 
       # @return [String, nil] Domain attribute
-      def domain; end
+      def domain
+      end
 
       # @return [Integer, nil] Max-Age in seconds
-      def max_age; end
+      def max_age
+      end
 
       # @return [Float, nil] Expires as Unix timestamp (seconds)
-      def expires; end
+      def expires
+      end
     end
 
     # A cookie store (jar) used by the client to manage cookies across requests.
     class Jar
       # Create a new, empty cookie jar.
       # @return [Wreq::Jar]
-      def new; end
+      def new
+      end
 
       # Get all cookies currently stored.
       # @return [Array<Wreq::Cookie>]
-      def get_all; end
+      def get_all
+      end
 
       # Add a cookie object for the given URL.
       # @param cookie [Wreq::Cookie]
       # @param url [String]
       # @return [void]
-      def add_cookie(cookie, url); end
+      def add_cookie(cookie, url)
+      end
 
       # Add a cookie from a Set-Cookie string for the given URL.
       # @param cookie [String] A Set-Cookie string
       # @param url [String]
       # @return [void]
-      def add_cookie_str(cookie, url); end
+      def add_cookie_str(cookie, url)
+      end
 
       # Remove a cookie by name for the given URL.
       # @param name [String]
       # @param url [String]
       # @return [void]
-      def remove(name, url); end
+      def remove(name, url)
+      end
 
       # Clear all cookies from the jar.
       # @return [void]
-      def clear; end
+      def clear
+      end
     end
   end
 end

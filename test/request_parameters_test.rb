@@ -3,11 +3,11 @@ require "test_helper"
 class RequestParametersTest < Minitest::Test
   def test_query_parameters
     response = Wreq.get("http://localhost:8080/get",
-                        query: {
-                          "string" => "value",
-                          "number" => "123",
-                          "boolean" => "true",
-                        })
+      query: {
+        "string" => "value",
+        "number" => "123",
+        "boolean" => "true"
+      })
     assert_equal 200, response.code
 
     json_data = response.json
@@ -21,7 +21,7 @@ class RequestParametersTest < Minitest::Test
     custom_headers = {
       "X-Custom-Header" => "custom-value",
       "User-Agent" => "wreq-ruby-test/1.0",
-      "Accept" => "application/json",
+      "Accept" => "application/json"
     }
 
     response = Wreq.get("http://localhost:8080/get", headers: custom_headers)
@@ -41,7 +41,7 @@ class RequestParametersTest < Minitest::Test
       "number" => 42,
       "boolean" => true,
       "array" => [1, 2, 3],
-      "object" => { "nested" => "value" },
+      "object" => {"nested" => "value"}
     }
 
     response = Wreq.post("http://localhost:8080/post", json: json_data)
@@ -54,14 +54,14 @@ class RequestParametersTest < Minitest::Test
     assert_equal 42, sent_data["number"]
     assert_equal true, sent_data["boolean"]
     assert_equal [1, 2, 3], sent_data["array"]
-    assert_equal({ "nested" => "value" }, sent_data["object"])
+    assert_equal({"nested" => "value"}, sent_data["object"])
   end
 
   def test_form_body
     form_data = {
       "field1" => "value1",
       "field2" => "value2",
-      "number" => "123",
+      "number" => "123"
     }
 
     response = Wreq.post("http://localhost:8080/post", form: form_data)
@@ -77,9 +77,9 @@ class RequestParametersTest < Minitest::Test
 
   def test_combined_parameters
     response = Wreq.post("http://localhost:8080/post",
-                         query: { "q" => "search" },
-                         headers: { "X-Test" => "combined" },
-                         json: { "data" => "payload" })
+      query: {"q" => "search"},
+      headers: {"X-Test" => "combined"},
+      json: {"data" => "payload"})
 
     assert_equal 200, response.code
 
@@ -110,7 +110,7 @@ class RequestParametersTest < Minitest::Test
       "space" => "value with spaces",
       "symbols" => "!@#$%^&*()",
       "unicode" => "测试中文",
-      "url_chars" => "a=b&c=d",
+      "url_chars" => "a=b&c=d"
     }
 
     response = Wreq.get("http://localhost:8080/get", query: special_data)
@@ -130,14 +130,14 @@ class RequestParametersTest < Minitest::Test
       "level1" => {
         "level2" => {
           "level3" => {
-            "value" => "deep",
-          },
+            "value" => "deep"
+          }
         },
         "array" => [
-          { "item" => 1 },
-          { "item" => 2 },
-        ],
-      },
+          {"item" => 1},
+          {"item" => 2}
+        ]
+      }
     }
 
     response = Wreq.post("http://localhost:8080/post", json: nested_data)
@@ -153,17 +153,17 @@ class RequestParametersTest < Minitest::Test
 
   def test_method_specific_parameters
     methods_and_urls = {
-      :get => "http://localhost:8080/get",
-      :post => "http://localhost:8080/post",
-      :put => "http://localhost:8080/put",
-      :patch => "http://localhost:8080/patch",
-      :delete => "http://localhost:8080/delete",
+      get: "http://localhost:8080/get",
+      post: "http://localhost:8080/post",
+      put: "http://localhost:8080/put",
+      patch: "http://localhost:8080/patch",
+      delete: "http://localhost:8080/delete"
     }
 
     methods_and_urls.each do |method, url|
       response = Wreq.send(method, url,
-                           headers: { "X-Method" => method.to_s },
-                           query: { "method" => method.to_s })
+        headers: {"X-Method" => method.to_s},
+        query: {"method" => method.to_s})
 
       assert_equal 200, response.code, "#{method} request failed"
 

@@ -21,7 +21,7 @@ def example1_simple_push
     us.close
   end
 
-  resp = client.post(ENDPOINT, body: us, headers: { "Content-Type" => "text/plain" })
+  resp = client.post(ENDPOINT, body: us, headers: {"Content-Type" => "text/plain"})
   body = resp.json
   data = body["data"] || body["json"].to_json
   puts "Echoed bytes: #{data.bytesize}"
@@ -35,7 +35,7 @@ def example2_file_stream
 
   # Prepare a temp file (~250KB)
   path = File.join(Dir.tmpdir, "wreq_upload_sample.bin")
-  File.open(path, "wb") { |f| f.write(Random.new.bytes(2_500_00)) }
+  File.binwrite(path, Random.new.bytes(2_500_00))
 
   total = 0
   producer = Thread.new do
@@ -48,7 +48,7 @@ def example2_file_stream
     us.close
   end
 
-  resp = client.post(ENDPOINT, body: us, headers: { "Content-Type" => "application/octet-stream" })
+  resp = client.post(ENDPOINT, body: us, headers: {"Content-Type" => "application/octet-stream"})
   json = resp.json
   echoed = (json["headers"] && json["headers"]["Content-Length"]) || (json["data"] || "").bytesize
   puts "Sent bytes ~#{total}, echoed length: #{echoed}"

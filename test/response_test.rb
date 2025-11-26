@@ -58,7 +58,7 @@ class ResponseTest < Minitest::Test
 
   def test_response_with_query_parameters
     response = Wreq.get("http://localhost:8080/get",
-                        query: { "param1" => "value1", "param2" => "value2" })
+      query: {"param1" => "value1", "param2" => "value2"})
     assert_equal 200, response.code
 
     json_data = response.json

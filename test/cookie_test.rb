@@ -10,7 +10,11 @@ class CookieTest < Minitest::Test
 
   def test_jar_initially_empty
     assert_instance_of Wreq::Jar, @jar
-    cookies = Wreq::Jar.get_all(@jar) rescue @jar.get_all # support either binding style
+    cookies = begin
+      Wreq::Jar.get_all(@jar)
+    rescue
+      @jar.get_all
+    end # support either binding style
     assert_kind_of Array, cookies
     assert_equal 0, cookies.length
   end
@@ -110,13 +114,13 @@ class CookieTest < Minitest::Test
   def test_cookie_new_full_attributes
     exp = Time.now.to_f + 7200.0
     c = Wreq::Cookie.new("sess", "v",
-                         domain: "example.com",
-                         path: "/",
-                         max_age: 3600,
-                         expires: exp,
-                         http_only: true,
-                         secure: true,
-                         same_site: Wreq::SameSite::Lax)
+      domain: "example.com",
+      path: "/",
+      max_age: 3600,
+      expires: exp,
+      http_only: true,
+      secure: true,
+      same_site: Wreq::SameSite::Lax)
 
     assert_equal "sess", c.name
     assert_equal "v", c.value

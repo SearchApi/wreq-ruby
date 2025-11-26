@@ -13,7 +13,7 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_module_post_with_json
-    data = { name: "wreq-ruby", version: "0.1.0" }
+    data = {name: "wreq-ruby", version: "0.1.0"}
     response = Wreq.post("http://localhost:8080/post", json: data)
     assert_equal 200, response.code
   end
@@ -24,7 +24,7 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_client_with_custom_headers
-    headers = { "User-Agent" => "wreq-ruby/test", "Accept" => "application/json" }
+    headers = {"User-Agent" => "wreq-ruby/test", "Accept" => "application/json"}
     response = @client.get("http://localhost:8080/headers", headers: headers)
     assert_equal 200, response.code
   end
@@ -37,7 +37,7 @@ class WreqHttpbinTest < Minitest::Test
       Wreq::Method::DELETE,
       Wreq::Method::PATCH,
       Wreq::Method::HEAD,
-      Wreq::Method::OPTIONS,
+      Wreq::Method::OPTIONS
     ]
 
     methods.each do |method|
@@ -47,7 +47,7 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_request_with_query_params
-    params = { "param1" => "value1", "param2" => "value2" }
+    params = {"param1" => "value1", "param2" => "value2"}
     response = Wreq.get("http://localhost:8080/get", query: params)
     assert_equal 200, response.code
     assert_includes response.text, "param1=value1"
@@ -55,7 +55,7 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_post_with_form_data
-    data = { "field1" => "value1", "field2" => "value2" }
+    data = {"field1" => "value1", "field2" => "value2"}
     response = Wreq.post("http://localhost:8080/post", form: data)
     assert_equal 200, response.code
     assert_includes response.text, "field1"
@@ -66,7 +66,7 @@ class WreqHttpbinTest < Minitest::Test
 
   def test_post_with_raw_body
     body = "This is raw body content"
-    headers = { "Content-Type" => "text/plain" }
+    headers = {"Content-Type" => "text/plain"}
     response = Wreq.post("http://localhost:8080/post", body: body, headers: headers)
     assert_equal 200, response.code
     assert_includes response.text, body
@@ -188,8 +188,8 @@ class WreqHttpbinTest < Minitest::Test
   def test_client_configuration
     client = Wreq::Client.new(
       timeout: 10,
-      headers: { "User-Agent" => "wreq-ruby-test" },
-      allow_redirects: false,
+      headers: {"User-Agent" => "wreq-ruby-test"},
+      allow_redirects: false
     )
 
     # Test that client was created successfully

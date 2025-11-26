@@ -8,10 +8,10 @@ require_relative "../lib/wreq"
 # Make a request
 client = Wreq::Client.new
 response = client.post("https://httpbin.io/anything",
-                       json: { foo: "bar", baz: "qux" },
-                       headers: { "Content-Type" => "application/json" },
-                       cookies: { "session_id" => "abc123",
-                                  "user" => "test_user" })
+  json: {foo: "bar", baz: "qux"},
+  headers: {"Content-Type" => "application/json"},
+  cookies: {"session_id" => "abc123",
+            "user" => "test_user"})
 
 puts "\n=== Iterating Over All Headers ==="
 response.headers.each do |name, value|

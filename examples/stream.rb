@@ -3,7 +3,7 @@
 require_relative "../lib/wreq"
 
 # Make a request
-client = Wreq::Client.new()
+client = Wreq::Client.new
 response = client.get("https://httpbin.io/stream/20")
 
 # Get the streaming body receiver

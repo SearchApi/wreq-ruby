@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-unless defined?(:Wreq)
+unless defined?(Wreq)
   module Wreq
     # BodySender: for streaming request bodies, allowing thread-safe chunked data push.
     # Backed by a Rust channel, avoids buffering the entire payload in memory.
@@ -15,10 +15,12 @@ unless defined?(:Wreq)
     # Note: Sender is for request upload only, not for response reading.
     class BodySender
       # @param capacity [Integer] channel buffer size, default 8
-      def self.new(capacity = 8); end
+      def self.new(capacity = 8)
+      end
 
       # @param data [String] binary chunk
-      def push(data); end
+      def push(data)
+      end
     end
   end
 end

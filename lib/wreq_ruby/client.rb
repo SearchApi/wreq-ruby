@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-unless defined?(:Wreq)
+unless defined?(Wreq)
   module Wreq
     # HTTP client with extensive configuration options.
     #
@@ -230,7 +230,8 @@ unless defined?(:Wreq)
       #     verify: false,  # WARNING: Do not use in production!
       #     timeout: 5
       #   )
-      def self.new(**options); end
+      def self.new(**options)
+      end
 
       # Send an HTTP request.
       #
@@ -262,7 +263,8 @@ unless defined?(:Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
-      def request(method, url, **options); end
+      def request(method, url, **options)
+      end
 
       # Send an HTTP GET request.
       #
@@ -293,7 +295,8 @@ unless defined?(:Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
-      def get(url, **options); end
+      def get(url, **options)
+      end
 
       # Send an HTTP HEAD request.
       #
@@ -324,7 +327,8 @@ unless defined?(:Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
-      def head(url, **options); end
+      def head(url, **options)
+      end
 
       # Send an HTTP POST request.
       #
@@ -355,7 +359,8 @@ unless defined?(:Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
-      def post(url, **options); end
+      def post(url, **options)
+      end
 
       # Send an HTTP PUT request.
       #
@@ -386,7 +391,8 @@ unless defined?(:Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
-      def put(url, **options); end
+      def put(url, **options)
+      end
 
       # Send an HTTP DELETE request.
       #
@@ -417,7 +423,8 @@ unless defined?(:Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
-      def delete(url, **options); end
+      def delete(url, **options)
+      end
 
       # Send an HTTP OPTIONS request.
       #
@@ -448,7 +455,8 @@ unless defined?(:Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
-      def options(url, **options); end
+      def options(url, **options)
+      end
 
       # Send an HTTP TRACE request.
       #
@@ -479,7 +487,8 @@ unless defined?(:Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
-      def trace(url, **options); end
+      def trace(url, **options)
+      end
 
       # Send an HTTP PATCH request.
       #
@@ -510,7 +519,8 @@ unless defined?(:Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
-      def patch(url, **options); end
+      def patch(url, **options)
+      end
     end
   end
 end

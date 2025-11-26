@@ -101,7 +101,8 @@ module Wreq
     unless method_defined?(:to_s)
       # Returns a string representation of the emulation device.
       # @return [String] Emulation device as string
-      def to_s; end
+      def to_s
+      end
     end
   end
 
@@ -127,7 +128,8 @@ module Wreq
     unless method_defined?(:to_s)
       # Returns a string representation of the emulation OS.
       # @return [String] Emulation OS as string
-      def to_s; end
+      def to_s
+      end
     end
   end
 
@@ -152,7 +154,8 @@ module Wreq
       # @param os [Wreq::EmulationOS] Operating system profile (optional)
       # @param skip_http2 [Boolean] Whether to skip HTTP/2 (optional)
       # @param skip_headers [Boolean] Whether to skip default headers (optional)
-      def new(device: nil, os: nil, skip_http2: false, skip_headers: false); end
+      def new(device: nil, os: nil, skip_http2: false, skip_headers: false)
+      end
     end
   end
 end
