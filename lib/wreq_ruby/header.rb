@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-unless defined?(:Wreq)
+unless defined?(Wreq)
   module Wreq
     # HTTP headers collection.
     #
@@ -40,7 +40,8 @@ unless defined?(:Wreq)
       # @example
       #   headers = Wreq::Headers.new
       #   headers.set("Content-Type", "application/json")
-      def new; end
+      def new
+      end
 
       # Get a header value by name (case-insensitive).
       #
@@ -52,7 +53,8 @@ unless defined?(:Wreq)
       #   headers.get("Content-Type")       # => "application/json"
       #   headers.get("content-type")       # => "application/json" (same)
       #   headers.get("X-Nonexistent")      # => nil
-      def get(name); end
+      def get(name)
+      end
 
       # Get all values for a header name (case-insensitive).
       #
@@ -64,7 +66,8 @@ unless defined?(:Wreq)
       #   headers.get_all("Accept")
       #   # => ["application/json", "text/html", "application/xml"]
       #   headers.get_all("X-Nonexistent")  # => []
-      def get_all(name); end
+      def get_all(name)
+      end
 
       # Set a header value, replacing any existing values.
       #
@@ -75,7 +78,8 @@ unless defined?(:Wreq)
       # @example
       #   headers.set("Content-Type", "application/json")
       #   headers.set("X-Custom-Header", "my-value")
-      def set(name, value); end
+      def set(name, value)
+      end
 
       # Append a header value without replacing existing values.
       #
@@ -90,7 +94,8 @@ unless defined?(:Wreq)
       #   headers.set("Accept", "application/json")
       #   headers.append("Accept", "text/html")
       #   headers.get_all("Accept")  # => ["application/json", "text/html"]
-      def append(name, value); end
+      def append(name, value)
+      end
 
       # Remove all values for a header name.
       #
@@ -99,7 +104,8 @@ unless defined?(:Wreq)
       # @example
       #   headers.remove("Authorization")  # => "Bearer token"
       #   headers.remove("X-Nonexistent")  # => nil
-      def remove(name); end
+      def remove(name)
+      end
 
       # Check if a header exists (case-insensitive).
       #
@@ -108,7 +114,8 @@ unless defined?(:Wreq)
       # @example
       #   headers.contains?("Content-Type")  # => true
       #   headers.contains?("X-Missing")     # => false
-      def contains?(name); end
+      def contains?(name)
+      end
 
       # Check if a header key exists (alias for {#contains?}).
       #
@@ -116,21 +123,24 @@ unless defined?(:Wreq)
       # @return [Boolean] true if the header exists
       # @example
       #   headers.key?("Accept")  # => true
-      def key?(name); end
+      def key?(name)
+      end
 
       # Get the number of headers.
       #
       # @return [Integer] Total number of unique header names
       # @example
       #   headers.length  # => 12
-      def length; end
+      def length
+      end
 
       # Check if there are no headers.
       #
       # @return [Boolean] true if no headers exist
       # @example
       #   headers.empty?  # => false
-      def empty?; end
+      def empty?
+      end
 
       # Remove all headers.
       #
@@ -138,7 +148,8 @@ unless defined?(:Wreq)
       # @example
       #   headers.clear
       #   headers.empty?  # => true
-      def clear; end
+      def clear
+      end
 
       # Get all header names.
       #
@@ -146,7 +157,8 @@ unless defined?(:Wreq)
       # @example
       #   headers.keys
       #   # => ["content-type", "accept", "user-agent", "authorization"]
-      def keys; end
+      def keys
+      end
 
       # Get all header values.
       #
@@ -156,7 +168,8 @@ unless defined?(:Wreq)
       # @example
       #   headers.values
       #   # => ["application/json", "text/html", "Mozilla/5.0", "Bearer token"]
-      def values; end
+      def values
+      end
 
       # Iterate over headers.
       #
@@ -173,7 +186,8 @@ unless defined?(:Wreq)
       # @example Without block
       #   enum = headers.each
       #   enum.to_a  # => [["content-type", "text/html"], ...]
-      def each; end
+      def each
+      end
     end
 
     # Iterator for HTTP headers.
@@ -203,7 +217,8 @@ unless defined?(:Wreq)
       #   end
       # @example As enumerator
       #   headers_hash = iterator.each.to_h
-      def each; end
+      def each
+      end
     end
   end
 end

@@ -10,7 +10,7 @@ group :development, :test do
   gem "minitest", "~> 5.25.0" # test library
   gem "minitest-reporters", "~> 1.7.1" # better test output
   gem "activesupport", "~> 8.0.1" # testing support
-  gem "standard", "~> 1.44" # linter with pre-specified rules
+  gem "standard", "~> 1.52" # linter with pre-specified rules
   gem "redcarpet", "~> 3.6" # for documentation markdown parsing
   gem "ruby-lsp", "~> 0.22" # Ruby language server for IDE support
   gem "racc", "~> 1.8.1" # for parsing

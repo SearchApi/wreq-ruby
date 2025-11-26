@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
-$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "wreq"
+require_relative "../lib/wreq"
 
 puts "--- Example 1: Invalid Proxy URL ---"
 begin
@@ -12,16 +11,16 @@ begin
       "Accept" => "application/json",
       "App" => "WreqExample",
       "Cookie2" => "sessionid=abc123",
-      "Cookie" => "preferences=darkmode",
+      "Cookie" => "preferences=darkmode"
     },
     timeout: 10,
     gzip: true,
     brotli: true,
-    proxy: "http:://localhost:8080",
+    proxy: "http:://localhost:8080"
   )
   puts "Client created successfully: #{client.inspect}"
-  s = client.get("https://httpbin.io/anything", headers: { "Custom-Header" => "CustomValue" }, basic_auth: ["user", "pass"])
-  code = s.code()
+  s = client.get("https://httpbin.io/anything", headers: {"Custom-Header" => "CustomValue"}, basic_auth: ["user", "pass"])
+  code = s.code
   puts "Response code: #{code}"
 rescue Wreq::BuilderError => e
   puts "❌ BuilderError caught!"
@@ -29,6 +28,6 @@ rescue Wreq::BuilderError => e
   puts "Error class: #{e.class}"
   puts "Backtrace (first 3 lines):"
   puts e.backtrace.first(3).map { |line| "  #{line}" }
-rescue StandardError => e
+rescue => e
   puts "❌ Unexpected error: #{e.class} - #{e.message}"
 end

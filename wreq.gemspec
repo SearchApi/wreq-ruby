@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# encoding: utf-8
 
 require "json"
 
@@ -32,7 +31,7 @@ Gem::Specification.new do |spec|
     "documentation_uri" => "https://github.com/SearchApi/wreq-ruby/README.md",
     "homepage_uri" => spec.homepage,
     "source_code_uri" => "https://github.com/SearchApi/wreq-ruby",
-    "rubygems_mfa_required" => "true",
+    "rubygems_mfa_required" => "true"
   }
 
   # Specify which files should be added to a source release gem when we release wreq Ruby gem.
@@ -42,8 +41,8 @@ Gem::Specification.new do |spec|
     git_output.force_encoding("UTF-8")
     git_output.split("\x0").reject do |f|
       f.start_with?(*%w[gems/ pkg/ target/ tmp/ .git]) ||
-      f.match?(/\.gem$/) || # Exclude gem files
-      f.match?(/^wreq-.*\.gem$/)  # Exclude any wreq gem files
+        f.match?(/\.gem$/) || # Exclude gem files
+        f.match?(/^wreq-.*\.gem$/)  # Exclude any wreq gem files
     end
   end
 

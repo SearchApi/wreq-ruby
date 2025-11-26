@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-# frozen_string_literal: true
 
 # Tests Thread.kill interrupt support for wreq HTTP operations.
 # All blocking operations should respond to thread interruption.
@@ -26,7 +25,11 @@ def test_interrupt(name, kill_after: 2, max_wait: 5)
     :pass
   else
     puts "FAIL (still alive after #{elapsed.round(1)}s)"
-    Thread.kill(thread) rescue nil
+    begin
+      Thread.kill(thread)
+    rescue
+      nil
+    end
     :fail
   end
 end
@@ -37,21 +40,41 @@ puts "=" * 40
 results = []
 
 # Test 1: Connection phase (non-routable IP)
-results << test_interrupt("Connect phase") { Wreq.get(HANGING_URL) rescue nil }
+results << test_interrupt("Connect phase") {
+  begin
+    Wreq.get(HANGING_URL)
+  rescue
+    nil
+  end
+}
 
 # Test 2: Connection phase with timeout
-results << test_interrupt("Connect + timeout") { Wreq.get(HANGING_URL, timeout: 60) rescue nil }
+results << test_interrupt("Connect + timeout") {
+  begin
+    Wreq.get(HANGING_URL, timeout: 60)
+  rescue
+    nil
+  end
+}
 
 # Test 3: Body reading phase (slow drip endpoint)
 results << test_interrupt("Body reading") {
   resp = Wreq.get(SLOW_BODY_URL)
-  resp.text rescue nil
+  begin
+    resp.text
+  rescue
+    nil
+  end
 }
 
 # Test 4: Body streaming phase
 results << test_interrupt("Body streaming") {
   resp = Wreq.get(SLOW_BODY_URL)
-  resp.chunks { |chunk| chunk } rescue nil
+  begin
+    resp.chunks { |chunk| chunk }
+  rescue
+    nil
+  end
 }
 
 puts "=" * 40

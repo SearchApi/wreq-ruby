@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-unless defined?(:Wreq)
+unless defined?(Wreq)
   module Wreq
     # HTTP response object containing status, headers, and body.
     #
@@ -28,7 +28,8 @@ unless defined?(:Wreq)
       # @return [Integer] Status code (e.g., 200, 404, 500)
       # @example
       #   response.code  # => 200
-      def code; end
+      def code
+      end
 
       # Get the HTTP status code object.
       #
@@ -36,42 +37,48 @@ unless defined?(:Wreq)
       # @example
       #   status = response.status
       #   status.success?  # => true
-      def status; end
+      def status
+      end
 
       # Get the HTTP protocol version used.
       #
       # @return [Wreq::Version] HTTP version (HTTP/1.1, HTTP/2, etc.)
       # @example
       #   response.version  # => Wreq::Version::HTTP_11
-      def version; end
+      def version
+      end
 
       # Get the final URL after redirects.
       #
       # @return [String] The final URL
       # @example
       #   response.url  # => "https://example.com/final-page"
-      def url; end
+      def url
+      end
 
       # Get the content length if known.
       #
       # @return [Integer, nil] Content length in bytes, or nil if unknown
       # @example
       #   response.content_length  # => 1024
-      def content_length; end
+      def content_length
+      end
 
       # Get the local socket address.
       #
       # @return [String, nil] Local address (e.g., "127.0.0.1:54321"), or nil
       # @example
       #   response.local_addr  # => "192.168.1.100:54321"
-      def local_addr; end
+      def local_addr
+      end
 
       # Get the remote socket address.
       #
       # @return [String, nil] Remote address (e.g., "93.184.216.34:443"), or nil
       # @example
       #   response.remote_addr  # => "93.184.216.34:443"
-      def remote_addr; end
+      def remote_addr
+      end
 
       # Get the response body as text.
       #
@@ -79,7 +86,8 @@ unless defined?(:Wreq)
       # @example
       #   html = response.text
       #   puts html
-      def text; end
+      def text
+      end
 
       # Parse the response body as JSON.
       #
@@ -88,7 +96,8 @@ unless defined?(:Wreq)
       # @example
       #   data = response.json
       #   puts data["key"]
-      def json; end
+      def json
+      end
 
       # Get a streaming iterator for the response body, yielding each chunk.
       #
@@ -108,24 +117,16 @@ unless defined?(:Wreq)
       #   puts "Downloaded #{total} bytes"
       #
       # Note: The returned Receiver is only for reading response bodies, not for uploads.
-      # Yields each chunk of the response body as it arrives from the network.
-      #
-      # This is a real-time network stream: chunks are delivered as soon as received,
-      # without buffering the entire response in memory.
-      #
-      # Note: The chunks stream is single-use and can only be iterated once.
-      # Subsequent calls will not yield any data.
-      #
-      # @yieldparam chunk [String] binary data chunk
-      # @return [nil]
-      def chunks; end
+      def chunks
+      end
 
       # Close the response and free associated resources.
       #
       # @return [void]
       # @example
       #   response.close
-      def close; end
+      def close
+      end
     end
   end
 end

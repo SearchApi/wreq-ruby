@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-unless defined?(:Wreq)
+unless defined?(Wreq)
   module Wreq
     # System-level and runtime errors
 

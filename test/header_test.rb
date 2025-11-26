@@ -3,10 +3,10 @@ require "test_helper"
 class HeadersTest < Minitest::Test
   def setup
     @response = Wreq.get("http://localhost:8080/response-headers",
-                         query: {
-                           "X-Custom-Header" => "custom-value",
-                           "X-Multi-Header" => "value1",
-                         })
+      query: {
+        "X-Custom-Header" => "custom-value",
+        "X-Multi-Header" => "value1"
+      })
     @headers = @response.headers
   end
 

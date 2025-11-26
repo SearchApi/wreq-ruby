@@ -13,7 +13,7 @@ class ClientTest < Minitest::Test
   def test_client_with_configuration
     client = Wreq::Client.new(
       timeout: 30,
-      headers: { "User-Agent" => "wreq-ruby/test" },
+      headers: {"User-Agent" => "wreq-ruby/test"}
     )
     refute_nil client
     assert_instance_of Wreq::Client, client
@@ -27,14 +27,14 @@ class ClientTest < Minitest::Test
 
   def test_post_request
     response = @client.post("http://localhost:8080/post",
-                            json: { test: "wreq-ruby" })
+      json: {test: "wreq-ruby"})
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_put_request
     response = @client.put("http://localhost:8080/put",
-                           json: { data: "test" })
+      json: {data: "test"})
     refute_nil response
     assert_equal 200, response.code
   end
@@ -47,14 +47,14 @@ class ClientTest < Minitest::Test
 
   def test_patch_request
     response = @client.patch("http://localhost:8080/patch",
-                             json: { update: "field" })
+      json: {update: "field"})
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_request_with_query_params
     response = @client.get("http://localhost:8080/get",
-                           query: { "param" => "value" })
+      query: {"param" => "value"})
     refute_nil response
     assert_equal 200, response.code
     assert_includes response.text, "param"
@@ -62,7 +62,7 @@ class ClientTest < Minitest::Test
 
   def test_request_with_form_data
     response = @client.post("http://localhost:8080/post",
-                            form: { "field" => "value" })
+      form: {"field" => "value"})
     refute_nil response
     assert_equal 200, response.code
     assert_includes response.text, "field"
@@ -70,8 +70,8 @@ class ClientTest < Minitest::Test
 
   def test_request_with_raw_body
     response = @client.post("http://localhost:8080/post",
-                            body: "raw content",
-                            headers: { "Content-Type" => "text/plain" })
+      body: "raw content",
+      headers: {"Content-Type" => "text/plain"})
     refute_nil response
     assert_equal 200, response.code
     assert_includes response.text, "raw content"
@@ -79,14 +79,14 @@ class ClientTest < Minitest::Test
 
   def test_basic_authentication
     response = @client.get("http://localhost:8080/basic-auth/user/pass",
-                           basic_auth: ["user", "pass"])
+      basic_auth: ["user", "pass"])
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_bearer_authentication
     response = @client.get("http://localhost:8080/bearer",
-                           bearer_auth: "test-token")
+      bearer_auth: "test-token")
     refute_nil response
     assert_equal 200, response.code
     assert_includes response.text, "test-token"
@@ -94,14 +94,14 @@ class ClientTest < Minitest::Test
 
   def test_redirect_following
     response = @client.get("http://localhost:8080/redirect/1",
-                           allow_redirects: true)
+      allow_redirects: true)
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_redirect_blocking
     response = @client.get("http://localhost:8080/redirect/1",
-                           allow_redirects: false)
+      allow_redirects: false)
     refute_nil response
     assert_equal 302, response.code
   end
