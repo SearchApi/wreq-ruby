@@ -96,7 +96,7 @@ unless defined?(:Wreq)
       # by yielding each chunk of the body as it arrives, without loading
       # the entire response into memory.
       #
-      # @return [Wreq::Receiver] An iterator over response body chunks (binary String)
+      # @return An iterator over response body chunks (binary String)
       # @yield [chunk] Each chunk of the response body as a binary String
       # @example Save response to file
       #   File.open("output.bin", "wb") do |f|
@@ -108,6 +108,16 @@ unless defined?(:Wreq)
       #   puts "Downloaded #{total} bytes"
       #
       # Note: The returned Receiver is only for reading response bodies, not for uploads.
+      # Yields each chunk of the response body as it arrives from the network.
+      #
+      # This is a real-time network stream: chunks are delivered as soon as received,
+      # without buffering the entire response in memory.
+      #
+      # Note: The chunks stream is single-use and can only be iterated once.
+      # Subsequent calls will not yield any data.
+      #
+      # @yieldparam chunk [String] binary data chunk
+      # @return [nil]
       def chunks; end
 
       # Close the response and free associated resources.
