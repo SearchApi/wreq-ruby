@@ -6,10 +6,13 @@ use std::{
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt, TryFutureExt};
-use magnus::{Error, RString, Ruby, TryConvert, Value};
+use magnus::{Error, RString, TryConvert, Value};
 use tokio::sync::mpsc::{self};
 
-use crate::{error::mpsc_send_error_to_magnus, gvl, rt};
+use crate::{
+    error::{memory_error, mpsc_send_error_to_magnus},
+    gvl, rt,
+};
 
 /// A receiver for streaming HTTP response bodies.
 pub struct BodyReceiver(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
@@ -102,14 +105,14 @@ impl TryFrom<&BodySender> for ReceiverStream<Bytes> {
     type Error = magnus::Error;
 
     fn try_from(sender: &BodySender) -> Result<Self, Self::Error> {
-        let rx_opt = sender.0.write().unwrap().rx.take();
-        match rx_opt {
-            Some(rx) => Ok(ReceiverStream::new(rx)),
-            None => Err(magnus::Error::new(
-                ruby!().exception_runtime_error(),
-                "stream already consumed",
-            )),
-        }
+        sender
+            .0
+            .write()
+            .unwrap()
+            .rx
+            .take()
+            .map(ReceiverStream::new)
+            .ok_or_else(memory_error)
     }
 }
 
