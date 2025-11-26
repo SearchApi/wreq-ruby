@@ -80,7 +80,7 @@ class StreamTest < Minitest::Test
   end
 
   def test_thread_interrupt_body_streaming
-    url = "http://localhost:8080drip?duration=5&numbytes=5"
+    url = "http://localhost:8080/drip?duration=5&numbytes=5"
     killed = false
     thread = Thread.new do
       begin
