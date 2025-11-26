@@ -105,7 +105,7 @@ unless defined?(Wreq)
       # by yielding each chunk of the body as it arrives, without loading
       # the entire response into memory.
       #
-      # @return [Wreq::Receiver] An iterator over response body chunks (binary String)
+      # @return An iterator over response body chunks (binary String)
       # @yield [chunk] Each chunk of the response body as a binary String
       # @example Save response to file
       #   File.open("output.bin", "wb") do |f|

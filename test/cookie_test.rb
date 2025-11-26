@@ -153,4 +153,14 @@ class CookieTest < Minitest::Test
     assert_equal [true, false], h["s1"]
     assert_equal [false, true], h["s2"]
   end
+
+  def test_request_cookie_value_percent_encoding
+    raw_value = "hello world?"
+    client = Wreq::Client.new
+    resp = client.get(
+      "http://localhost:8080/cookies",
+      cookies: { "mykey" => raw_value }
+    )
+    assert_includes resp.text, "hello world?"
+  end
 end

@@ -29,7 +29,7 @@ impl TryConvert for Body {
         }
 
         let obj = Obj::<BodySender>::try_convert(val)?;
-        let stream = ReceiverStream::from(&*obj);
+        let stream = ReceiverStream::try_from(&*obj)?;
         Ok(Body::Stream(stream))
     }
 }

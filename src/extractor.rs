@@ -146,6 +146,8 @@ impl ExtractorName for Vec<HeaderValue> {
 
 impl TryConvert for Extractor<Vec<HeaderValue>> {
     fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
+        use percent_encoding::{NON_ALPHANUMERIC, percent_encode};
+
         let ruby = Ruby::get_with(value);
         let keyword = RHash::try_convert(value)?;
 
@@ -155,7 +157,9 @@ impl TryConvert for Extractor<Vec<HeaderValue>> {
         {
             let mut cookies = Vec::new();
             hash.foreach(|name: RString, value: RString| {
-                let cookie = format!("{name}={value}");
+                let value = value.to_bytes();
+                let encoded_value = percent_encode(&value, NON_ALPHANUMERIC).to_string();
+                let cookie = format!("{name}={encoded_value}");
                 let header_value = HeaderValue::from_maybe_shared(Bytes::from(cookie))
                     .map_err(header_value_error_to_magnus)?;
                 cookies.push(header_value);
