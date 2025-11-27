@@ -161,6 +161,6 @@ class CookieTest < Minitest::Test
       "http://localhost:8080/cookies",
       cookies: { "mykey" => raw_value }
     )
-    assert_includes resp.text, "hello world?"
+    assert_includes resp.text, "hello%20world%3F"
   end
 end
