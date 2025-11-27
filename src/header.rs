@@ -113,7 +113,10 @@ impl Headers {
     /// Iterate over headers with Ruby block support.
     #[inline]
     pub fn each(&self) -> Yield<impl Iterator<Item = (Bytes, Bytes)>> {
-        Yield::Iter(HeaderIter::new(self.0.borrow().clone()))
+        Yield::Iter(HeaderIter {
+            inner: self.0.borrow().clone().into_iter(),
+            next_name: None,
+        })
     }
 
     /// Convert headers to string representation.
@@ -129,19 +132,9 @@ impl From<HeaderMap> for Headers {
     }
 }
 
-/// HeaderIterator for HTTP headers that yields (name, value) pairs to Ruby blocks.
-pub struct HeaderIter {
+struct HeaderIter {
     inner: http::header::IntoIter<HeaderValue>,
     next_name: Option<HeaderName>,
-}
-
-impl HeaderIter {
-    fn new(map: HeaderMap) -> Self {
-        Self {
-            inner: map.into_iter(),
-            next_name: None,
-        }
-    }
 }
 
 impl Iterator for HeaderIter {

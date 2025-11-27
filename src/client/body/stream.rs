@@ -32,7 +32,8 @@ struct InnerBodySender {
 // ===== impl BodyReceiver =====
 
 impl BodyReceiver {
-    /// Create a new [`Receiver`] instance.
+    /// Create a new [`BodyReceiver`] instance.
+    #[inline]
     pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> BodyReceiver {
         BodyReceiver(Mutex::new(Box::pin(stream)))
     }
