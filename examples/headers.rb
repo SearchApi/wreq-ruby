@@ -16,6 +16,7 @@ puts "Status: #{response.code}"
 puts "Version: #{response.version}"
 puts "URI: #{response.url}"
 puts "Content Length: #{response.content_length || "Unknown"}"
+puts response.headers
 
 if response.local_addr
   puts "Local Address: #{response.local_addr}"

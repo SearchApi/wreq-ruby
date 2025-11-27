@@ -1,4 +1,3 @@
-#![allow(clippy::wrong_self_convention)]
 use magnus::{Error, Module, RModule, Ruby, method, typed_data::Inspect};
 
 define_ruby_enum!(

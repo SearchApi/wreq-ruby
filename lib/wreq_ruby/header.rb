@@ -188,6 +188,10 @@ unless defined?(Wreq)
       #   enum.to_a  # => [["content-type", "text/html"], ...]
       def each
       end
+
+      # Convert headers to a string representation.
+      def to_s
+      end
     end
 
     # Iterator for HTTP headers.
