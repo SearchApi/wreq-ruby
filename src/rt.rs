@@ -13,7 +13,7 @@ static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
 
 /// Block on a future to completion on the global Tokio runtime,
 /// with support for cancellation via the provided `CancelFlag`.
-pub fn block_on_nogvl_cancellable<F, T>(future: F) -> Result<T, magnus::Error>
+pub fn try_block_on<F, T>(future: F) -> F::Output
 where
     F: Future<Output = Result<T, magnus::Error>>,
 {
@@ -28,8 +28,20 @@ where
     })
 }
 
-/// Block on a future to completion on the global Tokio runtime.
+/// Block on a future to completion on the global Tokio runtime,
+/// returning `None` if cancelled via the provided `CancelFlag`.
 #[inline]
-pub fn block_on<F: Future>(future: F) -> F::Output {
-    RUNTIME.block_on(future)
+pub fn maybe_block_on<F, T>(future: F) -> F::Output
+where
+    F: Future<Output = Option<T>>,
+{
+    gvl::nogvl_cancellable(|flag| {
+        RUNTIME.block_on(async move {
+            tokio::select! {
+                biased;
+                _ = flag.cancelled() => None,
+                result = future => result,
+            }
+        })
+    })
 }

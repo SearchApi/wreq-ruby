@@ -82,7 +82,7 @@ impl Response {
                     return if stream {
                         Ok(build_response(body))
                     } else {
-                        let bytes = rt::block_on_nogvl_cancellable(
+                        let bytes = rt::try_block_on(
                             BodyExt::collect(body)
                                 .map_ok(|buf| buf.to_bytes())
                                 .map_err(wreq_error_to_magnus),
@@ -172,13 +172,13 @@ impl Response {
     /// Get the response body as bytes.
     pub fn bytes(&self) -> Result<Bytes, Error> {
         let response = self.response(false)?;
-        rt::block_on_nogvl_cancellable(response.bytes().map_err(wreq_error_to_magnus))
+        rt::try_block_on(response.bytes().map_err(wreq_error_to_magnus))
     }
 
     /// Get the response body as JSON.
     pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
         let response = rb_self.response(false)?;
-        rt::block_on_nogvl_cancellable(async move {
+        rt::try_block_on(async move {
             let json = response
                 .json::<Json>()
                 .await

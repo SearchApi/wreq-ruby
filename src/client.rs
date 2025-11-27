@@ -375,7 +375,7 @@ impl Client {
         mut request: Request,
     ) -> Result<Response, magnus::Error> {
         let client = self.0.clone();
-        rt::block_on_nogvl_cancellable(async move {
+        rt::try_block_on(async move {
             let mut builder = client.request(method.into_ffi(), url.as_ref());
 
             // Emulation options.
@@ -470,7 +470,7 @@ impl Client {
                 builder = builder.body(wreq::Body::from(body));
             }
 
-            // Send request with cancellation support.
+            // Send request.
             builder
                 .send()
                 .await
