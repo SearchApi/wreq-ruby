@@ -14,7 +14,7 @@ use tokio::sync::{
 
 use crate::{
     error::{memory_error, mpsc_send_error_to_magnus},
-    gvl, rt,
+    rt,
 };
 
 /// A receiver for streaming HTTP response bodies.
@@ -42,16 +42,14 @@ impl Iterator for BodyReceiver {
     type Item = Bytes;
 
     fn next(&mut self) -> Option<Self::Item> {
-        gvl::nogvl_cancellable(|cancel_flag| {
-            rt::block_on(async {
-                tokio::select! {
-                    biased;
-                    _ = cancel_flag.cancelled() => None,
-                    result = async {
-                        self.0.lock().await.as_mut().next().await
-                    } => result.and_then(|r| r.ok()),
-                }
-            })
+        rt::maybe_block_on(async {
+            self.0
+                .lock()
+                .await
+                .as_mut()
+                .next()
+                .await
+                .and_then(|r| r.ok())
         })
     }
 }
@@ -79,7 +77,7 @@ impl BodySender {
         let bytes = data.to_bytes();
         let inner = rb_self.0.read().unwrap();
         if let Some(ref tx) = inner.tx {
-            rt::block_on_nogvl_cancellable(tx.send(bytes).map_err(mpsc_send_error_to_magnus))?;
+            rt::try_block_on(tx.send(bytes).map_err(mpsc_send_error_to_magnus))?;
         }
         Ok(())
     }
