@@ -5,7 +5,10 @@ use std::{
 
 use bytes::Bytes;
 use http::{HeaderMap, HeaderName, HeaderValue};
-use magnus::{Error, Module, Object, RArray, RModule, Ruby, block::Yield, function, method};
+use magnus::{
+    Error, Module, Object, RArray, RModule, Ruby, block::Yield, function, method,
+    typed_data::Inspect,
+};
 
 use crate::error::{header_name_error_to_magnus, header_value_error_to_magnus};
 
@@ -115,6 +118,12 @@ impl Headers {
     pub fn each(&self) -> Yield<HeaderIterator> {
         Yield::Iter(HeaderIterator::new(&self.0.borrow()))
     }
+
+    /// Convert headers to string representation.
+    #[inline]
+    pub fn to_s(&self) -> String {
+        self.0.borrow().inspect()
+    }
 }
 
 impl From<HeaderMap> for Headers {
@@ -179,6 +188,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     headers_class.define_method("keys", method!(Headers::keys, 0))?;
     headers_class.define_method("values", method!(Headers::values, 0))?;
     headers_class.define_method("each", method!(Headers::each, 0))?;
+    headers_class.define_method("to_s", method!(Headers::to_s, 0))?;
 
     // Define HeaderIterator class
     gem_module.define_class("HeaderIterator", ruby.class_object())?;

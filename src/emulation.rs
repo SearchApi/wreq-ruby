@@ -1,4 +1,3 @@
-#![allow(clippy::wrong_self_convention)]
 use magnus::{
     Error, Module, Object, RHash, RModule, Ruby, TryConvert, Value, function, method,
     typed_data::{Inspect, Obj},
