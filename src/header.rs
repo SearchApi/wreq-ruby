@@ -1,7 +1,4 @@
-use std::{
-    cell::RefCell,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::cell::RefCell;
 
 use bytes::Bytes;
 use http::{HeaderMap, HeaderName, HeaderValue};
@@ -115,8 +112,15 @@ impl Headers {
 
     /// Iterate over headers with Ruby block support.
     #[inline]
-    pub fn each(&self) -> Yield<HeaderIterator> {
-        Yield::Iter(HeaderIterator::new(&self.0.borrow()))
+    pub fn each(&self) -> Yield<impl Iterator<Item = (Bytes, Bytes)>> {
+        Yield::Iter(
+            self.0
+                .borrow()
+                .iter()
+                .map(|(k, v)| (Bytes::from_owner(k.clone()), Bytes::from_owner(v.clone())))
+                .collect::<Vec<_>>()
+                .into_iter(),
+        )
     }
 
     /// Convert headers to string representation.
@@ -129,45 +133,6 @@ impl Headers {
 impl From<HeaderMap> for Headers {
     fn from(headers: HeaderMap) -> Self {
         Self(RefCell::new(headers))
-    }
-}
-
-/// Iterator for HTTP headers that yields (name, value) pairs to Ruby blocks.
-#[magnus::wrap(class = "Wreq::HeaderIterator", free_immediately, size)]
-pub struct HeaderIterator {
-    headers: Vec<(Bytes, Bytes)>,
-    index: AtomicUsize,
-}
-
-impl HeaderIterator {
-    /// Create a new header iterator from a HeaderMap.
-    pub fn new(headers: &HeaderMap) -> Self {
-        Self {
-            headers: headers
-                .iter()
-                .map(|(name, value)| {
-                    (
-                        Bytes::from_owner(name.clone()),
-                        Bytes::from_owner(value.clone()),
-                    )
-                })
-                .collect(),
-            index: AtomicUsize::new(0),
-        }
-    }
-}
-
-impl Iterator for HeaderIterator {
-    type Item = (Bytes, Bytes);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let current_index = self.index.fetch_add(1, Ordering::SeqCst);
-        if current_index < self.headers.len() {
-            let (name, value) = &self.headers[current_index];
-            Some((name.clone(), value.clone()))
-        } else {
-            None
-        }
     }
 }
 
