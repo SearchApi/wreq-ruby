@@ -1,7 +1,4 @@
-use std::{
-    cell::RefCell,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::cell::RefCell;
 
 use bytes::Bytes;
 use http::{HeaderMap, HeaderName, HeaderValue};
@@ -115,8 +112,8 @@ impl Headers {
 
     /// Iterate over headers with Ruby block support.
     #[inline]
-    pub fn each(&self) -> Yield<HeaderIterator> {
-        Yield::Iter(HeaderIterator::new(&self.0.borrow()))
+    pub fn each(&self) -> Yield<impl Iterator<Item = (Bytes, Bytes)>> {
+        Yield::Iter(HeaderIter::new(self.0.borrow().clone()))
     }
 
     /// Convert headers to string representation.
@@ -132,41 +129,35 @@ impl From<HeaderMap> for Headers {
     }
 }
 
-/// Iterator for HTTP headers that yields (name, value) pairs to Ruby blocks.
-#[magnus::wrap(class = "Wreq::HeaderIterator", free_immediately, size)]
-pub struct HeaderIterator {
-    headers: Vec<(Bytes, Bytes)>,
-    index: AtomicUsize,
+/// HeaderIterator for HTTP headers that yields (name, value) pairs to Ruby blocks.
+pub struct HeaderIter {
+    inner: http::header::IntoIter<HeaderValue>,
+    next_name: Option<HeaderName>,
 }
 
-impl HeaderIterator {
-    /// Create a new header iterator from a HeaderMap.
-    pub fn new(headers: &HeaderMap) -> Self {
+impl HeaderIter {
+    fn new(map: HeaderMap) -> Self {
         Self {
-            headers: headers
-                .iter()
-                .map(|(name, value)| {
-                    (
-                        Bytes::from_owner(name.clone()),
-                        Bytes::from_owner(value.clone()),
-                    )
-                })
-                .collect(),
-            index: AtomicUsize::new(0),
+            inner: map.into_iter(),
+            next_name: None,
         }
     }
 }
 
-impl Iterator for HeaderIterator {
+impl Iterator for HeaderIter {
     type Item = (Bytes, Bytes);
-
     fn next(&mut self) -> Option<Self::Item> {
-        let current_index = self.index.fetch_add(1, Ordering::SeqCst);
-        if current_index < self.headers.len() {
-            let (name, value) = &self.headers[current_index];
-            Some((name.clone(), value.clone()))
-        } else {
-            None
+        let (name, value) = self.inner.next()?;
+        match (&self.next_name, name) {
+            (Some(next_name), None) => Some((
+                Bytes::from_owner(next_name.clone()),
+                Bytes::from_owner(value),
+            )),
+            (_, Some(name)) => {
+                self.next_name = Some(name.clone());
+                Some((Bytes::from_owner(name), Bytes::from_owner(value)))
+            }
+            (None, None) => None,
         }
     }
 }
@@ -189,9 +180,5 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     headers_class.define_method("values", method!(Headers::values, 0))?;
     headers_class.define_method("each", method!(Headers::each, 0))?;
     headers_class.define_method("to_s", method!(Headers::to_s, 0))?;
-
-    // Define HeaderIterator class
-    gem_module.define_class("HeaderIterator", ruby.class_object())?;
-
     Ok(())
 }
