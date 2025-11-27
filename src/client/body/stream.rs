@@ -1,13 +1,16 @@
 use std::{
     pin::Pin,
-    sync::{Arc, Mutex, RwLock},
+    sync::RwLock,
     task::{Context, Poll},
 };
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt, TryFutureExt};
 use magnus::{Error, RString, TryConvert, Value};
-use tokio::sync::mpsc::{self};
+use tokio::sync::{
+    Mutex,
+    mpsc::{self},
+};
 
 use crate::{
     error::{memory_error, mpsc_send_error_to_magnus},
@@ -15,7 +18,7 @@ use crate::{
 };
 
 /// A receiver for streaming HTTP response bodies.
-pub struct BodyReceiver(Arc<Mutex<mpsc::Receiver<wreq::Result<Bytes>>>>);
+pub struct BodyReceiver(Mutex<Pin<Box<dyn Stream<Item = wreq::Result<Bytes>> + Send>>>);
 
 /// A sender for streaming HTTP request bodies.
 #[magnus::wrap(class = "Wreq::BodySender", free_immediately, size)]
@@ -31,17 +34,7 @@ struct InnerBodySender {
 impl BodyReceiver {
     /// Create a new [`Receiver`] instance.
     pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> BodyReceiver {
-        let (tx, rx) = mpsc::channel(8);
-        rt::spawn(async move {
-            futures_util::pin_mut!(stream);
-            while let Some(item) = stream.next().await {
-                if tx.send(item).await.is_err() {
-                    break;
-                }
-            }
-        });
-
-        BodyReceiver(Arc::new(Mutex::new(rx)))
+        BodyReceiver(Mutex::new(Box::pin(stream)))
     }
 }
 
@@ -50,17 +43,15 @@ impl Iterator for BodyReceiver {
 
     fn next(&mut self) -> Option<Self::Item> {
         gvl::nogvl_cancellable(|cancel_flag| {
-            if let Ok(mut inner) = self.0.lock() {
-                rt::block_on(async {
-                    tokio::select! {
-                        biased;
-                        _ = cancel_flag.cancelled() => None,
-                        result = inner.recv() => result.and_then(|r| r.ok()),
-                    }
-                })
-            } else {
-                None
-            }
+            rt::block_on(async {
+                tokio::select! {
+                    biased;
+                    _ = cancel_flag.cancelled() => None,
+                    result = async {
+                        self.0.lock().await.as_mut().next().await
+                    } => result.and_then(|r| r.ok()),
+                }
+            })
         })
     }
 }

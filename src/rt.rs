@@ -1,9 +1,6 @@
 use std::sync::LazyLock;
 
-use tokio::{
-    runtime::{Builder, Runtime},
-    task::JoinHandle,
-};
+use tokio::runtime::{Builder, Runtime};
 
 use crate::{error::interrupt_error, gvl};
 
@@ -35,14 +32,4 @@ where
 #[inline]
 pub fn block_on<F: Future>(future: F) -> F::Output {
     RUNTIME.block_on(future)
-}
-
-/// Spawn a new asynchronous task on the global Tokio runtime.
-#[inline]
-pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
-where
-    F: Future + Send + 'static,
-    F::Output: Send + 'static,
-{
-    RUNTIME.spawn(future)
 }
