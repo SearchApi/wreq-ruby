@@ -159,7 +159,7 @@ class CookieTest < Minitest::Test
     client = Wreq::Client.new
     resp = client.get(
       "http://localhost:8080/cookies",
-      cookies: { "mykey" => raw_value }
+      cookies: {"mykey" => raw_value}
     )
     assert_includes resp.text, "hello%20world%3F"
   end

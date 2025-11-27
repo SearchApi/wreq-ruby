@@ -113,14 +113,7 @@ impl Headers {
     /// Iterate over headers with Ruby block support.
     #[inline]
     pub fn each(&self) -> Yield<impl Iterator<Item = (Bytes, Bytes)>> {
-        Yield::Iter(
-            self.0
-                .borrow()
-                .iter()
-                .map(|(k, v)| (Bytes::from_owner(k.clone()), Bytes::from_owner(v.clone())))
-                .collect::<Vec<_>>()
-                .into_iter(),
-        )
+        Yield::Iter(HeaderIter::new(self.0.borrow().clone()))
     }
 
     /// Convert headers to string representation.
@@ -133,6 +126,39 @@ impl Headers {
 impl From<HeaderMap> for Headers {
     fn from(headers: HeaderMap) -> Self {
         Self(RefCell::new(headers))
+    }
+}
+
+/// HeaderIterator for HTTP headers that yields (name, value) pairs to Ruby blocks.
+pub struct HeaderIter {
+    inner: http::header::IntoIter<HeaderValue>,
+    next_name: Option<HeaderName>,
+}
+
+impl HeaderIter {
+    fn new(map: HeaderMap) -> Self {
+        Self {
+            inner: map.into_iter(),
+            next_name: None,
+        }
+    }
+}
+
+impl Iterator for HeaderIter {
+    type Item = (Bytes, Bytes);
+    fn next(&mut self) -> Option<Self::Item> {
+        let (name, value) = self.inner.next()?;
+        match (&self.next_name, name) {
+            (Some(next_name), None) => Some((
+                Bytes::from_owner(next_name.clone()),
+                Bytes::from_owner(value),
+            )),
+            (_, Some(name)) => {
+                self.next_name = Some(name.clone());
+                Some((Bytes::from_owner(name), Bytes::from_owner(value)))
+            }
+            (None, None) => None,
+        }
     }
 }
 
