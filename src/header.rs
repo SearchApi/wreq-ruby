@@ -180,9 +180,5 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     headers_class.define_method("values", method!(Headers::values, 0))?;
     headers_class.define_method("each", method!(Headers::each, 0))?;
     headers_class.define_method("to_s", method!(Headers::to_s, 0))?;
-
-    // Define HeaderIterator class
-    gem_module.define_class("HeaderIterator", ruby.class_object())?;
-
     Ok(())
 }
