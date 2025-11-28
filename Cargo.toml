@@ -17,7 +17,7 @@ name = "wreq_ruby"
 magnus = { version = "0.8", features = ["bytes"] }
 rb-sys = { version = "0.9.110", default-features = false }
 tokio = { version = "1", features = ["full"] }
-wreq = { version = "6.0.0-rc.21", features = [
+wreq = { version = "6.0.0-rc.23", features = [
     "json",
     "socks",
     "stream",
