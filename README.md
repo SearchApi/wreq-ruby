@@ -1,8 +1,46 @@
 # wreq-ruby
 
-## Documentation
+ An easy and powerful Ruby HTTP client with advanced browser fingerprinting that accurately emulates **Chrome**, **Firefox**, **Safari**, **Opera**, and **OkHttp**, with precise **TLS/HTTP2** signatures, and powered by [wreq](https://github.com/0x676e67/wreq).
 
-More detailed documentation is a work in progress. Meanwhile, you can refer to the [wreq](https://docs.rs/wreq/latest/wreq/) documentation for details on the underlying Rust library.
+
+## Features
+
+- Plain bodies, JSON, urlencoded,
+- Cookie Store
+- Redirect Policy
+- Original Headers
+- Rotating Proxies
+- Connection Pooling
+- Streaming Transfers
+- HTTPS via BoringSSL
+- Free-Threaded Safety
+- Automatic Decompression
+
+## Example
+
+This example demonstrates how to make a simple GET request using the `wreq` library. So you need install `wreq` and run the following code:
+
+```bash
+gem install wreq
+```
+
+And then the code:
+
+```ruby
+require "wreq"
+
+ # Build a client
+client = Wreq::Client.new(emulation: Wreq::Emulation.new(
+  device: Wreq::EmulationDevice::Chrome142,
+  os: Wreq::EmulationOS::MacOS,
+  skip_http2: false,
+  skip_headers: false
+))
+
+# Use the API you're already familiar with
+resp = client.get("https://tls.peet.ws/api/all")
+puts resp.text
+```
 
 ## Development
 
