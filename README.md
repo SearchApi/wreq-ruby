@@ -42,6 +42,12 @@ resp = client.get("https://tls.peet.ws/api/all")
 puts resp.text
 ```
 
+Additional learning resources include:
+
+- [API Documentation](https://github.com/SearchApi/wreq-ruby/tree/main/lib)
+- [Repository Tests](https://github.com/SearchApi/wreq-ruby/tree/main/test)
+- [Repository Examples](https://github.com/SearchApi/wreq-ruby/tree/main/examples)
+
 ## Development
 
 Install the BoringSSL build environment by referring to [boring](https://github.com/cloudflare/boring/blob/master/.github/workflows/ci.yml) and [boringssl](https://github.com/google/boringssl/blob/master/BUILDING.md#build-prerequisites).
