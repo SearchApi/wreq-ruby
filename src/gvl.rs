@@ -79,7 +79,7 @@ unsafe extern "C" fn unblock_func(arg: *mut c_void) {
 
 /// Executes the given closure without holding the Ruby GVL (Global VM Lock).
 ///
-/// WARNING: Do NOT nest calls to `nogvl` or `nogvl_cancellable` inside each other.
+/// WARNING: Do NOT nest calls to [`nogvl`] or [`nogvl_cancellable`] inside each other.
 /// Nesting these functions will cause Ruby thread deadlock, because the inner call
 /// will block waiting for the GVL while the outer call has already released it.
 /// This results in all Ruby threads being suspended indefinitely.
@@ -104,7 +104,7 @@ where
 
 /// Executes the given closure without GVL, supporting cancellation via thread interrupt.
 ///
-/// WARNING: Do NOT nest calls to `nogvl` or `nogvl_cancellable` inside each other.
+/// WARNING: Do NOT nest calls to [`nogvl`] or [`nogvl_cancellable`] inside each other.
 /// Nesting these functions will cause Ruby thread deadlock, because the inner call
 /// will block waiting for the GVL while the outer call has already released it.
 /// This results in all Ruby threads being suspended indefinitely.
