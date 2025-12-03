@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use http::HeaderValue;
 use indexmap::IndexMap;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
@@ -21,6 +23,12 @@ pub struct Request {
     /// The proxy to use for the request.
     #[serde(skip)]
     pub proxy: Option<Proxy>,
+
+    /// Bind to a local IP Address.
+    pub local_address: Option<IpAddr>,
+
+    /// Bind to an interface by `SO_BINDTODEVICE`.
+    pub interface: Option<String>,
 
     /// The timeout to use for the request.
     pub timeout: Option<u64>,

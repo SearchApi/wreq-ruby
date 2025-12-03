@@ -133,6 +133,8 @@ unless defined?(Wreq)
       # @param proxy [String, nil] Proxy server URI to use for all requests.
       #   Supports HTTP, HTTPS, and SOCKS5 proxies. Format: "protocol://host:port"
       #   Example: "http://proxy.example.com:8080"
+      # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable.
+      # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
       #
       # @param gzip [Boolean, nil] Accept and automatically decompress gzip
       #   content encoding. When true, adds "Accept-Encoding: gzip" header.
@@ -259,7 +261,8 @@ unless defined?(Wreq)
       # @param timeout [Integer, nil] Total request timeout (seconds)
       # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
       # @param proxy [String, nil] Proxy server URI
-      # @param no_proxy [Boolean, nil] Disable proxy for this request
+      # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
+      # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
@@ -291,7 +294,8 @@ unless defined?(Wreq)
       # @param timeout [Integer, nil] Total request timeout (seconds)
       # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
       # @param proxy [String, nil] Proxy server URI
-      # @param no_proxy [Boolean, nil] Disable proxy for this request
+      # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful to originate GET requests from a specific address. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable.
+      # @param interface [String, nil] Bind the socket to a network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Supported on Linux/Android/Fuchsia; typically requires privileges.
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
@@ -323,7 +327,8 @@ unless defined?(Wreq)
       # @param timeout [Integer, nil] Total request timeout (seconds)
       # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
       # @param proxy [String, nil] Proxy server URI
-      # @param no_proxy [Boolean, nil] Disable proxy for this request
+      # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful to originate HEAD requests from a specific address. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1".
+      # @param interface [String, nil] Bind the socket to a network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0").
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
@@ -355,7 +360,8 @@ unless defined?(Wreq)
       # @param timeout [Integer, nil] Total request timeout (seconds)
       # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
       # @param proxy [String, nil] Proxy server URI
-      # @param no_proxy [Boolean, nil] Disable proxy for this request
+      # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful to originate POST requests from a specific address.
+      # @param interface [String, nil] Bind the socket to a network interface via `SO_BINDTODEVICE`.
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
@@ -387,7 +393,8 @@ unless defined?(Wreq)
       # @param timeout [Integer, nil] Total request timeout (seconds)
       # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
       # @param proxy [String, nil] Proxy server URI
-      # @param no_proxy [Boolean, nil] Disable proxy for this request
+      # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful to originate PUT requests from a specific address.
+      # @param interface [String, nil] Bind the socket to a network interface via `SO_BINDTODEVICE`.
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
@@ -419,7 +426,8 @@ unless defined?(Wreq)
       # @param timeout [Integer, nil] Total request timeout (seconds)
       # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
       # @param proxy [String, nil] Proxy server URI
-      # @param no_proxy [Boolean, nil] Disable proxy for this request
+      # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful to originate DELETE requests from a specific address.
+      # @param interface [String, nil] Bind the socket to a network interface via `SO_BINDTODEVICE`.
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
@@ -451,7 +459,8 @@ unless defined?(Wreq)
       # @param timeout [Integer, nil] Total request timeout (seconds)
       # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
       # @param proxy [String, nil] Proxy server URI
-      # @param no_proxy [Boolean, nil] Disable proxy for this request
+      # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful to originate OPTIONS requests from a specific address.
+      # @param interface [String, nil] Bind the socket to a network interface via `SO_BINDTODEVICE`.
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
@@ -483,7 +492,8 @@ unless defined?(Wreq)
       # @param timeout [Integer, nil] Total request timeout (seconds)
       # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
       # @param proxy [String, nil] Proxy server URI
-      # @param no_proxy [Boolean, nil] Disable proxy for this request
+      # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful to originate OPTIONS requests from a specific address.
+      # @param interface [String, nil] Bind the socket to a network interface via `SO_BINDTODEVICE`.
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
@@ -515,7 +525,8 @@ unless defined?(Wreq)
       # @param timeout [Integer, nil] Total request timeout (seconds)
       # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
       # @param proxy [String, nil] Proxy server URI
-      # @param no_proxy [Boolean, nil] Disable proxy for this request
+      # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful to originate OPTIONS requests from a specific address.
+      # @param interface [String, nil] Bind the socket to a network interface via `SO_BINDTODEVICE`.
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @return [Wreq::Response] HTTP response
