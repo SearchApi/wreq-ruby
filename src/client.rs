@@ -2,7 +2,7 @@ pub mod body;
 pub mod req;
 pub mod resp;
 
-use std::time::Duration;
+use std::{net::IpAddr, time::Duration};
 
 use magnus::{
     Module, Object, RHash, RModule, Ruby, TryConvert, Value, function, method, typed_data::Obj,
@@ -104,6 +104,10 @@ struct Builder {
     /// The proxy to use for the client.
     #[serde(skip)]
     proxy: Option<Proxy>,
+    /// Bind to a local IP Address.
+    local_address: Option<IpAddr>,
+    /// Bind to an interface by `SO_BINDTODEVICE`.
+    interface: Option<String>,
 
     // ========= Compression options =========
     /// Sets gzip as an accepted encoding.
@@ -289,6 +293,8 @@ impl Client {
                 // Network options.
                 apply_option!(set_if_some, builder, params.proxy, proxy);
                 apply_option!(set_if_true, builder, params.no_proxy, no_proxy, false);
+                apply_option!(set_if_some, builder, params.local_address, local_address);
+                apply_option!(set_if_some, builder, params.interface, interface);
 
                 // Compression options.
                 apply_option!(set_if_some, builder, params.gzip, gzip);
@@ -402,6 +408,8 @@ impl Client {
 
             // Network options.
             apply_option!(set_if_some, builder, request.proxy, proxy);
+            apply_option!(set_if_some, builder, request.local_address, local_address);
+            apply_option!(set_if_some, builder, request.interface, interface);
 
             // Headers options.
             apply_option!(set_if_some, builder, request.headers, headers);
