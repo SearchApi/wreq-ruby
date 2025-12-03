@@ -12,12 +12,9 @@ mod header;
 mod http;
 mod rt;
 
-use magnus::{Error, Module, Ruby, Value, typed_data::Obj};
+use magnus::{Error, Module, Ruby, Value};
 
-use crate::{
-    client::{Client, resp::Response},
-    http::Method,
-};
+use crate::client::{Client, resp::Response};
 
 const RUBY_MODULE_NAME: &str = "Wreq";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -25,64 +22,55 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Send a HTTP request.
 #[inline]
 pub fn request(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((method, url), request) = extract_request!(args, (Obj<Method>, String));
-    Client::default().execute_request(*method, url, request)
+    Client::request(&Client::default(), args)
 }
 
 /// Send a GET request.
 #[inline]
 pub fn get(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((url,), request) = extract_request!(args, (String,));
-    Client::default().execute_request(Method::GET, url, request)
+    Client::get(&Client::default(), args)
 }
 
 /// Send a POST request.
 #[inline]
 pub fn post(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((url,), request) = extract_request!(args, (String,));
-    Client::default().execute_request(Method::POST, url, request)
+    Client::post(&Client::default(), args)
 }
 
 /// Send a PUT request.
 #[inline]
 pub fn put(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((url,), request) = extract_request!(args, (String,));
-    Client::default().execute_request(Method::PUT, url, request)
+    Client::put(&Client::default(), args)
 }
 
 /// Send a DELETE request.
 #[inline]
 pub fn delete(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((url,), request) = extract_request!(args, (String,));
-    Client::default().execute_request(Method::DELETE, url, request)
+    Client::delete(&Client::default(), args)
 }
 
 /// Send a HEAD request.
 #[inline]
 pub fn head(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((url,), request) = extract_request!(args, (String,));
-    Client::default().execute_request(Method::HEAD, url, request)
+    Client::head(&Client::default(), args)
 }
 
 /// Send an OPTIONS request.
 #[inline]
 pub fn options(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((url,), request) = extract_request!(args, (String,));
-    Client::default().execute_request(Method::OPTIONS, url, request)
+    Client::options(&Client::default(), args)
 }
 
 /// Send a TRACE request.
 #[inline]
 pub fn trace(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((url,), request) = extract_request!(args, (String,));
-    Client::default().execute_request(Method::TRACE, url, request)
+    Client::trace(&Client::default(), args)
 }
 
 /// Send a PATCH request.
 #[inline]
 pub fn patch(args: &[Value]) -> Result<Response, magnus::Error> {
-    let ((url,), request) = extract_request!(args, (String,));
-    Client::default().execute_request(Method::PATCH, url, request)
+    Client::patch(&Client::default(), args)
 }
 
 /// wreq ruby binding

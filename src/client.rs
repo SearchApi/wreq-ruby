@@ -10,18 +10,17 @@ use magnus::{
 use serde::Deserialize;
 use wreq::{
     Proxy,
-    header::{self, HeaderMap, HeaderValue, OrigHeaderMap},
+    header::{HeaderMap, HeaderValue, OrigHeaderMap},
 };
 
 use crate::{
-    client::{req::Request, resp::Response},
+    client::{req::execute_request, resp::Response},
     cookie::Jar,
     emulation::Emulation,
     error::wreq_error_to_magnus,
     extractor::Extractor,
     gvl,
     http::Method,
-    rt,
 };
 
 /// A builder for `Client`.
@@ -315,176 +314,63 @@ impl Client {
     #[inline]
     pub fn request(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((method, url), request) = extract_request!(args, (Obj<Method>, String));
-        rb_self.execute_request(*method, url, request)
+        execute_request(rb_self.0.clone(), *method, url, request)
     }
 
     /// Send a GET request.
     #[inline]
     pub fn get(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        rb_self.execute_request(Method::GET, url, request)
+        execute_request(rb_self.0.clone(), Method::GET, url, request)
     }
 
     /// Send a POST request.
     #[inline]
     pub fn post(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        rb_self.execute_request(Method::POST, url, request)
+        execute_request(rb_self.0.clone(), Method::POST, url, request)
     }
 
     /// Send a PUT request.
     #[inline]
     pub fn put(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        rb_self.execute_request(Method::PUT, url, request)
+        execute_request(rb_self.0.clone(), Method::PUT, url, request)
     }
 
     /// Send a DELETE request.
     #[inline]
     pub fn delete(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        rb_self.execute_request(Method::DELETE, url, request)
+        execute_request(rb_self.0.clone(), Method::DELETE, url, request)
     }
 
     /// Send a HEAD request.
     #[inline]
     pub fn head(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        rb_self.execute_request(Method::HEAD, url, request)
+        execute_request(rb_self.0.clone(), Method::HEAD, url, request)
     }
 
     /// Send an OPTIONS request.
     #[inline]
     pub fn options(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        rb_self.execute_request(Method::OPTIONS, url, request)
+        execute_request(rb_self.0.clone(), Method::OPTIONS, url, request)
     }
 
     /// Send a TRACE request.
     #[inline]
     pub fn trace(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        rb_self.execute_request(Method::TRACE, url, request)
+        execute_request(rb_self.0.clone(), Method::TRACE, url, request)
     }
 
     /// Send a PATCH request.
     #[inline]
     pub fn patch(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        rb_self.execute_request(Method::PATCH, url, request)
-    }
-
-    pub fn execute_request<U: AsRef<str>>(
-        &self,
-        method: Method,
-        url: U,
-        mut request: Request,
-    ) -> Result<Response, magnus::Error> {
-        let client = self.0.clone();
-        rt::try_block_on(async move {
-            let mut builder = client.request(method.into_ffi(), url.as_ref());
-
-            // Emulation options.
-            apply_option!(set_if_some_inner, builder, request.emulation, emulation);
-
-            // Version options.
-            apply_option!(set_if_some, builder, request.version, version);
-
-            // Timeout options.
-            apply_option!(
-                set_if_some_map,
-                builder,
-                request.timeout,
-                timeout,
-                Duration::from_secs
-            );
-            apply_option!(
-                set_if_some_map,
-                builder,
-                request.read_timeout,
-                read_timeout,
-                Duration::from_secs
-            );
-
-            // Network options.
-            apply_option!(set_if_some, builder, request.proxy, proxy);
-            apply_option!(set_if_some, builder, request.local_address, local_address);
-            apply_option!(set_if_some, builder, request.interface, interface);
-
-            // Headers options.
-            apply_option!(set_if_some, builder, request.headers, headers);
-            apply_option!(set_if_some, builder, request.orig_headers, orig_headers);
-            apply_option!(
-                set_if_some,
-                builder,
-                request.default_headers,
-                default_headers
-            );
-
-            // Authentication options.
-            apply_option!(
-                set_if_some_map_ref,
-                builder,
-                request.auth,
-                auth,
-                AsRef::<str>::as_ref
-            );
-            apply_option!(set_if_some, builder, request.bearer_auth, bearer_auth);
-            if let Some(basic_auth) = request.basic_auth.take() {
-                builder = builder.basic_auth(basic_auth.0, basic_auth.1);
-            }
-
-            // Cookies options.
-            if let Some(cookies) = request.cookies.take() {
-                for cookie in cookies {
-                    builder = builder.header_append(header::COOKIE, cookie);
-                }
-            }
-
-            // Allow redirects options.
-            match request.allow_redirects {
-                Some(false) => {
-                    builder = builder.redirect(wreq::redirect::Policy::none());
-                }
-                Some(true) => {
-                    builder = builder.redirect(
-                        request
-                            .max_redirects
-                            .take()
-                            .map(wreq::redirect::Policy::limited)
-                            .unwrap_or_default(),
-                    );
-                }
-                None => {}
-            };
-
-            // Compression options.
-            apply_option!(set_if_some, builder, request.gzip, gzip);
-            apply_option!(set_if_some, builder, request.brotli, brotli);
-            apply_option!(set_if_some, builder, request.deflate, deflate);
-            apply_option!(set_if_some, builder, request.zstd, zstd);
-
-            // Query options.
-            apply_option!(set_if_some_ref, builder, request.query, query);
-
-            // Form options.
-            apply_option!(set_if_some_ref, builder, request.form, form);
-
-            // JSON options.
-            apply_option!(set_if_some_ref, builder, request.json, json);
-
-            // Body options.
-            if let Some(body) = request.body.take() {
-                builder = builder.body(wreq::Body::from(body));
-            }
-
-            // Send request.
-            builder
-                .send()
-                .await
-                .map(Response::new)
-                .map_err(wreq_error_to_magnus)
-        })
+        execute_request(rb_self.0.clone(), Method::PATCH, url, request)
     }
 }
 
