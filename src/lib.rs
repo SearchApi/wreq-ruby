@@ -12,8 +12,9 @@ mod header;
 mod http;
 mod rt;
 
-use crate::client::{Client, resp::Response};
 use magnus::{Error, Module, Ruby, Value};
+
+use crate::client::{Client, resp::Response};
 
 const RUBY_MODULE_NAME: &str = "Wreq";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
