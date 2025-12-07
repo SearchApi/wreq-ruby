@@ -1,7 +1,6 @@
 use std::{net::IpAddr, time::Duration};
 
 use http::{HeaderValue, header};
-use indexmap::IndexMap;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
 use serde::Deserialize;
 use wreq::{
@@ -9,10 +8,14 @@ use wreq::{
     header::{HeaderMap, OrigHeaderMap},
 };
 
-use super::body::{Body, Json};
+use super::body::{Body, Form, Json};
 use crate::{
-    client::resp::Response, emulation::Emulation, error::wreq_error_to_magnus,
-    extractor::Extractor, http::Method, rt,
+    client::{query::Query, resp::Response},
+    emulation::Emulation,
+    error::wreq_error_to_magnus,
+    extractor::Extractor,
+    http::Method,
+    rt,
 };
 
 /// The parameters for a request.
@@ -86,10 +89,10 @@ pub struct Request {
     basic_auth: Option<(String, Option<String>)>,
 
     /// The query parameters to use for the request.
-    query: Option<IndexMap<String, String>>,
+    query: Option<Query>,
 
     /// The form parameters to use for the request.
-    form: Option<IndexMap<String, String>>,
+    form: Option<Form>,
 
     /// The JSON body to use for the request.
     json: Option<Json>,

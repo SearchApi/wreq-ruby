@@ -47,21 +47,27 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_request_with_query_params
-    params = {"param1" => "value1", "param2" => "value2"}
+    params = {"param1" => "value1", "param2" => "value2", "param3" => 123, "param4" => true}
     response = Wreq.get("http://localhost:8080/get", query: params)
     assert_equal 200, response.code
     assert_includes response.text, "param1=value1"
     assert_includes response.text, "param2=value2"
+    assert_includes response.text, "param3=123"
+    assert_includes response.text, "param4=true"
   end
 
   def test_post_with_form_data
-    data = {"field1" => "value1", "field2" => "value2"}
+    data = {"field1" => "value1", "field2" => "value2", "field3" => 456, "field4" => false}
     response = Wreq.post("http://localhost:8080/post", form: data)
     assert_equal 200, response.code
     assert_includes response.text, "field1"
     assert_includes response.text, "value1"
     assert_includes response.text, "field2"
     assert_includes response.text, "value2"
+    assert_includes response.text, "field3"
+    assert_includes response.text, "456"
+    assert_includes response.text, "field4"
+    assert_includes response.text, "false"
   end
 
   def test_post_with_raw_body

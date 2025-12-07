@@ -1,5 +1,7 @@
-pub mod body;
-pub mod req;
+mod body;
+mod param;
+mod query;
+mod req;
 pub mod resp;
 
 use std::{net::IpAddr, time::Duration};
