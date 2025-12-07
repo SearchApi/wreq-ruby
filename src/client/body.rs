@@ -50,7 +50,7 @@ impl From<Body> for wreq::Body {
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     let sender_class = gem_module.define_class("BodySender", ruby.class_object())?;
-    sender_class.define_singleton_method("new", function!(BodySender::new, -1))?;
+    sender_class.define_singleton_method("initialize", function!(BodySender::initialize, -1))?;
     sender_class.define_method("push", method!(BodySender::push, 1))?;
     sender_class.define_method("close", magnus::method!(BodySender::close, 0))?;
     Ok(())

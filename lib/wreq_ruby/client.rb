@@ -232,7 +232,7 @@ unless defined?(Wreq)
       #     verify: false,  # WARNING: Do not use in production!
       #     timeout: 5
       #   )
-      def self.new(**options)
+      def self.initialize(**options)
       end
 
       # Send an HTTP request.

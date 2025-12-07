@@ -42,7 +42,7 @@ pub struct Jar(Arc<wreq::cookie::Jar>);
 
 impl Cookie {
     /// Create a new [`Cookie`].
-    pub fn new(args: &[Value]) -> Result<Self, Error> {
+    pub fn initialize(args: &[Value]) -> Result<Self, Error> {
         let args =
             magnus::scan_args::scan_args::<(String, String), (), (), (), magnus::RHash, ()>(args)?;
         #[allow(clippy::type_complexity)]
@@ -217,7 +217,7 @@ impl CookieStore for Jar {
 
 impl Jar {
     /// Create a new [`Jar`] with an empty cookie store.
-    pub fn new() -> Self {
+    pub fn initialize() -> Self {
         Jar(Arc::new(wreq::cookie::Jar::default()))
     }
 
@@ -266,7 +266,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
 
     // Cookie class
     let cookie_class = gem_module.define_class("Cookie", ruby.class_object())?;
-    cookie_class.define_singleton_method("new", function!(Cookie::new, -1))?;
+    cookie_class.define_singleton_method("initialize", function!(Cookie::initialize, -1))?;
     cookie_class.define_method("name", method!(Cookie::name, 0))?;
     cookie_class.define_method("value", method!(Cookie::value, 0))?;
     cookie_class.define_method("http_only", method!(Cookie::http_only, 0))?;
@@ -282,7 +282,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
 
     // Jar class
     let jar_class = gem_module.define_class("Jar", ruby.class_object())?;
-    jar_class.define_singleton_method("new", function!(Jar::new, 0))?;
+    jar_class.define_singleton_method("initialize", function!(Jar::initialize, 0))?;
     jar_class.define_method("get_all", method!(Jar::get_all, 0))?;
     jar_class.define_method("add_cookie", method!(Jar::add_cookie, 2))?;
     jar_class.define_method("add_cookie_str", method!(Jar::add_cookie_str, 2))?;

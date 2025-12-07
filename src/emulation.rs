@@ -131,7 +131,7 @@ impl EmulationOS {
 // ===== impl Emulation =====
 
 impl Emulation {
-    fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
+    fn initialize(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
         let mut device = None;
         let mut os = None;
         let mut skip_http2 = None;
@@ -262,6 +262,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
 
     // Emulation class binding
     let emulation_option_class = gem_module.define_class("Emulation", ruby.class_object())?;
-    emulation_option_class.define_singleton_method("new", function!(Emulation::new, -1))?;
+    emulation_option_class
+        .define_singleton_method("initialize", function!(Emulation::initialize, -1))?;
     Ok(())
 }

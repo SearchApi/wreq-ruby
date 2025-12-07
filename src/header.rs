@@ -20,7 +20,7 @@ pub struct Headers(RefCell<HeaderMap>);
 impl Headers {
     /// Create a new empty Headers instance.
     #[inline]
-    pub fn new() -> Self {
+    pub fn initialize() -> Self {
         Self::from(HeaderMap::new())
     }
 
@@ -158,7 +158,7 @@ impl Iterator for HeaderIter {
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     // Define Headers class with methods
     let headers_class = gem_module.define_class("Headers", ruby.class_object())?;
-    headers_class.define_singleton_method("new", function!(Headers::new, 0))?;
+    headers_class.define_singleton_method("initialize", function!(Headers::initialize, 0))?;
     headers_class.define_method("get", method!(Headers::get, 1))?;
     headers_class.define_method("get_all", method!(Headers::get_all, 1))?;
     headers_class.define_method("set", method!(Headers::set, 2))?;

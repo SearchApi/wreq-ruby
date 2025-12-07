@@ -59,7 +59,7 @@ impl Iterator for BodyReceiver {
 
 impl BodySender {
     /// Ruby: `Wreq::Sender.new(capacity = 8)`
-    pub fn new(args: &[Value]) -> Self {
+    pub fn initialize(args: &[Value]) -> Self {
         let capacity: usize = if let Some(v) = args.first() {
             usize::try_convert(*v).unwrap_or(8)
         } else {

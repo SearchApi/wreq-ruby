@@ -40,7 +40,7 @@ unless defined?(Wreq)
       # @example
       #   headers = Wreq::Headers.new
       #   headers.set("Content-Type", "application/json")
-      def new
+      def initialize
       end
 
       # Get a header value by name (case-insensitive).

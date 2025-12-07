@@ -166,7 +166,7 @@ impl Builder {
 
 impl Client {
     /// Create a new [`Client`] with the given keyword arguments.
-    pub fn new(ruby: &Ruby, kwargs: &[Value]) -> Result<Self, magnus::Error> {
+    pub fn initialize(ruby: &Ruby, kwargs: &[Value]) -> Result<Self, magnus::Error> {
         if let Some(kwargs) = kwargs.first() {
             let mut params = Builder::new(ruby, kwargs)?;
             gvl::nogvl(|| {
@@ -378,7 +378,7 @@ impl Client {
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), magnus::Error> {
     let client_class = gem_module.define_class("Client", ruby.class_object())?;
-    client_class.define_singleton_method("new", function!(Client::new, -1))?;
+    client_class.define_singleton_method("initialize", function!(Client::initialize, -1))?;
     client_class.define_method("request", method!(Client::request, -1))?;
     client_class.define_method("get", method!(Client::get, -1))?;
     client_class.define_method("post", method!(Client::post, -1))?;

@@ -44,7 +44,7 @@ unless defined?(Wreq)
       #     secure: true,
       #     same_site: Wreq::SameSite::Lax
       #   )
-      def new(name, value, **options)
+      def initialize(name, value, **options)
       end
 
       # @return [String] Cookie name
@@ -106,7 +106,7 @@ unless defined?(Wreq)
     class Jar
       # Create a new, empty cookie jar.
       # @return [Wreq::Jar]
-      def new
+      def initialize
       end
 
       # Get all cookies currently stored.

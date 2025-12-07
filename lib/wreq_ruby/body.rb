@@ -20,7 +20,7 @@ unless defined?(Wreq)
     #     after being consumed by a request, further push or reuse is not allowed.
     class BodySender
       # @param capacity [Integer] channel buffer size, default 8
-      def self.new(capacity = 8)
+      def self.initialize(capacity = 8)
       end
 
       # @param data [String] binary chunk
