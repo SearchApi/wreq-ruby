@@ -154,7 +154,7 @@ module Wreq
       # @param os [Wreq::EmulationOS] Operating system profile (optional)
       # @param skip_http2 [Boolean] Whether to skip HTTP/2 (optional)
       # @param skip_headers [Boolean] Whether to skip default headers (optional)
-      def new(device: nil, os: nil, skip_http2: false, skip_headers: false)
+      def self.new(device: nil, os: nil, skip_http2: false, skip_headers: false)
       end
     end
   end

@@ -11,6 +11,7 @@ unless defined?(Wreq)
     #   sender = Wreq::BodySender.new(8)
     #   Thread.new do
     #     File.open('big.bin', 'rb') { |f| while (chunk = f.read(65536)); sender.push(chunk); end }
+    #     sender.close
     #   end
     #   resp = client.post(url, body: sender)
     #
@@ -25,6 +26,10 @@ unless defined?(Wreq)
 
       # @param data [String] binary chunk
       def push(data)
+      end
+
+      # Close the sender, signaling end of data.
+      def close
       end
     end
   end
