@@ -1,3 +1,4 @@
+mod form;
 mod json;
 mod stream;
 
@@ -9,6 +10,7 @@ use magnus::{
 };
 
 pub use self::{
+    form::Form,
     json::Json,
     stream::{BodyReceiver, BodySender, ReceiverStream},
 };
