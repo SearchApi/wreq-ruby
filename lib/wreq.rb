@@ -19,7 +19,7 @@ require_relative "wreq_ruby/cookie"
 unless defined?(Wreq)
   module Wreq
     VERSION = nil
-    
+
     class << self
       # Send an HTTP request.
       #
