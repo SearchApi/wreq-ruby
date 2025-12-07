@@ -6,6 +6,7 @@ pub type Params = IndexMap<String, ParamValue>;
 
 /// Represents a single parameter value that can be automatically converted from Python types.
 #[derive(Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum ParamValue {
     /// A boolean value from Python `bool`.
     Boolean(bool),
