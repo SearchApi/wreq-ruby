@@ -40,8 +40,6 @@ enum Body {
     Reusable(Bytes),
 }
 
-// ===== impl Response =====
-
 impl Response {
     /// Create a new [`Response`] instance.
     pub fn new(response: wreq::Response) -> Self {
@@ -175,6 +173,22 @@ impl Response {
         rt::try_block_on(response.bytes().map_err(wreq_error_to_magnus))
     }
 
+    /// Get the response body as a UTF-8 string.
+    pub fn text(&self) -> Result<String, Error> {
+        let response = self.response(false)?;
+        rt::try_block_on(response.text().map_err(wreq_error_to_magnus))
+    }
+
+    ///  Get the full response text given a specific encoding.
+    pub fn text_with_charset(&self, default_encoding: String) -> Result<String, Error> {
+        let response = self.response(false)?;
+        rt::try_block_on(
+            response
+                .text_with_charset(default_encoding)
+                .map_err(wreq_error_to_magnus),
+        )
+    }
+
     /// Get the response body as JSON.
     pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
         let response = rb_self.response(false)?;
@@ -223,7 +237,12 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response_class.define_method("headers", magnus::method!(Response::headers, 0))?;
     response_class.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
     response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
-    response_class.define_method("text", magnus::method!(Response::bytes, 0))?;
+    response_class.define_method("bytes", magnus::method!(Response::bytes, 0))?;
+    response_class.define_method("text", magnus::method!(Response::text, 0))?;
+    response_class.define_method(
+        "text_with_charset",
+        magnus::method!(Response::text_with_charset, 1),
+    )?;
     response_class.define_method("json", magnus::method!(Response::json, 0))?;
     response_class.define_method("chunks", magnus::method!(Response::chunks, 0))?;
     response_class.define_method("close", magnus::method!(Response::close, 0))?;
