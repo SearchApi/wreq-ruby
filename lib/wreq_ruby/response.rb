@@ -80,13 +80,34 @@ unless defined?(Wreq)
       def remote_addr
       end
 
+      # Get the response bytes as a binary string.
+      # @return [String] Response body as binary data
+      # @example
+      #   binary_data = response.bytes
+      #   puts binary_data.size  # => 1024
+      def bytes
+      end
+
       # Get the response body as text.
       #
       # @return [String] Response body decoded as UTF-8 text
       # @example
       #   html = response.text
       #   puts html
+      # @raise [Wreq::DecodingError] if body cannot be decoded as binary
       def text
+      end
+
+      # Get the response body as text with a specific charset.
+      # This method allows you to specify a default encoding
+      # to use when decoding the response body.
+      # # @param default_encoding [String] Default encoding to use (e.g., "UTF-8")
+      # # @return [String] Response body decoded as text using the specified encoding
+      # @example
+      #   html = response.text_with_charset("ISO-8859-1")
+      #   puts html
+      # @raise [Wreq::DecodingError] if body cannot be decoded with the specified encoding
+      def text_with_charset(default_encoding)
       end
 
       # Parse the response body as JSON.
