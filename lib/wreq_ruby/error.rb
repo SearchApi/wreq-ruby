@@ -65,7 +65,7 @@ unless defined?(Wreq)
     #
     # @example
     #   begin
-    #     response = client.get("https://httpbin.org/status/404")
+    #     response = client.get("https://httpbin.io/status/404")
     #   rescue Wreq::StatusError => e
     #     puts "HTTP error: #{e.message}"
     #     # e.response contains the full response
@@ -79,7 +79,7 @@ unless defined?(Wreq)
     # @example
     #   begin
     #     client = Wreq::Client.new(max_redirects: 3)
-    #     client.get("https://httpbin.org/redirect/10")
+    #     client.get("https://httpbin.io/redirect/10")
     #   rescue Wreq::RedirectError => e
     #     puts "Too many redirects: #{e.message}"
     #   end
@@ -92,7 +92,7 @@ unless defined?(Wreq)
     # @example
     #   begin
     #     client = Wreq::Client.new(timeout: 5)
-    #     client.get("https://httpbin.org/delay/10")
+    #     client.get("https://httpbin.io/delay/10")
     #   rescue Wreq::TimeoutError => e
     #     puts "Request timed out: #{e.message}"
     #     retry_with_longer_timeout

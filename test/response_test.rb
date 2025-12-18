@@ -22,7 +22,7 @@ class ResponseTest < Minitest::Test
     json_data = @response.json
     assert_instance_of Hash, json_data
 
-    # httpbin.org/json returns a specific JSON structure
+    # httpbin.io/json returns a specific JSON structure
     assert json_data.key?("slideshow")
   end
 
