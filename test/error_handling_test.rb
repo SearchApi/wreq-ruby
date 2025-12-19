@@ -65,4 +65,25 @@ class ErrorHandlingTest < Minitest::Test
       assert_instance_of Wreq::DecodingError, e
     end
   end
+
+  def test_proxy_error_handling
+    invalid_proxies = [
+      "http://invalid.proxy:8080",
+      "https://invalid.proxy:8080",
+      "socks4://invalid.proxy:8080",
+      "socks4a://invalid.proxy:8080",
+      "socks5://invalid.proxy:8080",
+      "socks5h://invalid.proxy:8080"
+    ]
+    target_urls = ["https://example.com", "http://example.com"]
+
+    invalid_proxies.each do |proxy|
+      target_urls.each do |url|
+        Wreq.get(url, proxy: proxy, timeout: 5)
+        flunk "Expected proxy connection error but got response"
+      rescue => e
+        assert_instance_of Wreq::ProxyConnectionError, e
+      end
+    end
+  end
 end

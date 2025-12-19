@@ -22,6 +22,18 @@ unless defined?(Wreq)
     #   end
     class ConnectionError < StandardError; end
 
+    # Proxy Connection to the server failed.
+    #
+    # Raised when the client cannot establish a connection to the proxy server.
+    # @example
+    #   begin
+    #     client.get("http://example.com", proxy: "http://invalid-proxy:8080")
+    #   rescue Wreq::ProxyConnectionError => e
+    #     puts "Proxy connection failed: #{e.message}"
+    #     retry_with_different_proxy
+    #   end
+    class ProxyConnectionError < StandardError; end
+
     # Connection was reset by the server.
     #
     # Raised when the server closes the connection unexpectedly.

@@ -48,6 +48,11 @@ define_exception!(MEMORY, "MemoryError", exception_runtime_error);
 // Network connection errors
 define_exception!(CONNECTION_ERROR, "ConnectionError", exception_runtime_error);
 define_exception!(
+    PROXY_CONNECTION_ERROR,
+    "ProxyConnectionError",
+    exception_runtime_error
+);
+define_exception!(
     CONNECTION_RESET_ERROR,
     "ConnectionResetError",
     exception_runtime_error
@@ -116,6 +121,7 @@ pub fn wreq_error_to_magnus(err: wreq::Error) -> MagnusError {
         is_tls => TLS_ERROR,
         is_connection_reset => CONNECTION_RESET_ERROR,
         is_connect => CONNECTION_ERROR,
+        is_proxy_connect => PROXY_CONNECTION_ERROR,
         is_decode => DECODING_ERROR,
         is_redirect => REDIRECT_ERROR,
         is_timeout => TIMEOUT_ERROR,
@@ -127,6 +133,7 @@ pub fn wreq_error_to_magnus(err: wreq::Error) -> MagnusError {
 pub fn include(ruby: &Ruby) {
     Lazy::force(&MEMORY, ruby);
     Lazy::force(&CONNECTION_ERROR, ruby);
+    Lazy::force(&PROXY_CONNECTION_ERROR, ruby);
     Lazy::force(&CONNECTION_RESET_ERROR, ruby);
     Lazy::force(&TLS_ERROR, ruby);
     Lazy::force(&REQUEST_ERROR, ruby);
