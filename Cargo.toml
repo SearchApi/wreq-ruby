@@ -17,7 +17,7 @@ name = "wreq_ruby"
 magnus = { version = "0.8", features = ["bytes"] }
 rb-sys = { version = "0.9.110", default-features = false }
 tokio = { version = "1", features = ["full"] }
-wreq = { version = "6.0.0-rc.24", features = [
+wreq = { version = "6.0.0-rc.23", features = [
     "json",
     "socks",
     "stream",
@@ -49,5 +49,7 @@ debug = false
 incremental = false
 lto = "fat"
 opt-level = 3
-panic = "abort"
 strip = true
+
+[patch.crates-io]
+wreq = { git = "https://github.com/0x676e67/wreq" }

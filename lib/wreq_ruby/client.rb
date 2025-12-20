@@ -43,9 +43,6 @@ unless defined?(Wreq)
       #   headers when following redirects. When true, the previous URL will
       #   be sent as the Referer header.
       #
-      # @param history [Boolean, nil] Whether to track the full redirect chain
-      #   for each request. Useful for debugging redirect issues.
-      #
       # @param allow_redirects [Boolean, nil] Enable automatic following of
       #   HTTP redirects (3xx status codes). When false, redirect responses
       #   will be returned directly to the caller.
@@ -252,8 +249,6 @@ unless defined?(Wreq)
       # @param cookies [Array<String>, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-      # @param referer [Boolean, nil] Whether to send Referer header on redirects
-      # @param history [Boolean, nil] Track full redirect chain
       # @param gzip [Boolean, nil] Enable gzip compression
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
@@ -285,8 +280,6 @@ unless defined?(Wreq)
       # @param cookies [Array<String>, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-      # @param referer [Boolean, nil] Whether to send Referer header on redirects
-      # @param history [Boolean, nil] Track full redirect chain
       # @param gzip [Boolean, nil] Enable gzip compression
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
@@ -318,8 +311,6 @@ unless defined?(Wreq)
       # @param cookies [Array<String>, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-      # @param referer [Boolean, nil] Whether to send Referer header on redirects
-      # @param history [Boolean, nil] Track full redirect chain
       # @param gzip [Boolean, nil] Enable gzip compression
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
@@ -351,8 +342,6 @@ unless defined?(Wreq)
       # @param cookies [Array<String>, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-      # @param referer [Boolean, nil] Whether to send Referer header on redirects
-      # @param history [Boolean, nil] Track full redirect chain
       # @param gzip [Boolean, nil] Enable gzip compression
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
@@ -384,8 +373,6 @@ unless defined?(Wreq)
       # @param cookies [Array<String>, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-      # @param referer [Boolean, nil] Whether to send Referer header on redirects
-      # @param history [Boolean, nil] Track full redirect chain
       # @param gzip [Boolean, nil] Enable gzip compression
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
@@ -417,8 +404,6 @@ unless defined?(Wreq)
       # @param cookies [Array<String>, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-      # @param referer [Boolean, nil] Whether to send Referer header on redirects
-      # @param history [Boolean, nil] Track full redirect chain
       # @param gzip [Boolean, nil] Enable gzip compression
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
@@ -450,8 +435,6 @@ unless defined?(Wreq)
       # @param cookies [Array<String>, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-      # @param referer [Boolean, nil] Whether to send Referer header on redirects
-      # @param history [Boolean, nil] Track full redirect chain
       # @param gzip [Boolean, nil] Enable gzip compression
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
@@ -483,8 +466,6 @@ unless defined?(Wreq)
       # @param cookies [Array<String>, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-      # @param referer [Boolean, nil] Whether to send Referer header on redirects
-      # @param history [Boolean, nil] Track full redirect chain
       # @param gzip [Boolean, nil] Enable gzip compression
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
@@ -516,8 +497,6 @@ unless defined?(Wreq)
       # @param cookies [Array<String>, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-      # @param referer [Boolean, nil] Whether to send Referer header on redirects
-      # @param history [Boolean, nil] Track full redirect chain
       # @param gzip [Boolean, nil] Enable gzip compression
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression

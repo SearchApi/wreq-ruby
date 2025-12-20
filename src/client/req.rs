@@ -200,7 +200,7 @@ pub fn execute_request<U: AsRef<str>>(
         // Cookies options.
         if let Some(cookies) = request.cookies.take() {
             for cookie in cookies {
-                builder = builder.header_append(header::COOKIE, cookie);
+                builder = builder.header(header::COOKIE, cookie);
             }
         }
 

@@ -5,11 +5,7 @@ use magnus::{
     Error, Module, Object, RModule, Ruby, Value, function, method, typed_data::Obj,
     value::ReprValue,
 };
-use wreq::{
-    Uri,
-    cookie::CookieStore,
-    header::{self, HeaderMap, HeaderValue},
-};
+use wreq::header::{self, HeaderMap, HeaderValue};
 
 use crate::gvl;
 
@@ -36,7 +32,7 @@ pub struct Cookie(RawCookie<'static>);
 /// existing cookies more easily, before creating a `Client`.
 #[derive(Clone, Default)]
 #[magnus::wrap(class = "Wreq::Jar", free_immediately, size)]
-pub struct Jar(Arc<wreq::cookie::Jar>);
+pub struct Jar(pub Arc<wreq::cookie::Jar>);
 
 // ===== impl Cookie =====
 
@@ -202,18 +198,6 @@ impl fmt::Display for Cookie {
 }
 
 // ===== impl Jar =====
-
-impl CookieStore for Jar {
-    #[inline]
-    fn set_cookies(&self, cookie_headers: &mut dyn Iterator<Item = &HeaderValue>, uri: &Uri) {
-        self.0.set_cookies(cookie_headers, uri);
-    }
-
-    #[inline]
-    fn cookies(&self, uri: &Uri) -> Vec<HeaderValue> {
-        self.0.cookies(uri)
-    }
-}
 
 impl Jar {
     /// Create a new [`Jar`] with an empty cookie store.
