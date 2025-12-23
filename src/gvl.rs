@@ -4,7 +4,8 @@
 use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use rb_sys::rb_thread_call_without_gvl;
-use tokio::sync::watch;
+
+use crate::rt::CancellationToken;
 
 /// Container for safely passing closure and result through C callback.
 struct Args<F, R> {
@@ -12,47 +13,8 @@ struct Args<F, R> {
     result: MaybeUninit<R>,
 }
 
-/// Cancellation flag for thread interruption support.
-#[derive(Clone)]
-pub struct CancelFlag {
-    rx: watch::Receiver<bool>,
-}
-
-struct CancelSender {
-    tx: watch::Sender<bool>,
-}
-
-impl CancelSender {
-    fn new() -> (Self, CancelFlag) {
-        let (tx, rx) = watch::channel(false);
-        (Self { tx }, CancelFlag { rx })
-    }
-
-    fn cancel(&self) {
-        let _ = self.tx.send(true);
-    }
-}
-
-impl CancelFlag {
-    /// Wait until cancellation is signaled (zero-latency, no polling).
-    pub async fn cancelled(&self) {
-        let mut rx = self.rx.clone();
-        if *rx.borrow_and_update() {
-            return;
-        }
-        loop {
-            if rx.changed().await.is_err() {
-                return;
-            }
-            if *rx.borrow() {
-                return;
-            }
-        }
-    }
-}
-
 struct UnblockData {
-    sender: CancelSender,
+    token: CancellationToken,
 }
 
 unsafe extern "C" fn call_without_gvl<F, R>(arg: *mut c_void) -> *mut c_void
@@ -73,7 +35,7 @@ where
 unsafe extern "C" fn unblock_func(arg: *mut c_void) {
     if !arg.is_null() {
         let data = unsafe { &*(arg as *const UnblockData) };
-        data.sender.cancel();
+        data.token.cancel();
     }
 }
 
@@ -110,31 +72,33 @@ where
 /// This results in all Ruby threads being suspended indefinitely.
 pub fn nogvl_cancellable<F, R>(func: F) -> R
 where
-    F: FnOnce(CancelFlag) -> R,
+    F: FnOnce(CancellationToken) -> R,
     R: Sized,
 {
-    let (sender, flag) = CancelSender::new();
-    let unblock_data = UnblockData { sender };
+    let token = CancellationToken::new();
+    let unblock_data = UnblockData {
+        token: token.clone(),
+    };
 
     struct Wrapper<F, R> {
         func: Option<F>,
-        flag: CancelFlag,
+        token: CancellationToken,
         result: MaybeUninit<R>,
     }
 
     let mut wrapper = Wrapper {
         func: Some(func),
-        flag,
+        token,
         result: MaybeUninit::uninit(),
     };
 
     unsafe extern "C" fn call_with_flag<F, R>(arg: *mut c_void) -> *mut c_void
     where
-        F: FnOnce(CancelFlag) -> R,
+        F: FnOnce(CancellationToken) -> R,
     {
         let wrapper = unsafe { &mut *(arg as *mut Wrapper<F, R>) };
         if let Some(func) = wrapper.func.take() {
-            wrapper.result.write(func(wrapper.flag.clone()));
+            wrapper.result.write(func(wrapper.token.clone()));
         }
         null_mut()
     }

@@ -93,5 +93,6 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     client::include(ruby, &gem_module)?;
     emulation::include(ruby, &gem_module)?;
     error::include(ruby);
+    rt::include(ruby, &gem_module)?;
     Ok(())
 }

@@ -18,6 +18,33 @@ require_relative "wreq_ruby/cookie"
 
 unless defined?(Wreq)
   module Wreq
+    # CancellationToken allows Ruby code to cooperatively cancel long-running Rust async tasks.
+    #
+    # This class is a binding to a Rust-side cancellation token, enabling Ruby to signal cancellation
+    # to HTTP requests, streaming, or other operations running in Rust. When `cancel` is called, all
+    # Rust tasks observing this token will be notified and can abort promptly.
+    #
+    # @example
+    #   token = Wreq::CancellationToken.new
+    #   # Pass token to a Wreq request or stream
+    #   token.cancel # Signal cancellation from Ruby
+    #
+    # The actual implementation and state are managed by the Rust extension.
+    class CancellationToken
+      # Create a new cancellation token.
+      #
+      # @return [Wreq::CancellationToken]
+      def self.new
+      end
+
+      # Signal cancellation to all Rust tasks observing this token.
+      #
+      # @return [void]
+      def cancel
+      end
+    end
+
+    # This is a placeholder. The actual value is set by the Rust implementation.
     VERSION = nil
 
     # Send an HTTP request.
