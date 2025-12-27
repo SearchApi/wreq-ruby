@@ -15,7 +15,7 @@ use crate::{
     gvl,
     header::Headers,
     http::{StatusCode, Version},
-    rt,
+    rt::{self, CancellationToken},
 };
 
 /// A response from a request.
@@ -64,7 +64,11 @@ impl Response {
     }
 
     /// Internal method to get the wreq::Response, optionally streaming the body.
-    fn response(&self, stream: bool) -> Result<wreq::Response, Error> {
+    fn response(
+        &self,
+        token: Option<&CancellationToken>,
+        stream: bool,
+    ) -> Result<wreq::Response, Error> {
         let build_response = |body: wreq::Body| -> wreq::Response {
             let mut response = HttpResponse::new(body);
             *response.version_mut() = self.version.into_ffi();
@@ -81,6 +85,7 @@ impl Response {
                         Ok(build_response(body))
                     } else {
                         let bytes = rt::try_block_on(
+                            token,
                             BodyExt::collect(body)
                                 .map_ok(|buf| buf.to_bytes())
                                 .map_err(wreq_error_to_magnus),
@@ -168,31 +173,42 @@ impl Response {
     }
 
     /// Get the response body as bytes.
-    pub fn bytes(&self) -> Result<Bytes, Error> {
-        let response = self.response(false)?;
-        rt::try_block_on(response.bytes().map_err(wreq_error_to_magnus))
+    pub fn bytes(&self, args: &[Value]) -> Result<Bytes, Error> {
+        let token = cannel_token!(args);
+        let response = self.response(token.as_ref(), false)?;
+        rt::try_block_on(
+            token.as_ref(),
+            response.bytes().map_err(wreq_error_to_magnus),
+        )
     }
 
     /// Get the response body as a UTF-8 string.
-    pub fn text(&self) -> Result<String, Error> {
-        let response = self.response(false)?;
-        rt::try_block_on(response.text().map_err(wreq_error_to_magnus))
+    pub fn text(&self, args: &[Value]) -> Result<String, Error> {
+        let token = cannel_token!(args);
+        let response = self.response(token.as_ref(), false)?;
+        rt::try_block_on(
+            token.as_ref(),
+            response.text().map_err(wreq_error_to_magnus),
+        )
     }
 
     ///  Get the full response text given a specific encoding.
-    pub fn text_with_charset(&self, default_encoding: String) -> Result<String, Error> {
-        let response = self.response(false)?;
+    pub fn text_with_charset(&self, args: &[Value]) -> Result<String, Error> {
+        let (default_encoding, token) = cannel_token!(args, (String,));
+        let response = self.response(token.as_ref(), false)?;
         rt::try_block_on(
+            token.as_ref(),
             response
-                .text_with_charset(default_encoding)
+                .text_with_charset(default_encoding.0)
                 .map_err(wreq_error_to_magnus),
         )
     }
 
     /// Get the response body as JSON.
-    pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
-        let response = rb_self.response(false)?;
-        rt::try_block_on(async move {
+    pub fn json(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Value, Error> {
+        let token = cannel_token!(args);
+        let response = rb_self.response(token.as_ref(), false)?;
+        rt::try_block_on(token.as_ref(), async move {
             let json = response
                 .json::<Json>()
                 .await
@@ -202,10 +218,11 @@ impl Response {
     }
 
     /// Get a chunk iterator for the response body.
-    pub fn chunks(&self) -> Result<Yield<BodyReceiver>, Error> {
-        self.response(true)
+    pub fn chunks(&self, args: &[Value]) -> Result<Yield<BodyReceiver>, Error> {
+        let token = cannel_token!(args);
+        self.response(token.as_ref(), true)
             .map(wreq::Response::bytes_stream)
-            .map(BodyReceiver::new)
+            .map(|stream| BodyReceiver::new(token, stream))
             .map(Yield::Iter)
     }
 
@@ -237,14 +254,14 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response_class.define_method("headers", magnus::method!(Response::headers, 0))?;
     response_class.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
     response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
-    response_class.define_method("bytes", magnus::method!(Response::bytes, 0))?;
-    response_class.define_method("text", magnus::method!(Response::text, 0))?;
+    response_class.define_method("bytes", magnus::method!(Response::bytes, -1))?;
+    response_class.define_method("text", magnus::method!(Response::text, -1))?;
     response_class.define_method(
         "text_with_charset",
-        magnus::method!(Response::text_with_charset, 1),
+        magnus::method!(Response::text_with_charset, -1),
     )?;
-    response_class.define_method("json", magnus::method!(Response::json, 0))?;
-    response_class.define_method("chunks", magnus::method!(Response::chunks, 0))?;
+    response_class.define_method("json", magnus::method!(Response::json, -1))?;
+    response_class.define_method("chunks", magnus::method!(Response::chunks, -1))?;
     response_class.define_method("close", magnus::method!(Response::close, 0))?;
     Ok(())
 }

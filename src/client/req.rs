@@ -1,7 +1,7 @@
 use std::{net::IpAddr, time::Duration};
 
 use http::{HeaderValue, header};
-use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
+use magnus::{RHash, Ruby, TryConvert, typed_data::Obj, value::ReprValue};
 use serde::Deserialize;
 use wreq::{
     Client, Proxy, Version,
@@ -15,7 +15,7 @@ use crate::{
     error::wreq_error_to_magnus,
     extractor::Extractor,
     http::Method,
-    rt,
+    rt::{self, CancellationToken},
 };
 
 /// The parameters for a request.
@@ -104,7 +104,7 @@ pub struct Request {
 
 impl Request {
     /// Create a new [`Request`] from Ruby keyword arguments.
-    pub fn new(ruby: &magnus::Ruby, hash: RHash) -> Result<Self, magnus::Error> {
+    pub fn new(ruby: &Ruby, hash: RHash) -> Result<Self, magnus::Error> {
         let kwargs = hash.as_value();
         let mut builder: Self = serde_magnus::deserialize(ruby, kwargs)?;
 
@@ -139,12 +139,13 @@ impl Request {
 }
 
 pub fn execute_request<U: AsRef<str>>(
+    token: Option<CancellationToken>,
     client: Client,
     method: Method,
     url: U,
     mut request: Request,
 ) -> Result<Response, magnus::Error> {
-    rt::try_block_on(async move {
+    rt::try_block_on(token.as_ref(), async move {
         let mut builder = client.request(method.into_ffi(), url.as_ref());
 
         // Emulation options.

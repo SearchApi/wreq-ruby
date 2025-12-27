@@ -2,6 +2,8 @@
 
 #[macro_use]
 mod macros;
+#[macro_use]
+mod rt;
 mod client;
 mod cookie;
 mod emulation;
@@ -10,7 +12,6 @@ mod extractor;
 mod gvl;
 mod header;
 mod http;
-mod rt;
 
 use magnus::{Error, Module, Ruby, Value};
 

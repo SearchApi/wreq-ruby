@@ -14,36 +14,88 @@ static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
         .expect("Failed to initialize Tokio runtime")
 });
 
+macro_rules! cannel_token {
+    ($args:ident) => {
+        magnus::scan_args::scan_args::<
+            (),
+            (Option<magnus::typed_data::Obj<CancellationToken>>,),
+            (),
+            (),
+            (),
+            (),
+        >($args)
+        .and_then(|args| Ok(args.optional.0.as_deref().cloned()))?
+    };
+    ($args:expr, $required:ty) => {{
+        let args = magnus::scan_args::scan_args::<
+            $required,
+            (Option<magnus::typed_data::Obj<CancellationToken>>,),
+            (),
+            (),
+            (),
+            (),
+        >($args)?;
+        let required = args.required;
+        let token = args.optional.0.as_deref().cloned();
+        (required, token)
+    }};
+}
+
 /// Block on a future to completion on the global Tokio runtime,
-/// with support for cancellation via the provided `CancelFlag`.
-pub fn try_block_on<F, T>(future: F) -> F::Output
+/// with support for cancellation via the provided [`CancellationToken`].
+pub fn try_block_on<F, T>(token: Option<&CancellationToken>, future: F) -> F::Output
 where
     F: Future<Output = Result<T, magnus::Error>>,
 {
-    gvl::nogvl_cancellable(|token| {
+    gvl::nogvl_cancellable(|ct| {
         RUNTIME.block_on(async move {
-            tokio::select! {
-                biased;
-                _ = token.cancelled() => Err(interrupt_error()),
-                result = future => result,
+            match token {
+                Some(token) => {
+                    tokio::select! {
+                        biased;
+                        _ = ct.cancelled() => Err(interrupt_error()),
+                        _ = token.cancelled() => Err(interrupt_error()),
+                        result = future => result,
+                    }
+                }
+                None => {
+                    tokio::select! {
+                        biased;
+                        _ = ct.cancelled() => Err(interrupt_error()),
+                        result = future => result,
+                    }
+                }
             }
         })
     })
 }
 
 /// Block on a future to completion on the global Tokio runtime,
-/// returning `None` if cancelled via the provided `CancelFlag`.
+/// returning `None` if cancelled via the provided [`CancellationToken`].
 #[inline]
-pub fn maybe_block_on<F, T>(future: F) -> F::Output
+pub fn maybe_block_on<F, T>(token: Option<&CancellationToken>, future: F) -> F::Output
 where
     F: Future<Output = Option<T>>,
 {
-    gvl::nogvl_cancellable(|token| {
+    gvl::nogvl_cancellable(|ct| {
         RUNTIME.block_on(async move {
-            tokio::select! {
-                biased;
-                _ = token.cancelled() => None,
-                result = future => result,
+            match token {
+                Some(token) => {
+                    tokio::select! {
+                        biased;
+
+                        _ = ct.cancelled() => None,
+                        _ = token.cancelled() => None,
+                        result = future => result,
+                    }
+                }
+                None => {
+                    tokio::select! {
+                        biased;
+                        _ = ct.cancelled() => None,
+                        result = future => result,
+                    }
+                }
             }
         })
     })
