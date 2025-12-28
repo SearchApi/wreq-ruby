@@ -14,11 +14,14 @@ use tokio::sync::{
 
 use crate::{
     error::{memory_error, mpsc_send_error_to_magnus},
-    rt,
+    rt::{self, CancellationToken},
 };
 
 /// A receiver for streaming HTTP response bodies.
-pub struct BodyReceiver(Mutex<Pin<Box<dyn Stream<Item = wreq::Result<Bytes>> + Send>>>);
+pub struct BodyReceiver {
+    token: Option<CancellationToken>,
+    inner: Mutex<Pin<Box<dyn Stream<Item = wreq::Result<Bytes>> + Send>>>,
+}
 
 /// A sender for streaming HTTP request bodies.
 #[magnus::wrap(class = "Wreq::BodySender", free_immediately, size)]
@@ -34,8 +37,14 @@ struct InnerBodySender {
 impl BodyReceiver {
     /// Create a new [`BodyReceiver`] instance.
     #[inline]
-    pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> BodyReceiver {
-        BodyReceiver(Mutex::new(Box::pin(stream)))
+    pub fn new(
+        token: Option<CancellationToken>,
+        stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static,
+    ) -> BodyReceiver {
+        BodyReceiver {
+            token,
+            inner: Mutex::new(Box::pin(stream)),
+        }
     }
 }
 
@@ -43,8 +52,8 @@ impl Iterator for BodyReceiver {
     type Item = Bytes;
 
     fn next(&mut self) -> Option<Self::Item> {
-        rt::maybe_block_on(async {
-            self.0
+        rt::maybe_block_on(self.token.as_ref(), async {
+            self.inner
                 .lock()
                 .await
                 .as_mut()
@@ -74,11 +83,15 @@ impl BodySender {
     }
 
     /// Ruby: `push(data)` where data is String or bytes
-    pub fn push(rb_self: &Self, data: RString) -> Result<(), Error> {
-        let bytes = data.to_bytes();
+    pub fn push(rb_self: &Self, args: &[Value]) -> Result<(), Error> {
+        let (data, token) = cannel_token!(args, (RString,));
+        let bytes = data.0.to_bytes();
         let inner = rb_self.0.read().unwrap();
         if let Some(ref tx) = inner.tx {
-            rt::try_block_on(tx.send(bytes).map_err(mpsc_send_error_to_magnus))?;
+            rt::try_block_on(
+                token.as_ref(),
+                tx.send(bytes).map_err(mpsc_send_error_to_magnus),
+            )?;
         }
         Ok(())
     }

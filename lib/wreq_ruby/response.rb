@@ -126,6 +126,8 @@ unless defined?(Wreq)
       # by yielding each chunk of the body as it arrives, without loading
       # the entire response into memory.
       #
+      # @param token [Wreq::CancellationToken, nil] Optional cancellation token for cooperative cancellation.
+      #   If provided, streaming will be interrupted if the token is cancelled from Ruby.
       # @return An iterator over response body chunks (binary String)
       # @yield [chunk] Each chunk of the response body as a binary String
       # @example Save response to file
@@ -136,9 +138,12 @@ unless defined?(Wreq)
       #   total = 0
       #   response.chunks { |chunk| total += chunk.bytesize }
       #   puts "Downloaded #{total} bytes"
+      # @example With cancellation
+      #   token = Wreq::CancellationToken.new
+      #   response.chunks(token) { |chunk| ... }
       #
       # Note: The returned Receiver is only for reading response bodies, not for uploads.
-      def chunks
+      def chunks(token = nil)
       end
 
       # Close the response and free associated resources.

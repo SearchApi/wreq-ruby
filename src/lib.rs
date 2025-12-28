@@ -2,6 +2,8 @@
 
 #[macro_use]
 mod macros;
+#[macro_use]
+mod rt;
 mod client;
 mod cookie;
 mod emulation;
@@ -10,7 +12,6 @@ mod extractor;
 mod gvl;
 mod header;
 mod http;
-mod rt;
 
 use magnus::{Error, Module, Ruby, Value};
 
@@ -93,5 +94,6 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     client::include(ruby, &gem_module)?;
     emulation::include(ruby, &gem_module)?;
     error::include(ruby);
+    rt::include(ruby, &gem_module)?;
     Ok(())
 }
