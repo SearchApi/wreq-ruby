@@ -18,9 +18,7 @@ magnus = { version = "0.8", features = ["bytes"] }
 rb-sys = { version = "0.9.110", default-features = false }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7.17", default-features = false }
-wreq = { version = "6.0.0-rc.24", features = [
-    "query",
-    "form",
+wreq = { version = "6.0.0-rc.25", features = [
     "json",
     "socks",
     "stream",
