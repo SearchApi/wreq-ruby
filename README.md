@@ -86,7 +86,7 @@ Most browser device models share identical TLS and HTTP/2 configurations, differ
 
   </details>
 
-## Development
+## Building
 
 Install the BoringSSL build environment by referring to [boring](https://github.com/cloudflare/boring/blob/master/.github/workflows/ci.yml) and [boringssl](https://github.com/google/boringssl/blob/master/BUILDING.md#build-prerequisites).
 
