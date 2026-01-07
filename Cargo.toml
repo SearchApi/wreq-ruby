@@ -16,7 +16,7 @@ name = "wreq_ruby"
 [dependencies]
 magnus = { version = "0.8", features = ["bytes"] }
 rb-sys = { version = "0.9.110", default-features = false }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
 wreq = { version = "6.0.0-rc.26", features = [
     "query",
     "form",
