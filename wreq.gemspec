@@ -59,7 +59,7 @@ Gem::Specification.new do |spec|
   # - not end of life
   #
   # keep in sync with `Rakefile`.
-  spec.required_ruby_version = ">= 3.2"
+  spec.required_ruby_version = ">= 3.3"
 
   # intentionally skipping rb_sys gem because newer Rubygems will be present
 end
