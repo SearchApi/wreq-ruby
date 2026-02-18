@@ -40,7 +40,6 @@ jobs:
         platform:
           - x86_64-linux
           - aarch64-linux
-          - arm64-darwin
     steps:
       - uses: actions/checkout@v6
 
@@ -57,8 +56,51 @@ jobs:
           path: pkg/*.gem
           if-no-files-found: error
 
+  native-darwin:
+    name: Build native gem (arm64-darwin)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Compile native extension
+        env:
+          RB_SYS_CARGO_PROFILE: release
+        run: bundle exec rake compile
+
+      - name: Build platform gem
+        run: |
+          ruby -e '
+            require "rubygems"
+            require "rubygems/package"
+            require "fileutils"
+
+            spec = Gem::Specification.load("wreq.gemspec")
+            spec.platform = Gem::Platform.new("arm64-darwin")
+            spec.extensions = []
+
+            bundle_path = "lib/wreq_ruby/wreq_ruby.bundle"
+            spec.files << bundle_path unless spec.files.include?(bundle_path)
+
+            FileUtils.mkdir_p("pkg")
+            gem_file = Gem::Package.build(spec)
+            FileUtils.mv(gem_file, "pkg/")
+          '
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cross-gem-arm64-darwin
+          path: pkg/*arm64-darwin*.gem
+          if-no-files-found: error
+
   smoke-test:
-    name: Smoke test (Ruby ${{ matrix.ruby }})
+    name: Smoke test Linux (Ruby ${{ matrix.ruby }})
     needs: [cross-compile]
     runs-on: ubuntu-latest
     strategy:
@@ -81,9 +123,33 @@ jobs:
       - name: Verify gem loads and prints version
         run: ruby -rwreq -e "puts Wreq::VERSION"
 
+  smoke-test-darwin:
+    name: Smoke test macOS (Ruby ${{ matrix.ruby }})
+    needs: [native-darwin]
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.3", "3.4", "4.0"]
+    steps:
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cross-gem-arm64-darwin
+          path: pkg/
+
+      - name: Install native gem
+        run: gem install pkg/wreq-*-arm64-darwin.gem
+
+      - name: Verify gem loads and prints version
+        run: ruby -rwreq -e "puts Wreq::VERSION"
+
   release:
     name: Release
-    needs: [source-gem, cross-compile, smoke-test]
+    needs: [source-gem, cross-compile, native-darwin, smoke-test, smoke-test-darwin]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
