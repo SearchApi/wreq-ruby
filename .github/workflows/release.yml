@@ -64,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: ["3.3", "3.4"]
+        ruby: ["3.3", "3.4", "4.0"]
     steps:
       - uses: ruby/setup-ruby@v1
         with:
@@ -87,6 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
+      contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v6
