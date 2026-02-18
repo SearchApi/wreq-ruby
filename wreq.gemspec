@@ -22,13 +22,16 @@ Gem::Specification.new do |spec|
     .fetch("version")
   spec.authors = ["SearchApi"]
   spec.email = ["support@searchapi.io"]
-  spec.summary = "Ruby bindings for Wreq, HTTP client library in Rust."
-  spec.homepage = "https://github.com/SearchApi"
+  spec.summary = "Ruby bindings for wreq, an HTTP client with TLS/HTTP2 browser fingerprinting"
+  spec.description = "An easy and powerful Ruby HTTP client with advanced browser fingerprinting " \
+                     "that accurately emulates Chrome, Edge, Firefox, Safari, Opera, and OkHttp " \
+                     "with precise TLS/HTTP2 signatures. Powered by wreq (Rust) and BoringSSL."
+  spec.homepage = "https://github.com/SearchApi/wreq-ruby"
   spec.license = "Apache-2.0"
   spec.metadata = {
     "bug_tracker_uri" => "https://github.com/SearchApi/wreq-ruby/issues",
     "changelog_uri" => "https://github.com/SearchApi/wreq-ruby/releases",
-    "documentation_uri" => "https://github.com/SearchApi/wreq-ruby/README.md",
+    "documentation_uri" => "https://github.com/SearchApi/wreq-ruby#readme",
     "homepage_uri" => spec.homepage,
     "source_code_uri" => "https://github.com/SearchApi/wreq-ruby",
     "rubygems_mfa_required" => "true"
@@ -51,7 +54,7 @@ Gem::Specification.new do |spec|
   spec.extensions = ["./extconf.rb"]
 
   # Exclude non-Ruby files from RDoc to prevent parsing errors
-  spec.rdoc_options = ["--exclude", "Cargo\\..*", "--exclude", "--exclude", "\\.rs$"]
+  spec.rdoc_options = ["--exclude", "Cargo\\..*", "--exclude", "\\.rs$"]
 
   spec.requirements = ["Rust >= 1.85"]
   # use a Ruby version which:
