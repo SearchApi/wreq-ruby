@@ -56,6 +56,9 @@ jobs:
           path: pkg/*.gem
           if-no-files-found: error
 
+  # arm64-darwin cannot use rb-sys-dock: BoringSSL cross-compilation fails because
+  # CMake picks up /usr/bin/ld (ELF) instead of the osxcross Mach-O linker.
+  # No upstream project (wreq, rnet, boring) cross-compiles BoringSSL for Darwin.
   native-darwin:
     name: Build native gem (arm64-darwin)
     runs-on: macos-latest
@@ -64,38 +67,60 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: macos-arm64
+          shared-key: release
+
+      # Compile per-Ruby-version binaries (matching rb-sys-dock behavior on Linux).
+      # BoringSSL is compiled once and cached; only rb-sys/magnus rebuild per version.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Compile for Ruby 3.3
+        env:
+          RB_SYS_CARGO_PROFILE: release
+        run: |
+          bundle exec rake compile
+          mkdir -p lib/wreq_ruby/3.3
+          cp lib/wreq_ruby/wreq_ruby.bundle lib/wreq_ruby/3.3/
+
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.4"
           bundler-cache: true
 
-      - name: Compile native extension
+      - name: Compile for Ruby 3.4
         env:
           RB_SYS_CARGO_PROFILE: release
-        run: bundle exec rake compile
+        run: |
+          cargo clean -p rb-sys -p wreq-ruby --release
+          bundle exec rake compile
+          mkdir -p lib/wreq_ruby/3.4
+          cp lib/wreq_ruby/wreq_ruby.bundle lib/wreq_ruby/3.4/
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+
+      - name: Compile for Ruby 4.0
+        env:
+          RB_SYS_CARGO_PROFILE: release
+        run: |
+          cargo clean -p rb-sys -p wreq-ruby --release
+          bundle exec rake compile
+          mkdir -p lib/wreq_ruby/4.0
+          cp lib/wreq_ruby/wreq_ruby.bundle lib/wreq_ruby/4.0/
 
       - name: Build platform gem
-        run: |
-          ruby -e '
-            require "rubygems"
-            require "rubygems/package"
-            require "fileutils"
-
-            spec = Gem::Specification.load("wreq.gemspec")
-            spec.platform = Gem::Platform.new("arm64-darwin")
-            spec.extensions = []
-
-            bundle_path = "lib/wreq_ruby/wreq_ruby.bundle"
-            spec.files << bundle_path unless spec.files.include?(bundle_path)
-
-            FileUtils.mkdir_p("pkg")
-            gem_file = Gem::Package.build(spec)
-            FileUtils.mv(gem_file, "pkg/")
-          '
+        run: ruby script/build_platform_gem.rb arm64-darwin
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cross-gem-arm64-darwin
+          name: native-gem-arm64-darwin
           path: pkg/*arm64-darwin*.gem
           if-no-files-found: error
 
@@ -138,7 +163,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: cross-gem-arm64-darwin
+          name: native-gem-arm64-darwin
           path: pkg/
 
       - name: Install native gem
@@ -168,7 +193,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: pkg/
-          pattern: "{cross-gem-*,source-gem}"
+          pattern: "{cross-gem-*,native-gem-*,source-gem}"
           merge-multiple: true
 
       - name: List gems
