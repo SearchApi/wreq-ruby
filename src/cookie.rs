@@ -222,12 +222,12 @@ impl Jar {
 
     /// Add a cookie to this jar.
     pub fn add_cookie(&self, cookie: &Cookie, url: String) {
-        gvl::nogvl(|| self.0.add_cookie(cookie.0.clone(), &url))
+        gvl::nogvl(|| self.0.add(cookie.0.clone(), &url))
     }
 
     /// Add a cookie str to this jar.
     pub fn add_cookie_str(&self, cookie: String, url: String) {
-        gvl::nogvl(|| self.0.add_cookie_str(&cookie, &url))
+        gvl::nogvl(|| self.0.add(cookie.as_ref(), &url))
     }
 
     /// Remove a cookie from this jar by name and URL.

@@ -17,7 +17,7 @@ name = "wreq_ruby"
 magnus = { version = "0.8", features = ["bytes"] }
 rb-sys = { version = "0.9.110", default-features = false }
 tokio = { version = "1.49.0", features = ["full"] }
-wreq = { version = "6.0.0-rc.26", features = [
+wreq = { version = "6.0.0-rc.28", features = [
     "query",
     "form",
     "json",
@@ -30,7 +30,7 @@ wreq = { version = "6.0.0-rc.26", features = [
     "deflate",
     "zstd",
 ] }
-wreq-util = "3.0.0-rc.9"
+wreq-util = "3.0.0-rc.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_magnus = "0.10.0"
 indexmap = { version = "2.12.1", features = ["serde"] }
