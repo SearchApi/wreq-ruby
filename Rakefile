@@ -18,10 +18,10 @@ RbSys::ExtensionTask.new(CRATE_PACKAGE_NAME, GEMSPEC) do |ext|
   ext.ext_dir = "."
   ext.lib_dir = "lib/wreq_ruby"
   ext.cross_compile = true
+  # arm64-darwin is built natively on macOS (see .github/workflows/release.yml)
   ext.cross_platform = %w[
     x86_64-linux
     aarch64-linux
-    arm64-darwin
   ]
 
   # Override Ruby version for native gems (keep in sync with wreq.gemspec)
