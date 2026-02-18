@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-gem:
+    name: Build source gem
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - run: bundle exec rake build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-gem
+          path: pkg/*.gem
+          if-no-files-found: error
+
+  cross-compile:
+    name: Build native gem (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - x86_64-linux
+          - aarch64-linux
+          - arm64-darwin
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - run: bundle exec rb-sys-dock --ruby-versions 4.0,3.4,3.3 --platform ${{ matrix.platform }} --build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cross-gem-${{ matrix.platform }}
+          path: pkg/*.gem
+          if-no-files-found: error
+
+  smoke-test:
+    name: Smoke test (Ruby ${{ matrix.ruby }})
+    needs: [cross-compile]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.3", "3.4"]
+    steps:
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cross-gem-x86_64-linux
+          path: pkg/
+
+      - name: Install native gem
+        run: gem install pkg/wreq-*-x86_64-linux.gem
+
+      - name: Verify gem loads and prints version
+        run: ruby -rwreq -e "puts Wreq::VERSION"
+
+  release:
+    name: Release
+    needs: [source-gem, cross-compile, smoke-test]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/
+          pattern: "{cross-gem-*,source-gem}"
+          merge-multiple: true
+
+      - name: List gems
+        run: ls -la pkg/*.gem
+
+      - name: Verify version matches tag
+        run: |
+          GEM_VERSION=$(bundle exec rake version)
+          if [ "v${GEM_VERSION}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Gem version v${GEM_VERSION} does not match tag ${{ github.ref_name }}"
+            exit 1
+          fi
+
+      - name: Configure trusted publishing credentials
+        uses: rubygems/configure-rubygems-credentials@v1
+
+      - name: Push all gems to RubyGems.org
+        run: |
+          failed=0
+          for gem in pkg/*.gem; do
+            echo "Pushing $(basename $gem)..."
+            if ! gem push "$gem"; then
+              echo "::warning::Failed to push $(basename $gem)"
+              failed=1
+            fi
+          done
+          if [ "$failed" -eq 1 ]; then
+            echo "::error::Some gems failed to push"
+            exit 1
+          fi

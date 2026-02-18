@@ -26,7 +26,7 @@ RbSys::ExtensionTask.new(CRATE_PACKAGE_NAME, GEMSPEC) do |ext|
 
   # Override Ruby version for native gems (keep in sync with wreq.gemspec)
   ext.cross_compiling do |spec|
-    spec.required_ruby_version = ">= 3.2", "< 3.5.dev"
+    spec.required_ruby_version = ">= 3.3", "< 4.1.dev"
   end
 end
 
