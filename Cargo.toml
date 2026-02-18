@@ -2,7 +2,7 @@
 name = "wreq-ruby"
 description = "Ruby bindings for Wreq, HTTP client library in Rust."
 authors = ["SearchApi <support@searchapi.io>"]
-homepage = "https://github.com/SearchApi"
+homepage = "https://github.com/SearchApi/wreq-ruby"
 repository = "https://github.com/SearchApi/wreq-ruby"
 edition = "2024"
 rust-version = "1.85"
