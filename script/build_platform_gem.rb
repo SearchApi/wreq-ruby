@@ -19,12 +19,13 @@ platform = ARGV.fetch(0) { abort "Usage: #{$0} PLATFORM" }
 spec = Gem::Specification.load("wreq.gemspec")
 spec.platform = Gem::Platform.new(platform)
 spec.extensions = []
+# Keep in sync with Rakefile cross_compiling block
 spec.required_ruby_version = Gem::Requirement.new(">= 3.3", "< 4.1.dev")
 
 # Add version-specific compiled extensions
-Dir.glob("lib/wreq_ruby/[0-9]*/*.{bundle,so}").each do |path|
-  spec.files << path unless spec.files.include?(path)
-end
+binaries = Dir.glob("lib/wreq_ruby/[0-9]*/*.{bundle,so}")
+abort "No compiled binaries found in lib/wreq_ruby/*/. Did compilation succeed?" if binaries.empty?
+spec.files += binaries
 
 FileUtils.mkdir_p("pkg")
 gem_file = Gem::Package.build(spec)

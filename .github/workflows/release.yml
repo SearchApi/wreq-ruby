@@ -83,6 +83,7 @@ jobs:
         env:
           RB_SYS_CARGO_PROFILE: release
         run: |
+          cargo clean -p rb-sys -p magnus -p serde_magnus -p wreq-ruby --release 2>/dev/null || true
           bundle exec rake compile
           mkdir -p lib/wreq_ruby/3.3
           cp lib/wreq_ruby/wreq_ruby.bundle lib/wreq_ruby/3.3/
@@ -96,7 +97,7 @@ jobs:
         env:
           RB_SYS_CARGO_PROFILE: release
         run: |
-          cargo clean -p rb-sys -p wreq-ruby --release
+          cargo clean -p rb-sys -p magnus -p serde_magnus -p wreq-ruby --release
           bundle exec rake compile
           mkdir -p lib/wreq_ruby/3.4
           cp lib/wreq_ruby/wreq_ruby.bundle lib/wreq_ruby/3.4/
@@ -110,7 +111,7 @@ jobs:
         env:
           RB_SYS_CARGO_PROFILE: release
         run: |
-          cargo clean -p rb-sys -p wreq-ruby --release
+          cargo clean -p rb-sys -p magnus -p serde_magnus -p wreq-ruby --release
           bundle exec rake compile
           mkdir -p lib/wreq_ruby/4.0
           cp lib/wreq_ruby/wreq_ruby.bundle lib/wreq_ruby/4.0/
