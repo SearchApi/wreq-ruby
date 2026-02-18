@@ -48,6 +48,8 @@ module Wreq
       Chrome141 = nil
       Chrome142 = nil
       Chrome143 = nil
+      Chrome144 = nil
+      Chrome145 = nil
       Edge101 = nil
       Edge122 = nil
       Edge127 = nil
@@ -61,6 +63,9 @@ module Wreq
       Edge140 = nil
       Edge141 = nil
       Edge142 = nil
+      Edge143 = nil
+      Edge144 = nil
+      Edge145 = nil
       Firefox109 = nil
       Firefox117 = nil
       Firefox128 = nil
@@ -76,6 +81,7 @@ module Wreq
       Firefox144 = nil
       Firefox145 = nil
       Firefox146 = nil
+      Firefox147 = nil
       SafariIos17_2 = nil
       SafariIos17_4_1 = nil
       SafariIos16_5 = nil
@@ -88,6 +94,7 @@ module Wreq
       Safari17_2_1 = nil
       Safari17_4_1 = nil
       Safari17_5 = nil
+      Safari17_6 = nil
       Safari18 = nil
       SafariIPad18 = nil
       Safari18_2 = nil
@@ -102,6 +109,8 @@ module Wreq
       SafariIos26_2 = nil
       SafariIPad26 = nil
       SafariIpad26_2 = nil
+      OkHttp3_9 = nil
+      OkHttp3_11 = nil
       OkHttp3_13 = nil
       OkHttp3_14 = nil
       OkHttp4_9 = nil
