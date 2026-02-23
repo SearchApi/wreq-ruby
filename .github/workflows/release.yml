@@ -138,7 +138,7 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: cross-gem-x86_64-linux
           path: pkg/
@@ -162,7 +162,7 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: native-gem-arm64-darwin
           path: pkg/
@@ -191,7 +191,7 @@ jobs:
           ruby-version: "3.4"
           bundler-cache: true
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: pkg/
           pattern: "{cross-gem-*,native-gem-*,source-gem}"
