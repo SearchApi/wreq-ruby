@@ -25,7 +25,7 @@ jobs:
 
       - run: bundle exec rake build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: source-gem
           path: pkg/*.gem
@@ -50,7 +50,7 @@ jobs:
 
       - run: bundle exec rb-sys-dock --ruby-versions 4.0,3.4,3.3 --platform ${{ matrix.platform }} --build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cross-gem-${{ matrix.platform }}
           path: pkg/*.gem
@@ -119,7 +119,7 @@ jobs:
       - name: Build platform gem
         run: ruby script/build_platform_gem.rb arm64-darwin
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: native-gem-arm64-darwin
           path: pkg/*arm64-darwin*.gem
