@@ -55,9 +55,7 @@ unless defined?(Wreq)
     #   rescue Wreq::TlsError => e
     #     puts "TLS error: #{e.message}"
     #   end
-    unless const_defined?(:TlsError)
-      class TlsError < StandardError; end
-    end
+    class TlsError < StandardError; end
 
     # HTTP protocol and request/response errors
 
