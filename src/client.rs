@@ -18,7 +18,7 @@ use wreq::{
 use crate::{
     client::{req::execute_request, resp::Response},
     cookie::Jar,
-    emulation::Emulation,
+    emulate::Emulation,
     error::wreq_error_to_magnus,
     extractor::Extractor,
     gvl,

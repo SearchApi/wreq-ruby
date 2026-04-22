@@ -39,14 +39,11 @@ Gem::Specification.new do |spec|
 
   # Specify which files should be added to a source release gem when we release wreq Ruby gem.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
-  spec.files = Dir.chdir(__dir__) do
-    git_output = `git ls-files -z`
-    git_output.force_encoding("UTF-8")
-    git_output.split("\x0").reject do |f|
-      f.start_with?(*%w[gems/ pkg/ target/ tmp/ .git]) ||
-        f.match?(/\.gem$/) || # Exclude gem files
-        f.match?(/^wreq-.*\.gem$/)  # Exclude any wreq gem files
-    end
+  spec.files = Dir.glob("**/*").reject do |f|
+    f.start_with?(*%w[gems/ pkg/ target/ tmp/ .git vendor/]) ||
+      f.match?(/\.gem$/) ||
+      f.match?(/^wreq-.*\.gem$/) ||
+      f.match?(/\.(so|bundle)$/)
   end
 
   spec.require_paths = ["lib"]
