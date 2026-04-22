@@ -11,7 +11,7 @@ use wreq::{
 use super::body::{Body, Form, Json};
 use crate::{
     client::{query::Query, resp::Response},
-    emulation::Emulation,
+    emulate::Emulation,
     error::wreq_error_to_magnus,
     extractor::Extractor,
     http::Method,
