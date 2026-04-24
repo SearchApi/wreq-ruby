@@ -182,5 +182,13 @@ module Wreq
       def self.new(device: nil, os: nil, skip_http2: false, skip_headers: false)
       end
     end
+
+    unless method_defined?(:parse)
+      # Parses a string representation of an emulation option.
+      # @param str [String] String to parse into an emulation option
+      # @return [Wreq::Emulation] Parsed emulation option
+      def self.parse(str)
+      end
+    end
   end
 end

@@ -127,31 +127,32 @@ pub struct Client(wreq::Client);
 
 impl Builder {
     /// Create a new [`Builder`] from Ruby keyword arguments.
-    fn new(ruby: &magnus::Ruby, keyword: &Value) -> Result<Self, magnus::Error> {
-        if let Ok(hash) = RHash::try_convert(*keyword) {
+    fn new(ruby: &magnus::Ruby, keyword: Value) -> Result<Self, magnus::Error> {
+        if let Ok(hash) = RHash::try_convert(keyword) {
             let mut builder: Self = serde_magnus::deserialize(ruby, hash)?;
             // extra emulation handling
-            if let Some(v) = hash.get(ruby.to_symbol("emulation")) {
-                let emulation_obj = Obj::<Emulation>::try_convert(v)?;
-                builder.emulation = Some((*emulation_obj).clone());
+            if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
+                let obj = Obj::<Emulation>::try_convert(v)?;
+                builder.emulation = Some((*obj).clone());
+            }
+
+            // extra cookie store handling
+            if let Some(jar) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
+                let obj = Obj::<Jar>::try_convert(jar)?;
+                builder.cookie_provider = Some((*obj).clone());
             }
 
             // extra user agent handling
-            builder.user_agent = Extractor::<HeaderValue>::try_convert(*keyword)?.into_inner();
+            builder.user_agent = Extractor::<HeaderValue>::try_convert(keyword)?.into_inner();
 
             // extra headers handling
-            builder.headers = Extractor::<HeaderMap>::try_convert(*keyword)?.into_inner();
+            builder.headers = Extractor::<HeaderMap>::try_convert(keyword)?.into_inner();
 
             // extra original headers handling
-            builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(*keyword)?.into_inner();
+            builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(keyword)?.into_inner();
 
             // extra proxy handling
-            builder.proxy = Extractor::<Proxy>::try_convert(*keyword)?.into_inner();
-
-            // extra cookie store handling
-            if let Some(jar) = hash.get(ruby.to_symbol("cookie_provider")) {
-                builder.cookie_provider = Some((*Obj::<Jar>::try_convert(jar)?).clone());
-            }
+            builder.proxy = Extractor::<Proxy>::try_convert(keyword)?.into_inner();
 
             return Ok(builder);
         }
@@ -166,12 +167,12 @@ impl Client {
     /// Create a new [`Client`] with the given keyword arguments.
     pub fn new(ruby: &Ruby, kwargs: &[Value]) -> Result<Self, magnus::Error> {
         if let Some(kwargs) = kwargs.first() {
-            let mut params = Builder::new(ruby, kwargs)?;
+            let mut params = Builder::new(ruby, *kwargs)?;
             gvl::nogvl(|| {
                 let mut builder = wreq::Client::builder();
 
                 // Emulation options.
-                apply_option!(set_if_some_inner, builder, params.emulation, emulation);
+                apply_option!(set_if_some, builder, params.emulation, emulation);
 
                 // User agent options.
                 apply_option!(set_if_some, builder, params.user_agent, user_agent);
