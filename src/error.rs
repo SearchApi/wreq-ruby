@@ -109,6 +109,14 @@ pub fn header_value_error_to_magnus(err: wreq::header::InvalidHeaderValue) -> Ma
     )
 }
 
+/// Map [`serde_json::Error`] to corresponding [`magnus::Error`]
+pub fn serde_json_error_to_magnus(err: serde_json::Error) -> MagnusError {
+    MagnusError::new(
+        ruby!().get_inner(&DECODING_ERROR),
+        format!("failed to decode JSON: {err}"),
+    )
+}
+
 /// Map [`wreq::Error`] to corresponding [`magnus::Error`]
 pub fn wreq_error_to_magnus(err: wreq::Error) -> MagnusError {
     let error_msg = err.to_string();

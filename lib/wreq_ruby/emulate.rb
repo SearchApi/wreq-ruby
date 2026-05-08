@@ -182,5 +182,21 @@ module Wreq
       def self.new(device: nil, os: nil, skip_http2: false, skip_headers: false)
       end
     end
+
+    unless method_defined?(:parse)
+      # Parses a string representation of an emulation option.
+      # @param json [String] String to parse into an TLS/HTTP2 emulation option
+      # @param permute_extensions [Boolean, nil] Whether to permute extensions (optional)
+      # @param psk_skip_session_ticket [Boolean] Whether to skip session ticket for PSK
+      # @param aes_hw_override [Boolean, nil] Override AES hardware support (optional)
+      # @param random_aes_hw_override [Boolean] Whether to randomly override AES
+      # @return [Wreq::Emulation] Parsed emulation option
+      def self.parse(json,
+        permute_extensions: nil,
+        psk_skip_session_ticket: false,
+        aes_hw_override: nil,
+        random_aes_hw_override: false)
+      end
+    end
   end
 end

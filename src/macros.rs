@@ -107,12 +107,3 @@ macro_rules! ruby {
         magnus::Ruby::get().expect("Failed to get Ruby VM instance")
     };
 }
-
-macro_rules! extract_request {
-    ($args:expr, $required:ty) => {{
-        let args = magnus::scan_args::scan_args::<$required, (), (), (), magnus::RHash, ()>($args)?;
-        let required = args.required;
-        let request = crate::client::req::Request::new(&ruby!(), args.keywords)?;
-        (required, request)
-    }};
-}

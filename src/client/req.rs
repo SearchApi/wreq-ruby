@@ -109,9 +109,14 @@ impl Request {
         let mut builder: Self = serde_magnus::deserialize(ruby, kwargs)?;
 
         // extra emulation handling
-        if let Some(v) = hash.get(ruby.to_symbol("emulation")) {
-            let emulation_obj = Obj::<Emulation>::try_convert(v)?;
-            builder.emulation = Some((*emulation_obj).clone());
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
+            let obj = Obj::<Emulation>::try_convert(v)?;
+            builder.emulation = Some((*obj).clone());
+        }
+
+        // extra body handling
+        if let Some(body) = hash.get(ruby.to_symbol(stringify!(body))) {
+            builder.body = Some(Body::try_convert(body)?);
         }
 
         // extra version handling
@@ -129,11 +134,6 @@ impl Request {
         // extra proxy handling
         builder.proxy = Extractor::<Proxy>::try_convert(kwargs)?.into_inner();
 
-        // extra body handling
-        if let Some(body) = hash.get(ruby.to_symbol("body")) {
-            builder.body = Some(Body::try_convert(body)?);
-        }
-
         Ok(builder)
     }
 }
@@ -148,7 +148,7 @@ pub fn execute_request<U: AsRef<str>>(
         let mut builder = client.request(method.into_ffi(), url.as_ref());
 
         // Emulation options.
-        apply_option!(set_if_some_inner, builder, request.emulation, emulation);
+        apply_option!(set_if_some, builder, request.emulation, emulation);
 
         // Version options.
         apply_option!(set_if_some, builder, request.version, version);
