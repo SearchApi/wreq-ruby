@@ -46,6 +46,8 @@ define_ruby_enum!(
     Chrome143,
     Chrome144,
     Chrome145,
+    Chrome146,
+    Chrome147,
     Edge101,
     Edge122,
     Edge127,
@@ -62,6 +64,8 @@ define_ruby_enum!(
     Edge143,
     Edge144,
     Edge145,
+    Edge146,
+    Edge147,
     Firefox109,
     Firefox117,
     Firefox128,
@@ -78,6 +82,8 @@ define_ruby_enum!(
     Firefox145,
     Firefox146,
     Firefox147,
+    Firefox148,
+    Firefox149,
     SafariIos17_2,
     SafariIos17_4_1,
     SafariIos16_5,
@@ -229,6 +235,8 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     emulation_class.const_set("Chrome143", EmulationDevice::Chrome143)?;
     emulation_class.const_set("Chrome144", EmulationDevice::Chrome144)?;
     emulation_class.const_set("Chrome145", EmulationDevice::Chrome145)?;
+    emulation_class.const_set("Chrome146", EmulationDevice::Chrome146)?;
+    emulation_class.const_set("Chrome147", EmulationDevice::Chrome147)?;
     emulation_class.const_set("Edge101", EmulationDevice::Edge101)?;
     emulation_class.const_set("Edge122", EmulationDevice::Edge122)?;
     emulation_class.const_set("Edge127", EmulationDevice::Edge127)?;
@@ -245,6 +253,8 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     emulation_class.const_set("Edge143", EmulationDevice::Edge143)?;
     emulation_class.const_set("Edge144", EmulationDevice::Edge144)?;
     emulation_class.const_set("Edge145", EmulationDevice::Edge145)?;
+    emulation_class.const_set("Edge146", EmulationDevice::Edge146)?;
+    emulation_class.const_set("Edge147", EmulationDevice::Edge147)?;
     emulation_class.const_set("Firefox109", EmulationDevice::Firefox109)?;
     emulation_class.const_set("Firefox117", EmulationDevice::Firefox117)?;
     emulation_class.const_set("Firefox128", EmulationDevice::Firefox128)?;
@@ -261,6 +271,8 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     emulation_class.const_set("Firefox145", EmulationDevice::Firefox145)?;
     emulation_class.const_set("Firefox146", EmulationDevice::Firefox146)?;
     emulation_class.const_set("Firefox147", EmulationDevice::Firefox147)?;
+    emulation_class.const_set("Firefox148", EmulationDevice::Firefox148)?;
+    emulation_class.const_set("Firefox149", EmulationDevice::Firefox149)?;
     emulation_class.const_set("SafariIos17_2", EmulationDevice::SafariIos17_2)?;
     emulation_class.const_set("SafariIos17_4_1", EmulationDevice::SafariIos17_4_1)?;
     emulation_class.const_set("SafariIos16_5", EmulationDevice::SafariIos16_5)?;
