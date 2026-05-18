@@ -127,6 +127,17 @@ module Wreq
       Opera117 = nil
       Opera118 = nil
       Opera119 = nil
+      Opera120 = nil
+      Opera121 = nil
+      Opera122 = nil
+      Opera123 = nil
+      Opera124 = nil
+      Opera125 = nil
+      Opera126 = nil
+      Opera127 = nil
+      Opera128 = nil
+      Opera129 = nil
+      Opera130 = nil
     end
 
     unless method_defined?(:to_s)
