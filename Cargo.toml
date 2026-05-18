@@ -14,9 +14,9 @@ doc = false
 name = "wreq_ruby"
 
 [dependencies]
-magnus = { version = "0.8", features = ["bytes"] }
-rb-sys = { version = "0.9.110", default-features = false }
-tokio = { version = "1.52.1", features = ["full"] }
+magnus = { version = "0.8.2", features = ["bytes"] }
+rb-sys = { version = "0.9.128", default-features = false }
+tokio = { version = "1.52.3", features = ["full"] }
 wreq = { version = "6.0.0-rc.28", features = [
     "query",
     "form",
@@ -31,16 +31,16 @@ wreq = { version = "6.0.0-rc.28", features = [
     "zstd",
 ] }
 wreq-util = "3.0.0-rc.10"
-serde = { version = "1.0", features = ["derive"] }
-serde_magnus = "0.10.0"
-indexmap = { version = "2.12.1", features = ["serde"] }
-cookie = "0.18"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_magnus = "0.11.0"
+indexmap = { version = "2.14.0", features = ["serde"] }
+cookie = "0.18.1"
 bytes = "1.11.1"
-arc-swap = "1.7.0"
+arc-swap = "1.9.1"
 http = "1.4.0"
 http-body-util = "0.1.3"
-futures-util = { version = "0.3.31", default-features = false }
-percent-encoding = "2"
+futures-util = { version = "0.3.32", default-features = false }
+percent-encoding = "2.3.2"
 
 [build-dependencies]
 rb-sys-env = "0.2.2"
