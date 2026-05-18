@@ -41,7 +41,7 @@ require "wreq"
 
 # Build a client
 client = Wreq::Client.new(emulation: Wreq::Emulation.new(
-  device: Wreq::EmulationDevice::Chrome145,
+  device: Wreq::EmulationDevice::Chrome147,
   os: Wreq::EmulationOS::MacOS,
   skip_http2: false,
   skip_headers: false
