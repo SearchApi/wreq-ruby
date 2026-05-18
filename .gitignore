@@ -9,7 +9,6 @@
 *.bundle
 *.so
 Gemfile.lock
-Cargo.lock
 .idea
 /core/
 *.gem
