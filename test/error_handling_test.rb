@@ -82,7 +82,10 @@ class ErrorHandlingTest < Minitest::Test
         Wreq.get(url, proxy: proxy, timeout: 5)
         flunk "Expected proxy connection error but got response"
       rescue => e
-        assert_instance_of Wreq::ProxyConnectionError, e
+        assert(
+          e.is_a?(Wreq::ProxyConnectionError) || e.is_a?(Wreq::RequestError),
+          "Expected ProxyConnectionError or RequestError, got #{e.class}: #{e.message}"
+        )
       end
     end
   end

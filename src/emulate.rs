@@ -49,6 +49,9 @@ define_ruby_enum!(
     Chrome143,
     Chrome144,
     Chrome145,
+    Chrome146,
+    Chrome147,
+
     Edge101,
     Edge122,
     Edge127,
@@ -65,6 +68,9 @@ define_ruby_enum!(
     Edge143,
     Edge144,
     Edge145,
+    Edge146,
+    Edge147,
+
     Firefox109,
     Firefox117,
     Firefox128,
@@ -81,6 +87,9 @@ define_ruby_enum!(
     Firefox145,
     Firefox146,
     Firefox147,
+    Firefox148,
+    Firefox149,
+
     SafariIos17_2,
     SafariIos17_4_1,
     SafariIos16_5,
@@ -108,6 +117,7 @@ define_ruby_enum!(
     SafariIos26_2,
     SafariIPad26,
     SafariIpad26_2,
+
     OkHttp3_9,
     OkHttp3_11,
     OkHttp3_13,
@@ -116,10 +126,22 @@ define_ruby_enum!(
     OkHttp4_10,
     OkHttp4_12,
     OkHttp5,
+
     Opera116,
     Opera117,
     Opera118,
-    Opera119
+    Opera119,
+    Opera120,
+    Opera121,
+    Opera122,
+    Opera123,
+    Opera124,
+    Opera125,
+    Opera126,
+    Opera127,
+    Opera128,
+    Opera129,
+    Opera130,
 );
 
 define_ruby_enum!(
@@ -265,6 +287,9 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     device_class.const_set("Chrome143", EmulationDevice::Chrome143)?;
     device_class.const_set("Chrome144", EmulationDevice::Chrome144)?;
     device_class.const_set("Chrome145", EmulationDevice::Chrome145)?;
+    device_class.const_set("Chrome146", EmulationDevice::Chrome146)?;
+    device_class.const_set("Chrome147", EmulationDevice::Chrome147)?;
+
     device_class.const_set("Edge101", EmulationDevice::Edge101)?;
     device_class.const_set("Edge122", EmulationDevice::Edge122)?;
     device_class.const_set("Edge127", EmulationDevice::Edge127)?;
@@ -281,6 +306,9 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     device_class.const_set("Edge143", EmulationDevice::Edge143)?;
     device_class.const_set("Edge144", EmulationDevice::Edge144)?;
     device_class.const_set("Edge145", EmulationDevice::Edge145)?;
+    device_class.const_set("Edge146", EmulationDevice::Edge146)?;
+    device_class.const_set("Edge147", EmulationDevice::Edge147)?;
+
     device_class.const_set("Firefox109", EmulationDevice::Firefox109)?;
     device_class.const_set("Firefox117", EmulationDevice::Firefox117)?;
     device_class.const_set("Firefox128", EmulationDevice::Firefox128)?;
@@ -297,6 +325,9 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     device_class.const_set("Firefox145", EmulationDevice::Firefox145)?;
     device_class.const_set("Firefox146", EmulationDevice::Firefox146)?;
     device_class.const_set("Firefox147", EmulationDevice::Firefox147)?;
+    device_class.const_set("Firefox148", EmulationDevice::Firefox148)?;
+    device_class.const_set("Firefox149", EmulationDevice::Firefox149)?;
+
     device_class.const_set("SafariIos17_2", EmulationDevice::SafariIos17_2)?;
     device_class.const_set("SafariIos17_4_1", EmulationDevice::SafariIos17_4_1)?;
     device_class.const_set("SafariIos16_5", EmulationDevice::SafariIos16_5)?;
@@ -324,6 +355,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     device_class.const_set("SafariIos26_2", EmulationDevice::SafariIos26_2)?;
     device_class.const_set("SafariIPad26", EmulationDevice::SafariIPad26)?;
     device_class.const_set("SafariIpad26_2", EmulationDevice::SafariIpad26_2)?;
+
     device_class.const_set("OkHttp3_9", EmulationDevice::OkHttp3_9)?;
     device_class.const_set("OkHttp3_11", EmulationDevice::OkHttp3_11)?;
     device_class.const_set("OkHttp3_13", EmulationDevice::OkHttp3_13)?;
@@ -332,10 +364,22 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     device_class.const_set("OkHttp4_10", EmulationDevice::OkHttp4_10)?;
     device_class.const_set("OkHttp4_12", EmulationDevice::OkHttp4_12)?;
     device_class.const_set("OkHttp5", EmulationDevice::OkHttp5)?;
+
     device_class.const_set("Opera116", EmulationDevice::Opera116)?;
     device_class.const_set("Opera117", EmulationDevice::Opera117)?;
     device_class.const_set("Opera118", EmulationDevice::Opera118)?;
     device_class.const_set("Opera119", EmulationDevice::Opera119)?;
+    device_class.const_set("Opera120", EmulationDevice::Opera120)?;
+    device_class.const_set("Opera121", EmulationDevice::Opera121)?;
+    device_class.const_set("Opera122", EmulationDevice::Opera122)?;
+    device_class.const_set("Opera123", EmulationDevice::Opera123)?;
+    device_class.const_set("Opera124", EmulationDevice::Opera124)?;
+    device_class.const_set("Opera125", EmulationDevice::Opera125)?;
+    device_class.const_set("Opera126", EmulationDevice::Opera126)?;
+    device_class.const_set("Opera127", EmulationDevice::Opera127)?;
+    device_class.const_set("Opera128", EmulationDevice::Opera128)?;
+    device_class.const_set("Opera129", EmulationDevice::Opera129)?;
+    device_class.const_set("Opera130", EmulationDevice::Opera130)?;
 
     // EmulationOS enum binding
     let os_class = gem_module.define_class("EmulationOS", ruby.class_object())?;
