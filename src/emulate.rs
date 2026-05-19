@@ -643,7 +643,6 @@ mod parse {
         let sent_frames = get_and_then!(json, http2, as_object, sent_frames, as_array)?;
 
         let mut http2_builder = Http2Options::builder();
-        let mut headers_map = HeaderMap::new();
 
         // parse settings frame
         if let Some(settings) = find_and_then!(
@@ -730,6 +729,8 @@ mod parse {
             http2_builder =
                 http2_builder.initial_connection_window_size((window_update + 65535) as u32);
         }
+
+        let mut headers_map = HeaderMap::new();
 
         // parse headers frame
         if let Some(headers_frame) = find!(sent_frames, frame_type, as_str, HEADERS) {

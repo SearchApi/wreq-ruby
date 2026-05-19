@@ -20,8 +20,7 @@ class EmulationTest < Minitest::Test
   end
 
   def test_http2_parser
-
-    profiles = ['test/results/chrome_147.json', 'test/results/chrome_148.json']
+    profiles = ["test/results/chrome_147.json", "test/results/chrome_148.json"]
 
     profiles.each do |profile|
       str = File.read(profile)
