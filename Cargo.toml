@@ -29,6 +29,7 @@ wreq = { version = "6.0.0-rc.28", features = [
     "brotli",
     "deflate",
     "zstd",
+    "system-proxy",
 ] }
 wreq-util = "3.0.0-rc.11"
 serde = { version = "1.0.228", features = ["derive"] }
