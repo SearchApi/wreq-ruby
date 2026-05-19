@@ -13,3 +13,5 @@ Gemfile.lock
 /core/
 *.gem
 vendor/
+.vscode
+.zed
