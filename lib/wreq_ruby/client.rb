@@ -246,7 +246,7 @@ unless defined?(Wreq)
       # @param auth [String, nil] Authorization header value
       # @param bearer_auth [String, nil] Bearer token for Authorization header
       # @param basic_auth [Array<String>, nil] Username and password for basic auth
-      # @param cookies [Array<String>, nil] Cookies to send
+      # @param cookies [Hash{String=>String}, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
       # @param gzip [Boolean, nil] Enable gzip compression
@@ -277,7 +277,7 @@ unless defined?(Wreq)
       # @param auth [String, nil] Authorization header value
       # @param bearer_auth [String, nil] Bearer token for Authorization header
       # @param basic_auth [Array<String>, nil] Username and password for basic auth
-      # @param cookies [Array<String>, nil] Cookies to send
+      # @param cookies [Hash{String=>String}, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
       # @param gzip [Boolean, nil] Enable gzip compression
@@ -308,7 +308,7 @@ unless defined?(Wreq)
       # @param auth [String, nil] Authorization header value
       # @param bearer_auth [String, nil] Bearer token for Authorization header
       # @param basic_auth [Array<String>, nil] Username and password for basic auth
-      # @param cookies [Array<String>, nil] Cookies to send
+      # @param cookies [Hash{String=>String}, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
       # @param gzip [Boolean, nil] Enable gzip compression
@@ -339,7 +339,7 @@ unless defined?(Wreq)
       # @param auth [String, nil] Authorization header value
       # @param bearer_auth [String, nil] Bearer token for Authorization header
       # @param basic_auth [Array<String>, nil] Username and password for basic auth
-      # @param cookies [Array<String>, nil] Cookies to send
+      # @param cookies [Hash{String=>String}, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
       # @param gzip [Boolean, nil] Enable gzip compression
@@ -370,7 +370,7 @@ unless defined?(Wreq)
       # @param auth [String, nil] Authorization header value
       # @param bearer_auth [String, nil] Bearer token for Authorization header
       # @param basic_auth [Array<String>, nil] Username and password for basic auth
-      # @param cookies [Array<String>, nil] Cookies to send
+      # @param cookies [Hash{String=>String}, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
       # @param gzip [Boolean, nil] Enable gzip compression
@@ -401,7 +401,7 @@ unless defined?(Wreq)
       # @param auth [String, nil] Authorization header value
       # @param bearer_auth [String, nil] Bearer token for Authorization header
       # @param basic_auth [Array<String>, nil] Username and password for basic auth
-      # @param cookies [Array<String>, nil] Cookies to send
+      # @param cookies [Hash{String=>String}, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
       # @param gzip [Boolean, nil] Enable gzip compression
@@ -432,7 +432,7 @@ unless defined?(Wreq)
       # @param auth [String, nil] Authorization header value
       # @param bearer_auth [String, nil] Bearer token for Authorization header
       # @param basic_auth [Array<String>, nil] Username and password for basic auth
-      # @param cookies [Array<String>, nil] Cookies to send
+      # @param cookies [Hash{String=>String}, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
       # @param gzip [Boolean, nil] Enable gzip compression
@@ -463,7 +463,7 @@ unless defined?(Wreq)
       # @param auth [String, nil] Authorization header value
       # @param bearer_auth [String, nil] Bearer token for Authorization header
       # @param basic_auth [Array<String>, nil] Username and password for basic auth
-      # @param cookies [Array<String>, nil] Cookies to send
+      # @param cookies [Hash{String=>String}, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
       # @param gzip [Boolean, nil] Enable gzip compression
@@ -494,7 +494,7 @@ unless defined?(Wreq)
       # @param auth [String, nil] Authorization header value
       # @param bearer_auth [String, nil] Bearer token for Authorization header
       # @param basic_auth [Array<String>, nil] Username and password for basic auth
-      # @param cookies [Array<String>, nil] Cookies to send
+      # @param cookies [Hash{String=>String}, nil] Cookies to send
       # @param allow_redirects [Boolean, nil] Whether to follow redirects
       # @param max_redirects [Integer, nil] Maximum number of redirects to follow
       # @param gzip [Boolean, nil] Enable gzip compression
