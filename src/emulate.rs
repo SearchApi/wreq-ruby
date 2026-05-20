@@ -228,8 +228,11 @@ impl Emulation {
             builder = builder.tls_options(tls_options);
         }
 
-        if let Some((http2_options, headers)) = parse::parse_http2(&json) {
-            builder = builder.http2_options(http2_options).headers(headers);
+        if let Some((http2_options, headers, orig_headers)) = parse::parse_http2(&json) {
+            builder = builder
+                .http2_options(http2_options)
+                .headers(headers)
+                .orig_headers(orig_headers);
         }
 
         Ok(Self::Emulation(Box::new(builder.build())))
@@ -405,6 +408,7 @@ mod parse {
     use serde_json::Value;
     use std::str::FromStr;
     use wreq::{
+        header::OrigHeaderMap,
         http2::{
             Http2Options, PseudoId, PseudoOrder, SettingId, SettingsOrder, StreamDependency,
             StreamId,
@@ -639,7 +643,7 @@ mod parse {
         Some(tls_builder.build())
     }
 
-    pub fn parse_http2(json: &Value) -> Option<(Http2Options, HeaderMap)> {
+    pub fn parse_http2(json: &Value) -> Option<(Http2Options, HeaderMap, OrigHeaderMap)> {
         let sent_frames = get_and_then!(json, http2, as_object, sent_frames, as_array)?;
 
         let mut http2_builder = Http2Options::builder();
@@ -731,6 +735,7 @@ mod parse {
         }
 
         let mut headers_map = HeaderMap::new();
+        let mut orig_headers_map = OrigHeaderMap::new();
 
         // parse headers frame
         if let Some(headers_frame) = find!(sent_frames, frame_type, as_str, HEADERS) {
@@ -772,7 +777,8 @@ mod parse {
                             if let (Ok(header_name), Ok(header_value)) =
                                 (HeaderName::from_str(name), HeaderValue::from_str(value))
                             {
-                                headers_map.insert(header_name, header_value);
+                                headers_map.insert(&header_name, header_value);
+                                orig_headers_map.insert(header_name);
                             }
                         }
                     }
@@ -801,6 +807,6 @@ mod parse {
             }
         }
 
-        Some((http2_builder.build(), headers_map))
+        Some((http2_builder.build(), headers_map, orig_headers_map))
     }
 }
