@@ -19,7 +19,7 @@ class EmulationTest < Minitest::Test
     end
   end
 
-  def test_http2_parser
+  def test_chrome_parser
     profiles = ["test/results/chrome_147.json", "test/results/chrome_148.json"]
 
     profiles.each do |profile|
