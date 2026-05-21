@@ -1545,7 +1545,6 @@ dependencies = [
  "http-body-util",
  "indexmap",
  "magnus",
- "percent-encoding",
  "rb-sys",
  "rb-sys-env",
  "serde",
