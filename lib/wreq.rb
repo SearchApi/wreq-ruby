@@ -28,13 +28,10 @@ unless defined?(Wreq)
     # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
-    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-    # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
     # @param basic_auth [Array<String>, nil] Username and password for basic auth
-    # @param cookies [Array<String>, nil] Cookies to send
+    # @param cookies [Hash{String=>String}, String, nil] Cookies to send
     # @param allow_redirects [Boolean, nil] Whether to follow redirects
     # @param max_redirects [Integer, nil] Maximum number of redirects to follow
     # @param gzip [Boolean, nil] Enable gzip compression
@@ -44,11 +41,13 @@ unless defined?(Wreq)
     # @param timeout [Integer, nil] Total request timeout (seconds)
     # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
     # @param proxy [String, nil] Proxy server URI
-    # @param no_proxy [Boolean, nil] Disable proxy for this request
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
     # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
     # @param version [Wreq::Version, nil] HTTP version to use
+    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
+    # @param json [Object, nil] JSON body (will be serialized)
+    # @param body [String, IO, nil] Raw request body (string or stream)
     # @return [Wreq::Response] HTTP response
     def self.request(method, url, **options)
     end
@@ -60,13 +59,10 @@ unless defined?(Wreq)
     # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
-    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-    # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
     # @param basic_auth [Array<String>, nil] Username and password for basic auth
-    # @param cookies [Array<String>, nil] Cookies to send
+    # @param cookies [Hash{String=>String}, String, nil] Cookies to send
     # @param allow_redirects [Boolean, nil] Whether to follow redirects
     # @param max_redirects [Integer, nil] Maximum number of redirects to follow
     # @param gzip [Boolean, nil] Enable gzip compression
@@ -76,11 +72,13 @@ unless defined?(Wreq)
     # @param timeout [Integer, nil] Total request timeout (seconds)
     # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
     # @param proxy [String, nil] Proxy server URI
-    # @param no_proxy [Boolean, nil] Disable proxy for this request
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
     # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
     # @param version [Wreq::Version, nil] HTTP version to use
+    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
+    # @param json [Object, nil] JSON body (will be serialized)
+    # @param body [String, IO, nil] Raw request body (string or stream)
     # @return [Wreq::Response] HTTP response
     def self.get(url, **options)
     end
@@ -92,16 +90,12 @@ unless defined?(Wreq)
     # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
-    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-    # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
     # @param basic_auth [Array<String>, nil] Username and password for basic auth
-    # @param cookies [Array<String>, nil] Cookies to send
+    # @param cookies [Hash{String=>String}, String, nil] Cookies to send
     # @param allow_redirects [Boolean, nil] Whether to follow redirects
     # @param max_redirects [Integer, nil] Maximum number of redirects to follow
-
     # @param gzip [Boolean, nil] Enable gzip compression
     # @param brotli [Boolean, nil] Enable Brotli compression
     # @param deflate [Boolean, nil] Enable deflate compression
@@ -109,11 +103,13 @@ unless defined?(Wreq)
     # @param timeout [Integer, nil] Total request timeout (seconds)
     # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
     # @param proxy [String, nil] Proxy server URI
-    # @param no_proxy [Boolean, nil] Disable proxy for this request
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
     # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
     # @param version [Wreq::Version, nil] HTTP version to use
+    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
+    # @param json [Object, nil] JSON body (will be serialized)
+    # @param body [String, IO, nil] Raw request body (string or stream)
     # @return [Wreq::Response] HTTP response
     def self.head(url, **options)
     end
@@ -125,13 +121,10 @@ unless defined?(Wreq)
     # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
-    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-    # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
     # @param basic_auth [Array<String>, nil] Username and password for basic auth
-    # @param cookies [Array<String>, nil] Cookies to send
+    # @param cookies [Hash{String=>String}, String, nil] Cookies to send
     # @param allow_redirects [Boolean, nil] Whether to follow redirects
     # @param max_redirects [Integer, nil] Maximum number of redirects to follow
     # @param gzip [Boolean, nil] Enable gzip compression
@@ -141,11 +134,13 @@ unless defined?(Wreq)
     # @param timeout [Integer, nil] Total request timeout (seconds)
     # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
     # @param proxy [String, nil] Proxy server URI
-    # @param no_proxy [Boolean, nil] Disable proxy for this request
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
     # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
     # @param version [Wreq::Version, nil] HTTP version to use
+    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
+    # @param json [Object, nil] JSON body (will be serialized)
+    # @param body [String, IO, nil] Raw request body (string or stream)
     # @return [Wreq::Response] HTTP response
     def self.post(url, **options)
     end
@@ -157,13 +152,10 @@ unless defined?(Wreq)
     # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
-    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-    # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
     # @param basic_auth [Array<String>, nil] Username and password for basic auth
-    # @param cookies [Array<String>, nil] Cookies to send
+    # @param cookies [Hash{String=>String}, String, nil] Cookies to send
     # @param allow_redirects [Boolean, nil] Whether to follow redirects
     # @param max_redirects [Integer, nil] Maximum number of redirects to follow
     # @param gzip [Boolean, nil] Enable gzip compression
@@ -173,11 +165,13 @@ unless defined?(Wreq)
     # @param timeout [Integer, nil] Total request timeout (seconds)
     # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
     # @param proxy [String, nil] Proxy server URI
-    # @param no_proxy [Boolean, nil] Disable proxy for this request
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
     # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
     # @param version [Wreq::Version, nil] HTTP version to use
+    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
+    # @param json [Object, nil] JSON body (will be serialized)
+    # @param body [String, IO, nil] Raw request body (string or stream)
     # @return [Wreq::Response] HTTP response
     def self.put(url, **options)
     end
@@ -189,13 +183,10 @@ unless defined?(Wreq)
     # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
-    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-    # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
     # @param basic_auth [Array<String>, nil] Username and password for basic auth
-    # @param cookies [Array<String>, nil] Cookies to send
+    # @param cookies [Hash{String=>String}, String, nil] Cookies to send
     # @param allow_redirects [Boolean, nil] Whether to follow redirects
     # @param max_redirects [Integer, nil] Maximum number of redirects to follow
     # @param gzip [Boolean, nil] Enable gzip compression
@@ -205,11 +196,13 @@ unless defined?(Wreq)
     # @param timeout [Integer, nil] Total request timeout (seconds)
     # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
     # @param proxy [String, nil] Proxy server URI
-    # @param no_proxy [Boolean, nil] Disable proxy for this request
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
     # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
     # @param version [Wreq::Version, nil] HTTP version to use
+    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
+    # @param json [Object, nil] JSON body (will be serialized)
+    # @param body [String, IO, nil] Raw request body (string or stream)
     # @return [Wreq::Response] HTTP response
     def self.delete(url, **options)
     end
@@ -221,13 +214,10 @@ unless defined?(Wreq)
     # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
-    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-    # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
     # @param basic_auth [Array<String>, nil] Username and password for basic auth
-    # @param cookies [Array<String>, nil] Cookies to send
+    # @param cookies [Hash{String=>String}, String, nil] Cookies to send
     # @param allow_redirects [Boolean, nil] Whether to follow redirects
     # @param max_redirects [Integer, nil] Maximum number of redirects to follow
     # @param gzip [Boolean, nil] Enable gzip compression
@@ -237,11 +227,13 @@ unless defined?(Wreq)
     # @param timeout [Integer, nil] Total request timeout (seconds)
     # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
     # @param proxy [String, nil] Proxy server URI
-    # @param no_proxy [Boolean, nil] Disable proxy for this request
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
     # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
     # @param version [Wreq::Version, nil] HTTP version to use
+    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
+    # @param json [Object, nil] JSON body (will be serialized)
+    # @param body [String, IO, nil] Raw request body (string or stream)
     # @return [Wreq::Response] HTTP response
     def self.options(url, **options)
     end
@@ -253,13 +245,10 @@ unless defined?(Wreq)
     # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
-    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-    # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
     # @param basic_auth [Array<String>, nil] Username and password for basic auth
-    # @param cookies [Array<String>, nil] Cookies to send
+    # @param cookies [Hash{String=>String}, String, nil] Cookies to send
     # @param allow_redirects [Boolean, nil] Whether to follow redirects
     # @param max_redirects [Integer, nil] Maximum number of redirects to follow
     # @param gzip [Boolean, nil] Enable gzip compression
@@ -269,11 +258,13 @@ unless defined?(Wreq)
     # @param timeout [Integer, nil] Total request timeout (seconds)
     # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
     # @param proxy [String, nil] Proxy server URI
-    # @param no_proxy [Boolean, nil] Disable proxy for this request
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
     # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
     # @param version [Wreq::Version, nil] HTTP version to use
+    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
+    # @param json [Object, nil] JSON body (will be serialized)
+    # @param body [String, IO, nil] Raw request body (string or stream)
     # @return [Wreq::Response] HTTP response
     def self.trace(url, **options)
     end
@@ -285,13 +276,10 @@ unless defined?(Wreq)
     # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
-    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-    # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
     # @param basic_auth [Array<String>, nil] Username and password for basic auth
-    # @param cookies [Array<String>, nil] Cookies to send
+    # @param cookies [Hash{String=>String}, String, nil] Cookies to send
     # @param allow_redirects [Boolean, nil] Whether to follow redirects
     # @param max_redirects [Integer, nil] Maximum number of redirects to follow
     # @param gzip [Boolean, nil] Enable gzip compression
@@ -301,11 +289,13 @@ unless defined?(Wreq)
     # @param timeout [Integer, nil] Total request timeout (seconds)
     # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
     # @param proxy [String, nil] Proxy server URI
-    # @param no_proxy [Boolean, nil] Disable proxy for this request
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind the socket to a specific network interface via `SO_BINDTODEVICE` (e.g., "eth0", "wlan0", "tun0"). Effective only on systems that support the option (Linux/Android/Fuchsia) and typically requires privileges (root or CAP_NET_ADMIN).
     # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
     # @param version [Wreq::Version, nil] HTTP version to use
+    # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
+    # @param json [Object, nil] JSON body (will be serialized)
+    # @param body [String, IO, nil] Raw request body (string or stream)
     # @return [Wreq::Response] HTTP response
     def self.patch(url, **options)
     end
