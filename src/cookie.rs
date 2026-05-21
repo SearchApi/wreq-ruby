@@ -1,13 +1,14 @@
 use std::{fmt, sync::Arc, time::SystemTime};
 
+use bytes::Bytes;
 use cookie::{Cookie as RawCookie, Expiration, ParseError, time::Duration};
 use magnus::{
-    Error, Module, Object, RModule, Ruby, Value, function, method, typed_data::Obj,
-    value::ReprValue,
+    Error, Module, Object, RHash, RModule, RString, Ruby, TryConvert, Value, function, method,
+    r_hash::ForEach, typed_data::Obj, value::ReprValue,
 };
 use wreq::header::{self, HeaderMap, HeaderValue};
 
-use crate::gvl;
+use crate::{error::header_value_error_to_magnus, gvl};
 
 define_ruby_enum!(
     /// The Cookie SameSite attribute.
@@ -24,6 +25,10 @@ define_ruby_enum!(
 #[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Cookie", free_immediately, size)]
 pub struct Cookie(RawCookie<'static>);
+
+/// A collection of HTTP cookies.
+#[derive(Default)]
+pub struct Cookies(pub Vec<HeaderValue>);
 
 /// A good default `CookieStore` implementation.
 ///
@@ -194,6 +199,45 @@ impl Cookie {
 impl fmt::Display for Cookie {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+// ===== impl Cookies =====
+
+impl TryConvert for Cookies {
+    fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
+        let ruby = Ruby::get_with(value);
+        let rhash = RHash::try_convert(value)?;
+
+        // try extract uncompressed cookies
+        if let Some(hash) = rhash
+            .get(ruby.to_symbol(stringify!(cookies)))
+            .and_then(RHash::from_value)
+        {
+            let mut cookies = Vec::new();
+            hash.foreach(|name: RString, value: RString| {
+                let cookie = format!("{name}={value}");
+                let header_value = HeaderValue::from_maybe_shared(Bytes::from(cookie))
+                    .map_err(header_value_error_to_magnus)?;
+                cookies.push(header_value);
+                Ok(ForEach::Continue)
+            })?;
+
+            return Ok(Self(cookies));
+        }
+
+        // try extract compressed cookies
+        if let Some(cookies) = rhash
+            .get(ruby.to_symbol(stringify!(cookies)))
+            .and_then(RString::from_value)
+        {
+            return Ok(Self(vec![
+                HeaderValue::from_maybe_shared(Bytes::from(cookies.to_string()?))
+                    .map_err(header_value_error_to_magnus)?,
+            ]));
+        }
+
+        Ok(Self::default())
     }
 }
 

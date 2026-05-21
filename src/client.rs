@@ -131,7 +131,7 @@ impl Builder {
         if let Ok(hash) = RHash::try_convert(*keyword) {
             let mut builder: Self = serde_magnus::deserialize(ruby, hash)?;
             // extra emulation handling
-            if let Some(v) = hash.get(ruby.to_symbol("emulation")) {
+            if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
                 let emulation_obj = Obj::<Emulation>::try_convert(v)?;
                 builder.emulation = Some((*emulation_obj).clone());
             }
@@ -149,7 +149,7 @@ impl Builder {
             builder.proxy = Extractor::<Proxy>::try_convert(*keyword)?.into_inner();
 
             // extra cookie store handling
-            if let Some(jar) = hash.get(ruby.to_symbol("cookie_provider")) {
+            if let Some(jar) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
                 builder.cookie_provider = Some((*Obj::<Jar>::try_convert(jar)?).clone());
             }
 
