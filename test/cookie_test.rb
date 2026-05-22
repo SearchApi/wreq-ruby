@@ -154,13 +154,27 @@ class CookieTest < Minitest::Test
     assert_equal [false, true], h["s2"]
   end
 
-  def test_request_cookie_value_percent_encoding
-    raw_value = "hello world?"
+  def test_request_uncompressed_cookies
     client = Wreq::Client.new
     resp = client.get(
-      "http://localhost:8080/cookies",
-      cookies: {"mykey" => raw_value}
+      "https://httpbin.io/cookies",
+      cookies: {"foo" => "bar", "baz" => "qux"}
     )
-    assert_includes resp.text, "hello world?"
+    json = resp.json
+    assert_instance_of Hash, json
+    assert_equal "bar", json["foo"]
+    assert_equal "qux", json["baz"]
+  end
+
+  def test_request_compressed_cookies
+    client = Wreq::Client.new
+    resp = client.get(
+      "https://httpbin.io/cookies",
+      cookies: "foo=bar; baz=qux"
+    )
+    json = resp.json
+    assert_instance_of Hash, json
+    assert_equal "bar", json["foo"]
+    assert_equal "qux", json["baz"]
   end
 end
