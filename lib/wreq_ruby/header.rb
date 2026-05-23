@@ -195,3 +195,11 @@ unless defined?(Wreq)
     end
   end
 end
+
+module Wreq
+  class Headers
+    def inspect
+      "#<Wreq::Headers [#{length} headers]>"
+    end
+  end
+end

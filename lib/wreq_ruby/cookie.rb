@@ -142,3 +142,22 @@ unless defined?(Wreq)
     end
   end
 end
+
+module Wreq
+  class Cookie
+    def inspect
+      parts = ["#<Wreq::Cookie", name]
+      parts << "domain=#{domain}" if domain
+      parts << "path=#{path}" if path
+      parts << "secure" if secure?
+      parts << "http_only" if http_only?
+      parts.join(" ") + ">"
+    end
+  end
+
+  class Jar
+    def inspect
+      "#<Wreq::Jar [#{get_all.length} cookies]>"
+    end
+  end
+end
