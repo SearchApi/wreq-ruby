@@ -156,27 +156,35 @@ end
 
 module Wreq
   class Response
-    # Returns a compact string representation of the response.
+    # Returns the response body as a string.
+    #
+    # @return [String] Response body text
+    # @example
+    #   puts response.to_s
+    #   puts response
+    #   File.write("page.html", response)
+    def to_s
+      text
+    end
+
+    # Returns a compact string representation for debugging.
     #
     # Format: #<Wreq::Response STATUS content-type="..." body=SIZE>
     #
     # @return [String] Compact formatted response information
     # @example
-    #   puts response.to_s
+    #   p response
     #   # => #<Wreq::Response 200 content-type="application/json" body=456B>
-    def to_s
+    def inspect
       parts = ["#<Wreq::Response"]
 
-      # Status code
       parts << code.to_s
 
-      # Content-Type header if present
       if headers.respond_to?(:get)
         content_type = headers.get("content-type")
         parts << "content-type=#{content_type.inspect}" if content_type
       end
 
-      # Body size
       if content_length
         parts << "body=#{format_bytes(content_length)}"
       end

@@ -130,3 +130,17 @@ module Wreq
     end
   end
 end
+
+module Wreq
+  class StatusCode
+    def inspect
+      "#<Wreq::StatusCode #{to_s}>"
+    end
+  end
+
+  class Version
+    def inspect
+      "#<Wreq::Version #{to_s}>"
+    end
+  end
+end

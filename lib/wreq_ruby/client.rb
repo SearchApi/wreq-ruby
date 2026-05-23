@@ -514,3 +514,11 @@ unless defined?(Wreq)
     end
   end
 end
+
+module Wreq
+  class Client
+    def inspect
+      "#<Wreq::Client>"
+    end
+  end
+end
