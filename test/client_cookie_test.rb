@@ -36,7 +36,7 @@ class ClientCookieProviderTest < Minitest::Test
 
   def test_prepopulated_jar_is_used_by_client
     # pre-populate jar
-    @jar.add_cookie_str("pref=1; Path=/", "#{HOST}/")
+    @jar.add("pref=1; Path=/", "#{HOST}/")
 
     res = @client.get("#{HOST}/cookies")
     assert_equal 200, res.code

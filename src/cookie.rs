@@ -265,13 +265,14 @@ impl Jar {
     }
 
     /// Add a cookie to this jar.
-    pub fn add_cookie(&self, cookie: &Cookie, url: String) {
-        gvl::nogvl(|| self.0.add(cookie.0.clone(), &url))
-    }
+    pub fn add(&self, cookie: Value, url: String) {
+        if let Ok(cookie) = Obj::<Cookie>::try_convert(cookie) {
+            gvl::nogvl(|| self.0.add(cookie.0.clone(), &url))
+        }
 
-    /// Add a cookie str to this jar.
-    pub fn add_cookie_str(&self, cookie: String, url: String) {
-        gvl::nogvl(|| self.0.add(cookie.as_ref(), &url))
+        if let Ok(cookie_str) = String::try_convert(cookie) {
+            gvl::nogvl(|| self.0.add(cookie_str.as_ref(), &url))
+        }
     }
 
     /// Remove a cookie from this jar by name and URL.
@@ -312,8 +313,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     let jar_class = gem_module.define_class("Jar", ruby.class_object())?;
     jar_class.define_singleton_method("new", function!(Jar::new, 0))?;
     jar_class.define_method("get_all", method!(Jar::get_all, 0))?;
-    jar_class.define_method("add_cookie", method!(Jar::add_cookie, 2))?;
-    jar_class.define_method("add_cookie_str", method!(Jar::add_cookie_str, 2))?;
+    jar_class.define_method("add", method!(Jar::add, 2))?;
     jar_class.define_method("remove", method!(Jar::remove, 2))?;
     jar_class.define_method("clear", method!(Jar::clear, 0))?;
 
