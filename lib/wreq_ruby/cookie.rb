@@ -114,18 +114,11 @@ unless defined?(Wreq)
       def get_all
       end
 
-      # Add a cookie object for the given URL.
-      # @param cookie [Wreq::Cookie]
-      # @param url [String]
-      # @return [void]
-      def add_cookie(cookie, url)
-      end
-
       # Add a cookie from a Set-Cookie string for the given URL.
-      # @param cookie [String] A Set-Cookie string
+      # @param cookie [String, Wreq::Cookie] A Set-Cookie string
       # @param url [String]
       # @return [void]
-      def add_cookie_str(cookie, url)
+      def add(cookie, url)
       end
 
       # Remove a cookie by name for the given URL.

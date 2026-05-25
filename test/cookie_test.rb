@@ -19,9 +19,9 @@ class CookieTest < Minitest::Test
     assert_equal 0, cookies.length
   end
 
-  def test_add_cookie_str_and_get_all
+  def test_add_and_get_all
     set_cookie = "sid=abc123; Path=/; Domain=example.com; HttpOnly; Secure"
-    @jar.add_cookie_str(set_cookie, @base_url)
+    @jar.add(set_cookie, @base_url)
 
     cookies = @jar.get_all
     assert_kind_of Array, cookies
@@ -42,9 +42,9 @@ class CookieTest < Minitest::Test
   end
 
   def test_add_multiple_and_remove
-    @jar.add_cookie_str("a=1; Path=/", @base_url)
-    @jar.add_cookie_str("b=2; Path=/", @base_url)
-    @jar.add_cookie_str("c=3; Path=/", @base_url)
+    @jar.add("a=1; Path=/", @base_url)
+    @jar.add("b=2; Path=/", @base_url)
+    @jar.add("c=3; Path=/", @base_url)
 
     cookies = @jar.get_all
     assert_equal 3, cookies.length
@@ -58,8 +58,8 @@ class CookieTest < Minitest::Test
   end
 
   def test_clear
-    @jar.add_cookie_str("x=1; Path=/", @base_url)
-    @jar.add_cookie_str("y=2; Path=/", @base_url)
+    @jar.add("x=1; Path=/", @base_url)
+    @jar.add("y=2; Path=/", @base_url)
     refute_empty @jar.get_all
 
     @jar.clear
@@ -69,7 +69,7 @@ class CookieTest < Minitest::Test
   def test_max_age_and_expires_optional
     # Max-Age only
     @jar.clear
-    @jar.add_cookie_str("ma=1; Max-Age=3600; Path=/", @base_url)
+    @jar.add("ma=1; Max-Age=3600; Path=/", @base_url)
     c1 = @jar.get_all.find { |c| c.name == "ma" }
     assert c1
     # can be nil or Integer; just ensure responds and is truthy integer
@@ -81,7 +81,7 @@ class CookieTest < Minitest::Test
     # Expires only
     @jar.clear
     t = Time.now + 3600
-    @jar.add_cookie_str("exp=1; Expires=#{t.gmtime.strftime("%a, %d %b %Y %H:%M:%S GMT")}; Path=/", @base_url)
+    @jar.add("exp=1; Expires=#{t.gmtime.strftime("%a, %d %b %Y %H:%M:%S GMT")}; Path=/", @base_url)
     c2 = @jar.get_all.find { |c| c.name == "exp" }
     assert c2
     # expires returns Float (unix seconds) or nil
@@ -144,8 +144,8 @@ class CookieTest < Minitest::Test
 
   def test_same_site_flags_from_parsed_header
     @jar.clear
-    @jar.add_cookie_str("s1=1; Path=/; SameSite=Strict", @base_url)
-    @jar.add_cookie_str("s2=1; Path=/; SameSite=Lax", @base_url)
+    @jar.add("s1=1; Path=/; SameSite=Strict", @base_url)
+    @jar.add("s2=1; Path=/; SameSite=Lax", @base_url)
 
     cookies = @jar.get_all
     h = cookies.to_h { |ck| [ck.name, [ck.same_site_strict?, ck.same_site_lax?]] }

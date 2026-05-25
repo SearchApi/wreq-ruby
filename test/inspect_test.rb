@@ -64,8 +64,8 @@ class InspectTest < Minitest::Test
 
   def test_jar_inspect_with_cookies
     jar = Wreq::Jar.new
-    jar.add_cookie_str("a=1; Path=/", "https://example.com")
-    jar.add_cookie_str("b=2; Path=/", "https://example.com")
+    jar.add("a=1; Path=/", "https://example.com")
+    jar.add("b=2; Path=/", "https://example.com")
     assert_equal "#<Wreq::Jar [2 cookies]>", jar.inspect
   end
 
