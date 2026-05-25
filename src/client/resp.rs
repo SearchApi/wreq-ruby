@@ -5,7 +5,7 @@ use bytes::Bytes;
 use futures_util::TryFutureExt;
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RArray, RModule, Ruby, Value, block::Yield};
+use magnus::{Error, Module, RArray, RModule, Ruby, Value, block::Yield, scan_args::scan_args};
 use wreq::Uri;
 
 use crate::{
@@ -173,20 +173,18 @@ impl Response {
         rt::try_block_on(response.bytes().map_err(wreq_error_to_magnus))
     }
 
-    /// Get the response body as a UTF-8 string.
-    pub fn text(&self) -> Result<String, Error> {
-        let response = self.response(false)?;
-        rt::try_block_on(response.text().map_err(wreq_error_to_magnus))
-    }
-
     ///  Get the full response text given a specific encoding.
-    pub fn text_with_charset(&self, default_encoding: String) -> Result<String, Error> {
+    pub fn text(&self, args: &[Value]) -> Result<String, Error> {
+        let args = scan_args::<(), (Option<String>,), (), (), (), ()>(args)?;
         let response = self.response(false)?;
-        rt::try_block_on(
-            response
-                .text_with_charset(default_encoding)
-                .map_err(wreq_error_to_magnus),
-        )
+        match args.optional.0 {
+            Some(encoding) => rt::try_block_on(
+                response
+                    .text_with_charset(encoding)
+                    .map_err(wreq_error_to_magnus),
+            ),
+            None => rt::try_block_on(response.text().map_err(wreq_error_to_magnus)),
+        }
     }
 
     /// Get the response body as JSON.
@@ -238,11 +236,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response_class.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
     response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
     response_class.define_method("bytes", magnus::method!(Response::bytes, 0))?;
-    response_class.define_method("text", magnus::method!(Response::text, 0))?;
-    response_class.define_method(
-        "text_with_charset",
-        magnus::method!(Response::text_with_charset, 1),
-    )?;
+    response_class.define_method("text", magnus::method!(Response::text, -1))?;
     response_class.define_method("json", magnus::method!(Response::json, 0))?;
     response_class.define_method("chunks", magnus::method!(Response::chunks, 0))?;
     response_class.define_method("close", magnus::method!(Response::close, 0))?;
