@@ -11,10 +11,10 @@ require_relative "../lib/wreq"
 #   Set when creating the Wreq::Client instance.
 #   All requests from this client will use the specified emulation unless overridden.
 client = Wreq::Client.new(emulation: Wreq::Emulation.new(
-  device: Wreq::EmulationDevice::Chrome142,
-  os: Wreq::EmulationOS::MacOS,
-  skip_http2: false,
-  skip_headers: false
+  profile: Wreq::Profile::Chrome142,
+  platform: Wreq::Platform::MacOS,
+  http2: true,
+  headers: true
 ))
 
 resp = client.get("https://tls.peet.ws/api/all")
@@ -26,10 +26,10 @@ puts resp.text
 resp = client.get(
   "https://tls.peet.ws/api/all",
   emulation: Wreq::Emulation.new(
-    device: Wreq::EmulationDevice::Safari26,
-    os: Wreq::EmulationOS::MacOS,
-    skip_http2: false,
-    skip_headers: false
+    profile: Wreq::Profile::Safari26,
+    platform: Wreq::Platform::MacOS,
+    http2: true,
+    headers: true
   ),
   # Skip client default headers for this request
   default_headers: false
