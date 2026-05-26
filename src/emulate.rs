@@ -179,17 +179,17 @@ impl Platform {
 
 impl Emulation {
     fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
-        let mut device = None;
-        let mut os = None;
+        let mut profile = None;
+        let mut platform = None;
         let mut http2 = None;
         let mut headers = None;
 
         if let Some(hash) = args.first().and_then(|v| RHash::from_value(*v)) {
             if let Some(v) = hash.get(ruby.to_symbol(stringify!(profile))) {
-                device = Some(Obj::<Profile>::try_convert(v)?);
+                profile = Some(Obj::<Profile>::try_convert(v)?);
             }
             if let Some(v) = hash.get(ruby.to_symbol(stringify!(platform))) {
-                os = Some(Obj::<Platform>::try_convert(v)?);
+                platform = Some(Obj::<Platform>::try_convert(v)?);
             }
             if let Some(v) = hash.get(ruby.to_symbol(stringify!(http2))) {
                 http2 = Some(bool::try_convert(v)?);
@@ -200,8 +200,8 @@ impl Emulation {
         }
 
         let emulation = wreq_util::Emulation::builder()
-            .profile(device.map(|obj| obj.into_ffi()).unwrap_or_default())
-            .platform(os.map(|os| os.into_ffi()).unwrap_or_default())
+            .profile(profile.map(|obj| obj.into_ffi()).unwrap_or_default())
+            .platform(platform.map(|os| os.into_ffi()).unwrap_or_default())
             .http2(http2.unwrap_or(true))
             .headers(headers.unwrap_or(true))
             .build();
