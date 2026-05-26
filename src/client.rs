@@ -83,7 +83,7 @@ struct Builder {
     /// Sets the maximum idle connection per host allowed in the pool.
     pool_max_idle_per_host: Option<usize>,
     /// Sets the maximum number of connections in the pool.
-    pool_max_size: Option<u32>,
+    pool_max_size: Option<usize>,
 
     // ========= Protocol options =========
     /// Whether to use the HTTP/1 protocol only.
@@ -286,7 +286,7 @@ impl Client {
                 apply_option!(set_if_some, builder, params.https_only, https_only);
 
                 // TLS options.
-                apply_option!(set_if_some, builder, params.verify, cert_verification);
+                apply_option!(set_if_some, builder, params.verify, tls_cert_verification);
 
                 // Network options.
                 apply_option!(set_if_some, builder, params.proxy, proxy);

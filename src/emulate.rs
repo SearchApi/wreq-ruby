@@ -4,11 +4,11 @@ use magnus::{
 };
 
 define_ruby_enum!(
-    /// An emulation.
+    /// An emulation profile.
     const,
-    EmulationDevice,
-    "Wreq::EmulationDevice",
-    wreq_util::Emulation,
+    Profile,
+    "Wreq::Profile",
+    wreq_util::Profile,
     Chrome100,
     Chrome101,
     Chrome104,
@@ -142,11 +142,11 @@ define_ruby_enum!(
 );
 
 define_ruby_enum!(
-    /// An emulation operating system.
+    /// An emulation profile for OS.
     const,
-    EmulationOS,
-    "Wreq::EmulationOS",
-    wreq_util::EmulationOS,
+    Platform,
+    "Wreq::Platform",
+    wreq_util::Platform,
     Windows,
     MacOS,
     Linux,
@@ -157,19 +157,19 @@ define_ruby_enum!(
 /// A struct to represent the `EmulationOption` class.
 #[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Emulation", free_immediately, size)]
-pub struct Emulation(pub wreq_util::EmulationOption);
+pub struct Emulation(pub wreq_util::Emulation);
 
-// ===== impl EmulationDevice =====
+// ===== impl Profile =====
 
-impl EmulationDevice {
+impl Profile {
     pub fn to_s(&self) -> String {
         self.into_ffi().inspect()
     }
 }
 
-// ===== impl EmulationOS =====
+// ===== impl Platform =====
 
-impl EmulationOS {
+impl Platform {
     pub fn to_s(&self) -> String {
         self.into_ffi().inspect()
     }
@@ -181,29 +181,29 @@ impl Emulation {
     fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
         let mut device = None;
         let mut os = None;
-        let mut skip_http2 = None;
-        let mut skip_headers = None;
+        let mut http2 = None;
+        let mut headers = None;
 
         if let Some(hash) = args.first().and_then(|v| RHash::from_value(*v)) {
-            if let Some(v) = hash.get(ruby.to_symbol("device")) {
-                device = Some(Obj::<EmulationDevice>::try_convert(v)?);
+            if let Some(v) = hash.get(ruby.to_symbol(stringify!(profile))) {
+                device = Some(Obj::<Profile>::try_convert(v)?);
             }
-            if let Some(v) = hash.get(ruby.to_symbol("os")) {
-                os = Some(Obj::<EmulationOS>::try_convert(v)?);
+            if let Some(v) = hash.get(ruby.to_symbol(stringify!(platform))) {
+                os = Some(Obj::<Platform>::try_convert(v)?);
             }
-            if let Some(v) = hash.get(ruby.to_symbol("skip_http2")) {
-                skip_http2 = Some(bool::try_convert(v)?);
+            if let Some(v) = hash.get(ruby.to_symbol(stringify!(http2))) {
+                http2 = Some(bool::try_convert(v)?);
             }
-            if let Some(v) = hash.get(ruby.to_symbol("skip_headers")) {
-                skip_headers = Some(bool::try_convert(v)?);
+            if let Some(v) = hash.get(ruby.to_symbol(stringify!(headers))) {
+                headers = Some(bool::try_convert(v)?);
             }
         }
 
-        let emulation = wreq_util::EmulationOption::builder()
-            .emulation(device.map(|obj| obj.into_ffi()).unwrap_or_default())
-            .emulation_os(os.map(|os| os.into_ffi()).unwrap_or_default())
-            .skip_http2(skip_http2.unwrap_or(false))
-            .skip_headers(skip_headers.unwrap_or(false))
+        let emulation = wreq_util::Emulation::builder()
+            .profile(device.map(|obj| obj.into_ffi()).unwrap_or_default())
+            .platform(os.map(|os| os.into_ffi()).unwrap_or_default())
+            .http2(http2.unwrap_or(true))
+            .headers(headers.unwrap_or(true))
             .build();
 
         Ok(Self(emulation))
@@ -211,150 +211,150 @@ impl Emulation {
 }
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
-    // EmulationDevice enum binding
-    let emulation_class = gem_module.define_class("EmulationDevice", ruby.class_object())?;
-    emulation_class.define_method("to_s", method!(EmulationDevice::to_s, 0))?;
-    emulation_class.const_set("Chrome100", EmulationDevice::Chrome100)?;
-    emulation_class.const_set("Chrome101", EmulationDevice::Chrome101)?;
-    emulation_class.const_set("Chrome104", EmulationDevice::Chrome104)?;
-    emulation_class.const_set("Chrome105", EmulationDevice::Chrome105)?;
-    emulation_class.const_set("Chrome106", EmulationDevice::Chrome106)?;
-    emulation_class.const_set("Chrome107", EmulationDevice::Chrome107)?;
-    emulation_class.const_set("Chrome108", EmulationDevice::Chrome108)?;
-    emulation_class.const_set("Chrome109", EmulationDevice::Chrome109)?;
-    emulation_class.const_set("Chrome110", EmulationDevice::Chrome110)?;
-    emulation_class.const_set("Chrome114", EmulationDevice::Chrome114)?;
-    emulation_class.const_set("Chrome116", EmulationDevice::Chrome116)?;
-    emulation_class.const_set("Chrome117", EmulationDevice::Chrome117)?;
-    emulation_class.const_set("Chrome118", EmulationDevice::Chrome118)?;
-    emulation_class.const_set("Chrome119", EmulationDevice::Chrome119)?;
-    emulation_class.const_set("Chrome120", EmulationDevice::Chrome120)?;
-    emulation_class.const_set("Chrome123", EmulationDevice::Chrome123)?;
-    emulation_class.const_set("Chrome124", EmulationDevice::Chrome124)?;
-    emulation_class.const_set("Chrome126", EmulationDevice::Chrome126)?;
-    emulation_class.const_set("Chrome127", EmulationDevice::Chrome127)?;
-    emulation_class.const_set("Chrome128", EmulationDevice::Chrome128)?;
-    emulation_class.const_set("Chrome129", EmulationDevice::Chrome129)?;
-    emulation_class.const_set("Chrome130", EmulationDevice::Chrome130)?;
-    emulation_class.const_set("Chrome131", EmulationDevice::Chrome131)?;
-    emulation_class.const_set("Chrome132", EmulationDevice::Chrome132)?;
-    emulation_class.const_set("Chrome133", EmulationDevice::Chrome133)?;
-    emulation_class.const_set("Chrome134", EmulationDevice::Chrome134)?;
-    emulation_class.const_set("Chrome135", EmulationDevice::Chrome135)?;
-    emulation_class.const_set("Chrome136", EmulationDevice::Chrome136)?;
-    emulation_class.const_set("Chrome137", EmulationDevice::Chrome137)?;
-    emulation_class.const_set("Chrome138", EmulationDevice::Chrome138)?;
-    emulation_class.const_set("Chrome139", EmulationDevice::Chrome139)?;
-    emulation_class.const_set("Chrome140", EmulationDevice::Chrome140)?;
-    emulation_class.const_set("Chrome141", EmulationDevice::Chrome141)?;
-    emulation_class.const_set("Chrome142", EmulationDevice::Chrome142)?;
-    emulation_class.const_set("Chrome143", EmulationDevice::Chrome143)?;
-    emulation_class.const_set("Chrome144", EmulationDevice::Chrome144)?;
-    emulation_class.const_set("Chrome145", EmulationDevice::Chrome145)?;
-    emulation_class.const_set("Chrome146", EmulationDevice::Chrome146)?;
-    emulation_class.const_set("Chrome147", EmulationDevice::Chrome147)?;
-    emulation_class.const_set("Edge101", EmulationDevice::Edge101)?;
-    emulation_class.const_set("Edge122", EmulationDevice::Edge122)?;
-    emulation_class.const_set("Edge127", EmulationDevice::Edge127)?;
-    emulation_class.const_set("Edge131", EmulationDevice::Edge131)?;
-    emulation_class.const_set("Edge134", EmulationDevice::Edge134)?;
-    emulation_class.const_set("Edge135", EmulationDevice::Edge135)?;
-    emulation_class.const_set("Edge136", EmulationDevice::Edge136)?;
-    emulation_class.const_set("Edge137", EmulationDevice::Edge137)?;
-    emulation_class.const_set("Edge138", EmulationDevice::Edge138)?;
-    emulation_class.const_set("Edge139", EmulationDevice::Edge139)?;
-    emulation_class.const_set("Edge140", EmulationDevice::Edge140)?;
-    emulation_class.const_set("Edge141", EmulationDevice::Edge141)?;
-    emulation_class.const_set("Edge142", EmulationDevice::Edge142)?;
-    emulation_class.const_set("Edge143", EmulationDevice::Edge143)?;
-    emulation_class.const_set("Edge144", EmulationDevice::Edge144)?;
-    emulation_class.const_set("Edge145", EmulationDevice::Edge145)?;
-    emulation_class.const_set("Edge146", EmulationDevice::Edge146)?;
-    emulation_class.const_set("Edge147", EmulationDevice::Edge147)?;
+    // Profile enum binding
+    let profile = gem_module.define_class("Profile", ruby.class_object())?;
+    profile.define_method("to_s", method!(Profile::to_s, 0))?;
+    profile.const_set("Chrome100", Profile::Chrome100)?;
+    profile.const_set("Chrome101", Profile::Chrome101)?;
+    profile.const_set("Chrome104", Profile::Chrome104)?;
+    profile.const_set("Chrome105", Profile::Chrome105)?;
+    profile.const_set("Chrome106", Profile::Chrome106)?;
+    profile.const_set("Chrome107", Profile::Chrome107)?;
+    profile.const_set("Chrome108", Profile::Chrome108)?;
+    profile.const_set("Chrome109", Profile::Chrome109)?;
+    profile.const_set("Chrome110", Profile::Chrome110)?;
+    profile.const_set("Chrome114", Profile::Chrome114)?;
+    profile.const_set("Chrome116", Profile::Chrome116)?;
+    profile.const_set("Chrome117", Profile::Chrome117)?;
+    profile.const_set("Chrome118", Profile::Chrome118)?;
+    profile.const_set("Chrome119", Profile::Chrome119)?;
+    profile.const_set("Chrome120", Profile::Chrome120)?;
+    profile.const_set("Chrome123", Profile::Chrome123)?;
+    profile.const_set("Chrome124", Profile::Chrome124)?;
+    profile.const_set("Chrome126", Profile::Chrome126)?;
+    profile.const_set("Chrome127", Profile::Chrome127)?;
+    profile.const_set("Chrome128", Profile::Chrome128)?;
+    profile.const_set("Chrome129", Profile::Chrome129)?;
+    profile.const_set("Chrome130", Profile::Chrome130)?;
+    profile.const_set("Chrome131", Profile::Chrome131)?;
+    profile.const_set("Chrome132", Profile::Chrome132)?;
+    profile.const_set("Chrome133", Profile::Chrome133)?;
+    profile.const_set("Chrome134", Profile::Chrome134)?;
+    profile.const_set("Chrome135", Profile::Chrome135)?;
+    profile.const_set("Chrome136", Profile::Chrome136)?;
+    profile.const_set("Chrome137", Profile::Chrome137)?;
+    profile.const_set("Chrome138", Profile::Chrome138)?;
+    profile.const_set("Chrome139", Profile::Chrome139)?;
+    profile.const_set("Chrome140", Profile::Chrome140)?;
+    profile.const_set("Chrome141", Profile::Chrome141)?;
+    profile.const_set("Chrome142", Profile::Chrome142)?;
+    profile.const_set("Chrome143", Profile::Chrome143)?;
+    profile.const_set("Chrome144", Profile::Chrome144)?;
+    profile.const_set("Chrome145", Profile::Chrome145)?;
+    profile.const_set("Chrome146", Profile::Chrome146)?;
+    profile.const_set("Chrome147", Profile::Chrome147)?;
+    profile.const_set("Edge101", Profile::Edge101)?;
+    profile.const_set("Edge122", Profile::Edge122)?;
+    profile.const_set("Edge127", Profile::Edge127)?;
+    profile.const_set("Edge131", Profile::Edge131)?;
+    profile.const_set("Edge134", Profile::Edge134)?;
+    profile.const_set("Edge135", Profile::Edge135)?;
+    profile.const_set("Edge136", Profile::Edge136)?;
+    profile.const_set("Edge137", Profile::Edge137)?;
+    profile.const_set("Edge138", Profile::Edge138)?;
+    profile.const_set("Edge139", Profile::Edge139)?;
+    profile.const_set("Edge140", Profile::Edge140)?;
+    profile.const_set("Edge141", Profile::Edge141)?;
+    profile.const_set("Edge142", Profile::Edge142)?;
+    profile.const_set("Edge143", Profile::Edge143)?;
+    profile.const_set("Edge144", Profile::Edge144)?;
+    profile.const_set("Edge145", Profile::Edge145)?;
+    profile.const_set("Edge146", Profile::Edge146)?;
+    profile.const_set("Edge147", Profile::Edge147)?;
 
-    emulation_class.const_set("Firefox109", EmulationDevice::Firefox109)?;
-    emulation_class.const_set("Firefox117", EmulationDevice::Firefox117)?;
-    emulation_class.const_set("Firefox128", EmulationDevice::Firefox128)?;
-    emulation_class.const_set("Firefox133", EmulationDevice::Firefox133)?;
-    emulation_class.const_set("Firefox135", EmulationDevice::Firefox135)?;
-    emulation_class.const_set("FirefoxPrivate135", EmulationDevice::FirefoxPrivate135)?;
-    emulation_class.const_set("FirefoxAndroid135", EmulationDevice::FirefoxAndroid135)?;
-    emulation_class.const_set("Firefox136", EmulationDevice::Firefox136)?;
-    emulation_class.const_set("FirefoxPrivate136", EmulationDevice::FirefoxPrivate136)?;
-    emulation_class.const_set("Firefox139", EmulationDevice::Firefox139)?;
-    emulation_class.const_set("Firefox142", EmulationDevice::Firefox142)?;
-    emulation_class.const_set("Firefox143", EmulationDevice::Firefox143)?;
-    emulation_class.const_set("Firefox144", EmulationDevice::Firefox144)?;
-    emulation_class.const_set("Firefox145", EmulationDevice::Firefox145)?;
-    emulation_class.const_set("Firefox146", EmulationDevice::Firefox146)?;
-    emulation_class.const_set("Firefox147", EmulationDevice::Firefox147)?;
-    emulation_class.const_set("Firefox148", EmulationDevice::Firefox148)?;
-    emulation_class.const_set("Firefox149", EmulationDevice::Firefox149)?;
+    profile.const_set("Firefox109", Profile::Firefox109)?;
+    profile.const_set("Firefox117", Profile::Firefox117)?;
+    profile.const_set("Firefox128", Profile::Firefox128)?;
+    profile.const_set("Firefox133", Profile::Firefox133)?;
+    profile.const_set("Firefox135", Profile::Firefox135)?;
+    profile.const_set("FirefoxPrivate135", Profile::FirefoxPrivate135)?;
+    profile.const_set("FirefoxAndroid135", Profile::FirefoxAndroid135)?;
+    profile.const_set("Firefox136", Profile::Firefox136)?;
+    profile.const_set("FirefoxPrivate136", Profile::FirefoxPrivate136)?;
+    profile.const_set("Firefox139", Profile::Firefox139)?;
+    profile.const_set("Firefox142", Profile::Firefox142)?;
+    profile.const_set("Firefox143", Profile::Firefox143)?;
+    profile.const_set("Firefox144", Profile::Firefox144)?;
+    profile.const_set("Firefox145", Profile::Firefox145)?;
+    profile.const_set("Firefox146", Profile::Firefox146)?;
+    profile.const_set("Firefox147", Profile::Firefox147)?;
+    profile.const_set("Firefox148", Profile::Firefox148)?;
+    profile.const_set("Firefox149", Profile::Firefox149)?;
 
-    emulation_class.const_set("SafariIos17_2", EmulationDevice::SafariIos17_2)?;
-    emulation_class.const_set("SafariIos17_4_1", EmulationDevice::SafariIos17_4_1)?;
-    emulation_class.const_set("SafariIos16_5", EmulationDevice::SafariIos16_5)?;
-    emulation_class.const_set("Safari15_3", EmulationDevice::Safari15_3)?;
-    emulation_class.const_set("Safari15_5", EmulationDevice::Safari15_5)?;
-    emulation_class.const_set("Safari15_6_1", EmulationDevice::Safari15_6_1)?;
-    emulation_class.const_set("Safari16", EmulationDevice::Safari16)?;
-    emulation_class.const_set("Safari16_5", EmulationDevice::Safari16_5)?;
-    emulation_class.const_set("Safari17_0", EmulationDevice::Safari17_0)?;
-    emulation_class.const_set("Safari17_2_1", EmulationDevice::Safari17_2_1)?;
-    emulation_class.const_set("Safari17_4_1", EmulationDevice::Safari17_4_1)?;
-    emulation_class.const_set("Safari17_5", EmulationDevice::Safari17_5)?;
-    emulation_class.const_set("Safari17_6", EmulationDevice::Safari17_6)?;
-    emulation_class.const_set("Safari18", EmulationDevice::Safari18)?;
-    emulation_class.const_set("SafariIPad18", EmulationDevice::SafariIPad18)?;
-    emulation_class.const_set("Safari18_2", EmulationDevice::Safari18_2)?;
-    emulation_class.const_set("Safari18_3", EmulationDevice::Safari18_3)?;
-    emulation_class.const_set("Safari18_3_1", EmulationDevice::Safari18_3_1)?;
-    emulation_class.const_set("SafariIos18_1_1", EmulationDevice::SafariIos18_1_1)?;
-    emulation_class.const_set("Safari18_5", EmulationDevice::Safari18_5)?;
-    emulation_class.const_set("Safari26", EmulationDevice::Safari26)?;
-    emulation_class.const_set("Safari26_1", EmulationDevice::Safari26_1)?;
-    emulation_class.const_set("Safari26_2", EmulationDevice::Safari26_2)?;
-    emulation_class.const_set("SafariIos26", EmulationDevice::SafariIos26)?;
-    emulation_class.const_set("SafariIos26_2", EmulationDevice::SafariIos26_2)?;
-    emulation_class.const_set("SafariIPad26", EmulationDevice::SafariIPad26)?;
-    emulation_class.const_set("SafariIpad26_2", EmulationDevice::SafariIpad26_2)?;
+    profile.const_set("SafariIos17_2", Profile::SafariIos17_2)?;
+    profile.const_set("SafariIos17_4_1", Profile::SafariIos17_4_1)?;
+    profile.const_set("SafariIos16_5", Profile::SafariIos16_5)?;
+    profile.const_set("Safari15_3", Profile::Safari15_3)?;
+    profile.const_set("Safari15_5", Profile::Safari15_5)?;
+    profile.const_set("Safari15_6_1", Profile::Safari15_6_1)?;
+    profile.const_set("Safari16", Profile::Safari16)?;
+    profile.const_set("Safari16_5", Profile::Safari16_5)?;
+    profile.const_set("Safari17_0", Profile::Safari17_0)?;
+    profile.const_set("Safari17_2_1", Profile::Safari17_2_1)?;
+    profile.const_set("Safari17_4_1", Profile::Safari17_4_1)?;
+    profile.const_set("Safari17_5", Profile::Safari17_5)?;
+    profile.const_set("Safari17_6", Profile::Safari17_6)?;
+    profile.const_set("Safari18", Profile::Safari18)?;
+    profile.const_set("SafariIPad18", Profile::SafariIPad18)?;
+    profile.const_set("Safari18_2", Profile::Safari18_2)?;
+    profile.const_set("Safari18_3", Profile::Safari18_3)?;
+    profile.const_set("Safari18_3_1", Profile::Safari18_3_1)?;
+    profile.const_set("SafariIos18_1_1", Profile::SafariIos18_1_1)?;
+    profile.const_set("Safari18_5", Profile::Safari18_5)?;
+    profile.const_set("Safari26", Profile::Safari26)?;
+    profile.const_set("Safari26_1", Profile::Safari26_1)?;
+    profile.const_set("Safari26_2", Profile::Safari26_2)?;
+    profile.const_set("SafariIos26", Profile::SafariIos26)?;
+    profile.const_set("SafariIos26_2", Profile::SafariIos26_2)?;
+    profile.const_set("SafariIPad26", Profile::SafariIPad26)?;
+    profile.const_set("SafariIpad26_2", Profile::SafariIpad26_2)?;
 
-    emulation_class.const_set("OkHttp3_9", EmulationDevice::OkHttp3_9)?;
-    emulation_class.const_set("OkHttp3_11", EmulationDevice::OkHttp3_11)?;
-    emulation_class.const_set("OkHttp3_13", EmulationDevice::OkHttp3_13)?;
-    emulation_class.const_set("OkHttp3_14", EmulationDevice::OkHttp3_14)?;
-    emulation_class.const_set("OkHttp4_9", EmulationDevice::OkHttp4_9)?;
-    emulation_class.const_set("OkHttp4_10", EmulationDevice::OkHttp4_10)?;
-    emulation_class.const_set("OkHttp4_12", EmulationDevice::OkHttp4_12)?;
-    emulation_class.const_set("OkHttp5", EmulationDevice::OkHttp5)?;
+    profile.const_set("OkHttp3_9", Profile::OkHttp3_9)?;
+    profile.const_set("OkHttp3_11", Profile::OkHttp3_11)?;
+    profile.const_set("OkHttp3_13", Profile::OkHttp3_13)?;
+    profile.const_set("OkHttp3_14", Profile::OkHttp3_14)?;
+    profile.const_set("OkHttp4_9", Profile::OkHttp4_9)?;
+    profile.const_set("OkHttp4_10", Profile::OkHttp4_10)?;
+    profile.const_set("OkHttp4_12", Profile::OkHttp4_12)?;
+    profile.const_set("OkHttp5", Profile::OkHttp5)?;
 
-    emulation_class.const_set("Opera116", EmulationDevice::Opera116)?;
-    emulation_class.const_set("Opera117", EmulationDevice::Opera117)?;
-    emulation_class.const_set("Opera118", EmulationDevice::Opera118)?;
-    emulation_class.const_set("Opera119", EmulationDevice::Opera119)?;
-    emulation_class.const_set("Opera120", EmulationDevice::Opera120)?;
-    emulation_class.const_set("Opera121", EmulationDevice::Opera121)?;
-    emulation_class.const_set("Opera122", EmulationDevice::Opera122)?;
-    emulation_class.const_set("Opera123", EmulationDevice::Opera123)?;
-    emulation_class.const_set("Opera124", EmulationDevice::Opera124)?;
-    emulation_class.const_set("Opera125", EmulationDevice::Opera125)?;
-    emulation_class.const_set("Opera126", EmulationDevice::Opera126)?;
-    emulation_class.const_set("Opera127", EmulationDevice::Opera127)?;
-    emulation_class.const_set("Opera128", EmulationDevice::Opera128)?;
-    emulation_class.const_set("Opera129", EmulationDevice::Opera129)?;
-    emulation_class.const_set("Opera130", EmulationDevice::Opera130)?;
+    profile.const_set("Opera116", Profile::Opera116)?;
+    profile.const_set("Opera117", Profile::Opera117)?;
+    profile.const_set("Opera118", Profile::Opera118)?;
+    profile.const_set("Opera119", Profile::Opera119)?;
+    profile.const_set("Opera120", Profile::Opera120)?;
+    profile.const_set("Opera121", Profile::Opera121)?;
+    profile.const_set("Opera122", Profile::Opera122)?;
+    profile.const_set("Opera123", Profile::Opera123)?;
+    profile.const_set("Opera124", Profile::Opera124)?;
+    profile.const_set("Opera125", Profile::Opera125)?;
+    profile.const_set("Opera126", Profile::Opera126)?;
+    profile.const_set("Opera127", Profile::Opera127)?;
+    profile.const_set("Opera128", Profile::Opera128)?;
+    profile.const_set("Opera129", Profile::Opera129)?;
+    profile.const_set("Opera130", Profile::Opera130)?;
 
-    // EmulationOS enum binding
-    let emulation_os_class = gem_module.define_class("EmulationOS", ruby.class_object())?;
-    emulation_os_class.define_method("to_s", method!(EmulationOS::to_s, 0))?;
-    emulation_os_class.const_set("Windows", EmulationOS::Windows)?;
-    emulation_os_class.const_set("MacOS", EmulationOS::MacOS)?;
-    emulation_os_class.const_set("Linux", EmulationOS::Linux)?;
-    emulation_os_class.const_set("Android", EmulationOS::Android)?;
-    emulation_os_class.const_set("IOS", EmulationOS::IOS)?;
+    // Platform enum binding
+    let platform = gem_module.define_class("Platform", ruby.class_object())?;
+    platform.define_method("to_s", method!(Platform::to_s, 0))?;
+    platform.const_set("Windows", Platform::Windows)?;
+    platform.const_set("MacOS", Platform::MacOS)?;
+    platform.const_set("Linux", Platform::Linux)?;
+    platform.const_set("Android", Platform::Android)?;
+    platform.const_set("IOS", Platform::IOS)?;
 
     // Emulation class binding
-    let emulation_option_class = gem_module.define_class("Emulation", ruby.class_object())?;
-    emulation_option_class.define_singleton_method("new", function!(Emulation::new, -1))?;
+    let emulation = gem_module.define_class("Emulation", ruby.class_object())?;
+    emulation.define_singleton_method("new", function!(Emulation::new, -1))?;
     Ok(())
 }

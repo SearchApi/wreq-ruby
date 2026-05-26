@@ -134,13 +134,13 @@ end
 module Wreq
   class StatusCode
     def inspect
-      "#<Wreq::StatusCode #{to_s}>"
+      "#<Wreq::StatusCode #{self}>"
     end
   end
 
   class Version
     def inspect
-      "#<Wreq::Version #{to_s}>"
+      "#<Wreq::Version #{self}>"
     end
   end
 end
