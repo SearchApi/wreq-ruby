@@ -2,14 +2,17 @@ use std::{net::SocketAddr, sync::Arc};
 
 use arc_swap::ArcSwapOption;
 use bytes::Bytes;
-use futures_util::TryFutureExt;
+use futures_util::{StreamExt, TryFutureExt};
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RArray, RModule, Ruby, Value, block::Yield, scan_args::scan_args};
+use magnus::{
+    Error, IntoValue, Module, RArray, RModule, Ruby, Value, block::Proc, scan_args::scan_args,
+    value::ReprValue,
+};
 use wreq::Uri;
 
 use crate::{
-    client::body::{BodyReceiver, Json},
+    client::body::Json,
     cookie::Cookie,
     error::{memory_error, wreq_error_to_magnus},
     gvl,
@@ -17,6 +20,22 @@ use crate::{
     http::{StatusCode, Version},
     rt,
 };
+
+// RAII wrapper that calls rb_gc_unregister_address on drop, ensuring the GC
+// registration is always cleaned up regardless of how the scope exits (normal
+// return, early error return via `?`, or panic).
+struct GcGuard(*mut rb_sys::VALUE);
+
+impl Drop for GcGuard {
+    fn drop(&mut self) {
+        unsafe { rb_sys::rb_gc_unregister_address(self.0) }
+    }
+}
+
+// SAFETY: GcGuard is only ever created while holding the GVL, and its Drop
+// runs either on the same thread or inside with_gvl (also GVL-held).
+// The pointer it holds is into a Box that outlives the guard.
+unsafe impl Send for GcGuard {}
 
 /// A response from a request.
 #[magnus::wrap(class = "Wreq::Response", free_immediately, size)]
@@ -199,12 +218,112 @@ impl Response {
         })
     }
 
-    /// Get a chunk iterator for the response body.
-    pub fn chunks(&self) -> Result<Yield<BodyReceiver>, Error> {
-        self.response(true)
-            .map(wreq::Response::bytes_stream)
-            .map(BodyReceiver::new)
-            .map(Yield::Iter)
+    /// Stream the response body, yielding each chunk to the given block with
+    /// proper GVL management.
+    ///
+    /// The iteration loop is driven from Rust:
+    /// 1. GVL is released while waiting for the next chunk (network I/O)
+    /// 2. GVL is re-acquired to yield the chunk to the Ruby block
+    /// 3. GVL is released again for the next I/O operation
+    ///
+    /// This allows other Ruby threads to run during network I/O, and ensures
+    /// streaming errors are properly propagated instead of silently swallowed.
+    pub fn chunks(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
+        if unsafe { rb_sys::rb_block_given_p() == 0 } {
+            return Err(Error::new(
+                ruby.exception_local_jump_error(),
+                "no block given (yield)",
+            ));
+        }
+
+        // FIX (issue 3): response() is called FIRST, before any GC registration.
+        // If it fails and returns Err, we exit here without ever registering
+        // anything — so there is nothing to unregister.
+        let response = rb_self.response(true)?;
+        let stream = response.bytes_stream();
+
+        // Heap-allocate the block VALUE so rb_gc_register_address has a stable
+        // address to track. GcGuard guarantees rb_gc_unregister_address is called
+        // on every exit path (FIX issues 3 and 5).
+        let mut block_raw = Box::new(unsafe { rb_sys::rb_block_proc() });
+        let block_ptr: *mut rb_sys::VALUE = block_raw.as_mut();
+        unsafe { rb_sys::rb_gc_register_address(block_ptr) };
+        let _gc_guard = GcGuard(block_ptr); // dropped at end of scope unconditionally
+
+        // FIX (issue 2): capture the heap address as `usize` (Copy + Send) rather
+        // than as `*mut VALUE` (!Send). The pointer is reconstructed inside the
+        // loop, only when needed, from within a with_gvl callback.
+        let block_addr: usize = block_ptr as usize;
+
+        // Drive the streaming loop without the GVL.
+        // FIX (issue 1): `ruby: &Ruby` is NOT moved into the async block.
+        // The Ruby handle is obtained fresh via Ruby::get() inside with_gvl,
+        // where we are guaranteed to hold the GVL. Capturing &Ruby across
+        // GVL releases is semantically wrong even though Ruby is a ZST.
+        let result = gvl::nogvl_cancellable(|flag| {
+            rt::runtime().block_on(async move {
+                let mut stream = Box::pin(stream);
+                loop {
+                    let chunk = tokio::select! {
+                        biased;
+                        _ = flag.cancelled() => return Err(crate::error::interrupt_error()),
+                            result = stream.next() => result,
+                    };
+
+                    match chunk {
+                        Some(Ok(bytes)) => {
+                            // FIX (issue 2): reconstruct the pointer from usize here,
+                            // inside the closure, rather than at capture time.
+                            // Read the current VALUE — GC compaction may have updated
+                            // the referent via the registered address.
+                            let current_block_raw =
+                            unsafe { *(block_addr as *const rb_sys::VALUE) };
+
+                            let yield_result: Result<(), Error> =
+                            tokio::task::block_in_place(|| {
+                                gvl::with_gvl(|| {
+                                    // FIX (issue 1): obtain Ruby handle fresh now
+                                    // that we hold the GVL. Never use a captured
+                                    // &Ruby across a GVL release.
+                                    let ruby = magnus::Ruby::get()
+                                        .expect("Ruby::get() failed inside with_gvl — GVL not held as expected");
+
+                                    let block_value = unsafe {
+                                        magnus::rb_sys::FromRawValue::from_raw(
+                                            current_block_raw,
+                                        )
+                                    };
+
+                                    // FIX (issue 6): accurate error message.
+                                    // This path means VALUE reconstruction failed,
+                                    // not that GC collected the block (the GcGuard
+                                    // prevents that).
+                                    let block =
+                                    Proc::from_value(block_value).ok_or_else(|| {
+                                        Error::new(
+                                            ruby.exception_runtime_error(),
+                                            "invalid block VALUE: reconstruction failed \
+                                                (this is a wreq-ruby bug, not GC collection)",
+                                        )
+                                    })?;
+
+                                    let chunk_value = bytes.into_value_with(&ruby);
+                                    block.call::<_, Value>((chunk_value,))?;
+                                    Ok(())
+                                })
+                            });
+                            yield_result?;
+                        }
+                        Some(Err(e)) => return Err(wreq_error_to_magnus(e)),
+                        None => return Ok(()),
+                    }
+                }
+            })
+        });
+        // _gc_guard drops here — rb_gc_unregister_address called unconditionally.
+
+        result?;
+        Ok(ruby.qnil().as_value())
     }
 
     /// Close the response body, dropping any resources.

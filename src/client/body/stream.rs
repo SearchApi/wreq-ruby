@@ -5,20 +5,11 @@ use std::{
 };
 
 use bytes::Bytes;
-use futures_util::{Stream, StreamExt, TryFutureExt};
+use futures_util::{Stream, TryFutureExt};
 use magnus::{Error, RString, TryConvert, Value};
-use tokio::sync::{
-    Mutex,
-    mpsc::{self},
-};
+use tokio::sync::mpsc;
 
-use crate::{
-    error::{memory_error, mpsc_send_error_to_magnus},
-    rt,
-};
-
-/// A receiver for streaming HTTP response bodies.
-pub struct BodyReceiver(Mutex<Pin<Box<dyn Stream<Item = wreq::Result<Bytes>> + Send>>>);
+use crate::error::{memory_error, mpsc_send_error_to_magnus};
 
 /// A sender for streaming HTTP request bodies.
 #[magnus::wrap(class = "Wreq::BodySender", free_immediately, size)]
@@ -27,32 +18,6 @@ pub struct BodySender(RwLock<InnerBodySender>);
 struct InnerBodySender {
     tx: Option<mpsc::Sender<Bytes>>,
     rx: Option<mpsc::Receiver<Bytes>>,
-}
-
-// ===== impl BodyReceiver =====
-
-impl BodyReceiver {
-    /// Create a new [`BodyReceiver`] instance.
-    #[inline]
-    pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> BodyReceiver {
-        BodyReceiver(Mutex::new(Box::pin(stream)))
-    }
-}
-
-impl Iterator for BodyReceiver {
-    type Item = Bytes;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        rt::maybe_block_on(async {
-            self.0
-                .lock()
-                .await
-                .as_mut()
-                .next()
-                .await
-                .and_then(|r| r.ok())
-        })
-    }
 }
 
 // ===== impl BodySender =====
@@ -78,7 +43,7 @@ impl BodySender {
         let bytes = data.to_bytes();
         let inner = rb_self.0.read().unwrap();
         if let Some(ref tx) = inner.tx {
-            rt::try_block_on(tx.send(bytes).map_err(mpsc_send_error_to_magnus))?;
+            crate::rt::try_block_on(tx.send(bytes).map_err(mpsc_send_error_to_magnus))?;
         }
         Ok(())
     }

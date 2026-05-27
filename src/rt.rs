@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::LazyLock;
 
 use tokio::runtime::{Builder, Runtime};
@@ -11,6 +12,11 @@ static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
         .expect("Failed to initialize Tokio runtime")
 });
 
+/// Returns a reference to the global Tokio runtime.
+pub(crate) fn runtime() -> &'static Runtime {
+    &RUNTIME
+}
+
 /// Block on a future to completion on the global Tokio runtime,
 /// with support for cancellation via the provided `CancelFlag`.
 pub fn try_block_on<F, T>(future: F) -> F::Output
@@ -22,24 +28,6 @@ where
             tokio::select! {
                 biased;
                 _ = flag.cancelled() => Err(interrupt_error()),
-                result = future => result,
-            }
-        })
-    })
-}
-
-/// Block on a future to completion on the global Tokio runtime,
-/// returning `None` if cancelled via the provided `CancelFlag`.
-#[inline]
-pub fn maybe_block_on<F, T>(future: F) -> F::Output
-where
-    F: Future<Output = Option<T>>,
-{
-    gvl::nogvl_cancellable(|flag| {
-        RUNTIME.block_on(async move {
-            tokio::select! {
-                biased;
-                _ = flag.cancelled() => None,
                 result = future => result,
             }
         })

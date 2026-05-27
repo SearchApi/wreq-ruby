@@ -12,7 +12,7 @@ use magnus::{
 pub use self::{
     form::Form,
     json::Json,
-    stream::{BodyReceiver, BodySender, ReceiverStream},
+    stream::{BodySender, ReceiverStream},
 };
 
 /// Represents the body of an HTTP request.
