@@ -77,37 +77,59 @@ unsafe extern "C" fn unblock_func(arg: *mut c_void) {
     }
 }
 
+// ── Separate arg container for with_gvl ──────────────────────────────────────
+//
+// Uses Option<R> instead of MaybeUninit<R>. If the closure panics and never
+// writes a result, args.result stays None and the subsequent .expect() gives a
+// clear panic message rather than reading uninitialized memory (which would be
+// UB). The FFI unwind is still UB, but this is the best we can do short of
+// catching the panic before the FFI boundary.
+
+struct GvlArgs<F, R> {
+    func: Option<F>,
+    result: Option<R>,
+}
+
+unsafe extern "C" fn call_with_gvl<F, R>(arg: *mut c_void) -> *mut c_void
+where
+    F: FnOnce() -> R,
+{
+    let args = unsafe { &mut *(arg as *mut GvlArgs<F, R>) };
+    let func = args.func.take().expect("call_with_gvl called twice");
+    args.result = Some(func());
+    null_mut()
+}
+
 /// Executes the given closure while holding the Ruby GVL.
 ///
-/// This must be called from a context where the GVL has been released
+/// Must be called from a context where the GVL has been released
 /// (e.g., inside a [`nogvl`] or [`nogvl_cancellable`] callback).
-/// It re-acquires the GVL, executes the closure, then releases the GVL again
-/// before returning.
-///
-/// This is the counterpart to [`nogvl`] / [`nogvl_cancellable`]:
-/// - [`nogvl`] / [`nogvl_cancellable`] release the GVL for I/O
-/// - `with_gvl` re-acquires it for Ruby callbacks
+/// Re-acquires the GVL, runs the closure, then releases it again.
 ///
 /// # Safety
 ///
-/// The closure MUST NOT panic. A panic would unwind through the
-/// `rb_thread_call_with_gvl` FFI boundary, which is undefined behavior.
+/// The closure MUST NOT panic. A panic unwinds through the FFI boundary,
+/// which is undefined behavior. Unlike `nogvl` (which uses `MaybeUninit`),
+/// this uses `Option<R>` so a failed result produces a clear `.expect()`
+/// message rather than silent UB — but the FFI unwind remains UB regardless.
 pub fn with_gvl<F, R>(func: F) -> R
 where
     F: FnOnce() -> R,
     R: Sized,
 {
-    let mut args = Args {
+    let mut args = GvlArgs {
         func: Some(func),
-        result: MaybeUninit::uninit(),
+        result: None,
     };
 
     let arg_ptr = &mut args as *mut _ as *mut c_void;
 
     unsafe {
-        rb_thread_call_with_gvl(Some(call_without_gvl::<F, R>), arg_ptr);
-        args.result.assume_init()
+        rb_thread_call_with_gvl(Some(call_with_gvl::<F, R>), arg_ptr);
     }
+
+    args.result
+        .expect("with_gvl: closure did not produce a result (panic crossed FFI boundary?)")
 }
 
 /// Executes the given closure without holding the Ruby GVL (Global VM Lock).
