@@ -92,7 +92,7 @@ struct Builder {
     /// Sets the maximum idle connection per host allowed in the pool.
     pool_max_idle_per_host: Option<usize>,
     /// Sets the maximum number of connections in the pool.
-    pool_max_size: Option<u32>,
+    pool_max_size: Option<usize>,
 
     // ========= Protocol options =========
     /// Whether to use the HTTP/1 protocol only.
@@ -139,17 +139,6 @@ impl Builder {
     fn new(ruby: &magnus::Ruby, keyword: Value) -> Result<Self, magnus::Error> {
         if let Ok(hash) = RHash::try_convert(keyword) {
             let mut builder: Self = serde_magnus::deserialize(ruby, hash)?;
-            // extra emulation handling
-            if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
-                let obj = Obj::<Emulation>::try_convert(v)?;
-                builder.emulation = Some((*obj).clone());
-            }
-
-            // extra cookie store handling
-            if let Some(jar) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
-                let obj = Obj::<Jar>::try_convert(jar)?;
-                builder.cookie_provider = Some((*obj).clone());
-            }
 
             // extra user agent handling
             builder.user_agent = Extractor::<HeaderValue>::try_convert(keyword)?.into_inner();
@@ -162,6 +151,17 @@ impl Builder {
 
             // extra proxy handling
             builder.proxy = Extractor::<Proxy>::try_convert(keyword)?.into_inner();
+
+            // extra emulation handling
+            if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
+                let emulation_obj = Obj::<Emulation>::try_convert(v)?;
+                builder.emulation = Some((*emulation_obj).clone());
+            }
+
+            // extra cookie store handling
+            if let Some(jar) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
+                builder.cookie_provider = Some((*Obj::<Jar>::try_convert(jar)?).clone());
+            }
 
             return Ok(builder);
         }
@@ -296,7 +296,7 @@ impl Client {
                 apply_option!(set_if_some, builder, params.https_only, https_only);
 
                 // TLS options.
-                apply_option!(set_if_some, builder, params.verify, cert_verification);
+                apply_option!(set_if_some, builder, params.verify, tls_cert_verification);
 
                 // Network options.
                 apply_option!(set_if_some, builder, params.proxy, proxy);

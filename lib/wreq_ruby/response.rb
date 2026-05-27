@@ -88,26 +88,16 @@ unless defined?(Wreq)
       def bytes
       end
 
-      # Get the response body as text.
-      #
-      # @return [String] Response body decoded as UTF-8 text
-      # @example
-      #   html = response.text
-      #   puts html
-      # @raise [Wreq::DecodingError] if body cannot be decoded as binary
-      def text
-      end
-
       # Get the response body as text with a specific charset.
       # This method allows you to specify a default encoding
       # to use when decoding the response body.
       # # @param default_encoding [String] Default encoding to use (e.g., "UTF-8")
       # # @return [String] Response body decoded as text using the specified encoding
       # @example
-      #   html = response.text_with_charset("ISO-8859-1")
+      #   html = response.text("ISO-8859-1")
       #   puts html
       # @raise [Wreq::DecodingError] if body cannot be decoded with the specified encoding
-      def text_with_charset(default_encoding)
+      def text(default_encoding: "UTF-8")
       end
 
       # Parse the response body as JSON.
@@ -156,27 +146,35 @@ end
 
 module Wreq
   class Response
-    # Returns a compact string representation of the response.
+    # Returns the response body as a string.
+    #
+    # @return [String] Response body text
+    # @example
+    #   puts response.to_s
+    #   puts response
+    #   File.write("page.html", response)
+    def to_s
+      text
+    end
+
+    # Returns a compact string representation for debugging.
     #
     # Format: #<Wreq::Response STATUS content-type="..." body=SIZE>
     #
     # @return [String] Compact formatted response information
     # @example
-    #   puts response.to_s
+    #   p response
     #   # => #<Wreq::Response 200 content-type="application/json" body=456B>
-    def to_s
+    def inspect
       parts = ["#<Wreq::Response"]
 
-      # Status code
       parts << code.to_s
 
-      # Content-Type header if present
       if headers.respond_to?(:get)
         content_type = headers.get("content-type")
         parts << "content-type=#{content_type.inspect}" if content_type
       end
 
-      # Body size
       if content_length
         parts << "body=#{format_bytes(content_length)}"
       end

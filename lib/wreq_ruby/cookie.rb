@@ -114,18 +114,11 @@ unless defined?(Wreq)
       def get_all
       end
 
-      # Add a cookie object for the given URL.
-      # @param cookie [Wreq::Cookie]
-      # @param url [String]
-      # @return [void]
-      def add_cookie(cookie, url)
-      end
-
       # Add a cookie from a Set-Cookie string for the given URL.
-      # @param cookie [String] A Set-Cookie string
+      # @param cookie [String, Wreq::Cookie] A Set-Cookie string
       # @param url [String]
       # @return [void]
-      def add_cookie_str(cookie, url)
+      def add(cookie, url)
       end
 
       # Remove a cookie by name for the given URL.
@@ -139,6 +132,25 @@ unless defined?(Wreq)
       # @return [void]
       def clear
       end
+    end
+  end
+end
+
+module Wreq
+  class Cookie
+    def inspect
+      parts = ["#<Wreq::Cookie", name]
+      parts << "domain=#{domain}" if domain
+      parts << "path=#{path}" if path
+      parts << "secure" if secure?
+      parts << "http_only" if http_only?
+      parts.join(" ") + ">"
+    end
+  end
+
+  class Jar
+    def inspect
+      "#<Wreq::Jar [#{get_all.length} cookies]>"
     end
   end
 end

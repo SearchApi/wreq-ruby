@@ -1,13 +1,14 @@
 use std::{fmt, sync::Arc, time::SystemTime};
 
+use bytes::Bytes;
 use cookie::{Cookie as RawCookie, Expiration, ParseError, time::Duration};
 use magnus::{
-    Error, Module, Object, RModule, Ruby, Value, function, method, typed_data::Obj,
-    value::ReprValue,
+    Error, Module, Object, RHash, RModule, RString, Ruby, TryConvert, Value, function, method,
+    r_hash::ForEach, typed_data::Obj, value::ReprValue,
 };
 use wreq::header::{self, HeaderMap, HeaderValue};
 
-use crate::gvl;
+use crate::{error::header_value_error_to_magnus, gvl};
 
 define_ruby_enum!(
     /// The Cookie SameSite attribute.
@@ -24,6 +25,10 @@ define_ruby_enum!(
 #[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Cookie", free_immediately, size)]
 pub struct Cookie(RawCookie<'static>);
+
+/// A collection of HTTP cookies.
+#[derive(Default)]
+pub struct Cookies(pub Vec<HeaderValue>);
 
 /// A good default `CookieStore` implementation.
 ///
@@ -197,6 +202,45 @@ impl fmt::Display for Cookie {
     }
 }
 
+// ===== impl Cookies =====
+
+impl TryConvert for Cookies {
+    fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
+        let ruby = Ruby::get_with(value);
+        let rhash = RHash::try_convert(value)?;
+
+        // try extract uncompressed cookies
+        if let Some(hash) = rhash
+            .get(ruby.to_symbol(stringify!(cookies)))
+            .and_then(RHash::from_value)
+        {
+            let mut cookies = Vec::new();
+            hash.foreach(|name: RString, value: RString| {
+                let cookie = format!("{name}={value}");
+                let header_value = HeaderValue::from_maybe_shared(Bytes::from(cookie))
+                    .map_err(header_value_error_to_magnus)?;
+                cookies.push(header_value);
+                Ok(ForEach::Continue)
+            })?;
+
+            return Ok(Self(cookies));
+        }
+
+        // try extract compressed cookies
+        if let Some(cookies) = rhash
+            .get(ruby.to_symbol(stringify!(cookies)))
+            .and_then(RString::from_value)
+        {
+            return Ok(Self(vec![
+                HeaderValue::from_maybe_shared(Bytes::from(cookies.to_string()?))
+                    .map_err(header_value_error_to_magnus)?,
+            ]));
+        }
+
+        Ok(Self::default())
+    }
+}
+
 // ===== impl Jar =====
 
 impl Jar {
@@ -221,13 +265,14 @@ impl Jar {
     }
 
     /// Add a cookie to this jar.
-    pub fn add_cookie(&self, cookie: &Cookie, url: String) {
-        gvl::nogvl(|| self.0.add(cookie.0.clone(), &url))
-    }
+    pub fn add(&self, cookie: Value, url: String) {
+        if let Ok(cookie) = Obj::<Cookie>::try_convert(cookie) {
+            gvl::nogvl(|| self.0.add(cookie.0.clone(), &url))
+        }
 
-    /// Add a cookie str to this jar.
-    pub fn add_cookie_str(&self, cookie: String, url: String) {
-        gvl::nogvl(|| self.0.add(cookie.as_ref(), &url))
+        if let Ok(cookie_str) = String::try_convert(cookie) {
+            gvl::nogvl(|| self.0.add(cookie_str.as_ref(), &url))
+        }
     }
 
     /// Remove a cookie from this jar by name and URL.
@@ -268,8 +313,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     let jar_class = gem_module.define_class("Jar", ruby.class_object())?;
     jar_class.define_singleton_method("new", function!(Jar::new, 0))?;
     jar_class.define_method("get_all", method!(Jar::get_all, 0))?;
-    jar_class.define_method("add_cookie", method!(Jar::add_cookie, 2))?;
-    jar_class.define_method("add_cookie_str", method!(Jar::add_cookie_str, 2))?;
+    jar_class.define_method("add", method!(Jar::add, 2))?;
     jar_class.define_method("remove", method!(Jar::remove, 2))?;
     jar_class.define_method("clear", method!(Jar::clear, 0))?;
 

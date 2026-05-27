@@ -1,6 +1,6 @@
 use std::{net::IpAddr, time::Duration};
 
-use http::{HeaderValue, header};
+use http::header;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
 use serde::Deserialize;
 use wreq::{
@@ -11,6 +11,7 @@ use wreq::{
 use super::body::{Body, Form, Json};
 use crate::{
     client::{query::Query, resp::Response},
+    cookie::Cookies,
     emulate::Emulation,
     error::wreq_error_to_magnus,
     extractor::Extractor,
@@ -59,7 +60,7 @@ pub struct Request {
 
     /// The cookies to use for the request.
     #[serde(skip)]
-    cookies: Option<Vec<HeaderValue>>,
+    cookies: Option<Cookies>,
 
     /// Whether to allow redirects.
     allow_redirects: Option<bool>,
@@ -108,17 +109,6 @@ impl Request {
         let kwargs = hash.as_value();
         let mut builder: Self = serde_magnus::deserialize(ruby, kwargs)?;
 
-        // extra emulation handling
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
-            let obj = Obj::<Emulation>::try_convert(v)?;
-            builder.emulation = Some((*obj).clone());
-        }
-
-        // extra body handling
-        if let Some(body) = hash.get(ruby.to_symbol(stringify!(body))) {
-            builder.body = Some(Body::try_convert(body)?);
-        }
-
         // extra version handling
         builder.version = Extractor::<Version>::try_convert(kwargs)?.into_inner();
 
@@ -129,10 +119,21 @@ impl Request {
         builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(kwargs)?.into_inner();
 
         // extra cookies handling
-        builder.cookies = Extractor::<Vec<HeaderValue>>::try_convert(kwargs)?.into_inner();
+        builder.cookies = Cookies::try_convert(kwargs).map(Some)?;
 
         // extra proxy handling
         builder.proxy = Extractor::<Proxy>::try_convert(kwargs)?.into_inner();
+
+        // extra emulation handling
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
+            let emulation_obj = Obj::<Emulation>::try_convert(v)?;
+            builder.emulation = Some((*emulation_obj).clone());
+        }
+
+        // extra body handling
+        if let Some(body) = hash.get(ruby.to_symbol(stringify!(body))) {
+            builder.body = Some(Body::try_convert(body)?);
+        }
 
         Ok(builder)
     }
@@ -199,7 +200,7 @@ pub fn execute_request<U: AsRef<str>>(
 
         // Cookies options.
         if let Some(cookies) = request.cookies.take() {
-            for cookie in cookies {
+            for cookie in cookies.0 {
                 builder = builder.header(header::COOKIE, cookie);
             }
         }

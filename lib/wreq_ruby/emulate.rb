@@ -1,15 +1,19 @@
 # frozen_string_literal: true
 
 module Wreq
-  # Device emulation enumeration backed by Rust.
+  # Browser and client fingerprint profile enumeration backed by Rust.
   #
   # Variants are exposed as constants under this class.
-  # Each constant is an instance of {Wreq::EmulationDevice}.
+  # Each constant is an instance of {Wreq::Profile} and can be passed to
+  # {Wreq::Emulation.new} via the `profile:` keyword.
   #
-  # @example Using predefined constants
-  #   device = Wreq::EmulationDevice::Chrome117
-  #   device.class #=> Wreq::EmulationDevice
-  class EmulationDevice
+  # @example Using a predefined profile
+  #   profile = Wreq::Profile::Chrome117
+  #   profile.class #=> Wreq::Profile
+  #
+  # @example Applying a profile to emulation
+  #   emu = Wreq::Emulation.new(profile: Wreq::Profile::Chrome117)
+  class Profile
     # Constants are set by the native extension at initialization.
     # These stubs are for documentation only.
     unless const_defined?(:Chrome100)
@@ -146,22 +150,26 @@ module Wreq
     end
 
     unless method_defined?(:to_s)
-      # Returns a string representation of the emulation device.
-      # @return [String] Emulation device as string
+      # Returns the profile name.
+      # @return [String] Profile name as a string
       def to_s
       end
     end
   end
 
-  # Operating system emulation enumeration backed by Rust.
+  # Operating system platform enumeration backed by Rust.
   #
   # Variants are exposed as constants under this class.
-  # Each constant is an instance of {Wreq::EmulationOS}.
+  # Each constant is an instance of {Wreq::Platform} and can be passed to
+  # {Wreq::Emulation.new} via the `platform:` keyword.
   #
-  # @example Using predefined constants
-  #   os = Wreq::EmulationOS::Windows
-  #   os.class #=> Wreq::EmulationOS
-  class EmulationOS
+  # @example Using a predefined platform
+  #   platform = Wreq::Platform::Windows
+  #   platform.class #=> Wreq::Platform
+  #
+  # @example Applying a platform to emulation
+  #   emu = Wreq::Emulation.new(platform: Wreq::Platform::Windows)
+  class Platform
     # Constants are set by the native extension at initialization.
     # These stubs are for documentation only.
     unless const_defined?(:Windows)
@@ -173,8 +181,8 @@ module Wreq
     end
 
     unless method_defined?(:to_s)
-      # Returns a string representation of the emulation OS.
-      # @return [String] Emulation OS as string
+      # Returns the platform name.
+      # @return [String] Platform name as a string
       def to_s
       end
     end
@@ -182,26 +190,34 @@ module Wreq
 
   # Emulation option wrapper.
   #
-  # This class wraps device and OS emulation options and provides
-  # a unified interface for browser environment simulation.
-  # The actual implementation is provided by Rust for performance.
+  # This class combines a fingerprint `profile`, an OS `platform`, and toggles
+  # for HTTP/2 and automatic default headers. The actual implementation is
+  # provided by Rust.
+  #
+  # `profile:` defaults to the library's default profile when omitted.
+  # `platform:` defaults to the library's default platform when omitted.
   #
   # @example Create an emulation option
-  #   emu = Wreq::Emulation.new(device: Wreq::EmulationDevice::Chrome117, os: Wreq::EmulationOS::Windows)
+  #   emu = Wreq::Emulation.new(
+  #     profile: Wreq::Profile::Chrome117,
+  #     platform: Wreq::Platform::Windows,
+  #     http2: true,
+  #     headers: true
+  #   )
   #
-  # @param device [Wreq::EmulationDevice] Device profile (optional)
-  # @param os [Wreq::EmulationOS] Operating system profile (optional)
-  # @param skip_http2 [Boolean] Whether to skip HTTP/2 (optional)
-  # @param skip_headers [Boolean] Whether to skip default headers (optional)
+  # @param profile [Wreq::Profile, nil] Fingerprint profile to emulate
+  # @param platform [Wreq::Platform, nil] Operating system platform to emulate
+  # @param http2 [Boolean] Whether HTTP/2 support is enabled
+  # @param headers [Boolean] Whether default emulation headers are enabled
   class Emulation
     # Native fields and methods are set by the extension.
     # This stub is for documentation only.
     unless method_defined?(:new)
-      # @param device [Wreq::EmulationDevice] Device profile (optional)
-      # @param os [Wreq::EmulationOS] Operating system profile (optional)
-      # @param skip_http2 [Boolean] Whether to skip HTTP/2 (optional)
-      # @param skip_headers [Boolean] Whether to skip default headers (optional)
-      def self.new(device: nil, os: nil, skip_http2: false, skip_headers: false)
+      # @param profile [Wreq::Profile, nil] Fingerprint profile to emulate
+      # @param platform [Wreq::Platform, nil] Operating system platform to emulate
+      # @param http2 [Boolean] Whether HTTP/2 support is enabled
+      # @param headers [Boolean] Whether default emulation headers are enabled
+      def self.new(profile: nil, platform: nil, http2: true, headers: true)
       end
     end
 
