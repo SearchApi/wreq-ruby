@@ -3,7 +3,7 @@
 
 use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
-use rb_sys::rb_thread_call_without_gvl;
+use rb_sys::{rb_thread_call_with_gvl, rb_thread_call_without_gvl};
 use tokio::sync::watch;
 
 /// Container for safely passing closure and result through C callback.
@@ -74,6 +74,39 @@ unsafe extern "C" fn unblock_func(arg: *mut c_void) {
     if !arg.is_null() {
         let data = unsafe { &*(arg as *const UnblockData) };
         data.sender.cancel();
+    }
+}
+
+/// Executes the given closure while holding the Ruby GVL.
+///
+/// This must be called from a context where the GVL has been released
+/// (e.g., inside a [`nogvl`] or [`nogvl_cancellable`] callback).
+/// It re-acquires the GVL, executes the closure, then releases the GVL again
+/// before returning.
+///
+/// This is the counterpart to [`nogvl`] / [`nogvl_cancellable`]:
+/// - [`nogvl`] / [`nogvl_cancellable`] release the GVL for I/O
+/// - `with_gvl` re-acquires it for Ruby callbacks
+///
+/// # Safety
+///
+/// The closure MUST NOT panic. A panic would unwind through the
+/// `rb_thread_call_with_gvl` FFI boundary, which is undefined behavior.
+pub fn with_gvl<F, R>(func: F) -> R
+where
+    F: FnOnce() -> R,
+    R: Sized,
+{
+    let mut args = Args {
+        func: Some(func),
+        result: MaybeUninit::uninit(),
+    };
+
+    let arg_ptr = &mut args as *mut _ as *mut c_void;
+
+    unsafe {
+        rb_thread_call_with_gvl(Some(call_without_gvl::<F, R>), arg_ptr);
+        args.result.assume_init()
     }
 }
 

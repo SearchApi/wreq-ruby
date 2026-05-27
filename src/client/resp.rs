@@ -2,14 +2,17 @@ use std::{net::SocketAddr, sync::Arc};
 
 use arc_swap::ArcSwapOption;
 use bytes::Bytes;
-use futures_util::TryFutureExt;
+use futures_util::{StreamExt, TryFutureExt};
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RArray, RModule, Ruby, Value, block::Yield, scan_args::scan_args};
+use magnus::{
+    Error, IntoValue, Module, RArray, RModule, Ruby, Value, block::Proc, scan_args::scan_args,
+    value::ReprValue,
+};
 use wreq::Uri;
 
 use crate::{
-    client::body::{BodyReceiver, Json},
+    client::body::Json,
     cookie::Cookie,
     error::{memory_error, wreq_error_to_magnus},
     gvl,
@@ -199,12 +202,95 @@ impl Response {
         })
     }
 
-    /// Get a chunk iterator for the response body.
-    pub fn chunks(&self) -> Result<Yield<BodyReceiver>, Error> {
-        self.response(true)
-            .map(wreq::Response::bytes_stream)
-            .map(BodyReceiver::new)
-            .map(Yield::Iter)
+    /// Stream the response body, yielding each chunk to the given block with
+    /// proper GVL management.
+    ///
+    /// The iteration loop is driven from Rust:
+    /// 1. GVL is released while waiting for the next chunk (network I/O)
+    /// 2. GVL is re-acquired to yield the chunk to the Ruby block
+    /// 3. GVL is released again for the next I/O operation
+    ///
+    /// This allows other Ruby threads to run during network I/O, and ensures
+    /// streaming errors are properly propagated instead of silently swallowed.
+    pub fn chunks(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
+        // Check for a block argument using the Ruby C API.
+        // rb_block_given_p() returns c_int: 1 if block given, 0 otherwise.
+        if unsafe { rb_sys::rb_block_given_p() == 0 } {
+            return Err(Error::new(
+                ruby.exception_local_jump_error(),
+                "no block given (yield)",
+            ));
+        }
+
+        // Heap-allocate the block VALUE for a stable address that can be
+        // registered with Ruby's GC. This prevents the Proc from being
+        // collected while the GVL is released during I/O.
+        let mut block_raw = Box::new(unsafe { rb_sys::rb_block_proc() });
+        let block_ptr: *mut rb_sys::VALUE = block_raw.as_mut();
+
+        unsafe {
+            rb_sys::rb_gc_register_address(block_ptr);
+        }
+
+        let response = rb_self.response(true)?;
+        let stream = response.bytes_stream();
+
+        // Drive the streaming loop inside a single nogvl_cancellable call,
+        // using with_gvl to re-acquire the GVL only for Ruby block yields.
+        let result = gvl::nogvl_cancellable(|flag| {
+            rt::runtime().block_on(async move {
+                let mut stream = Box::pin(stream);
+                loop {
+                    let chunk = tokio::select! {
+                        biased;
+                        _ = flag.cancelled() => return Err(crate::error::interrupt_error()),
+                        result = stream.next() => result,
+                    };
+
+                    match chunk {
+                        Some(Ok(bytes)) => {
+                            // Read the current VALUE (GC compaction may have
+                            // updated it via the registered address).
+                            let current_block_raw = unsafe { *block_ptr };
+                            // Re-acquire GVL to yield chunk to the Ruby block.
+                            // Wrap in block_in_place to tell Tokio this thread
+                            // will block, so it can schedule other tasks.
+                            let yield_result: Result<(), Error> =
+                                tokio::task::block_in_place(|| {
+                                    gvl::with_gvl(|| {
+                                        let block_value = unsafe {
+                                            magnus::rb_sys::FromRawValue::from_raw(
+                                                current_block_raw,
+                                            )
+                                        };
+                                        let block =
+                                            Proc::from_value(block_value).ok_or_else(|| {
+                                                Error::new(
+                                                    ruby.exception_runtime_error(),
+                                                    "block was garbage collected",
+                                                )
+                                            })?;
+                                        let chunk_value = bytes.into_value_with(ruby);
+                                        block.call::<_, Value>((chunk_value,))?;
+                                        Ok(())
+                                    })
+                                });
+                            yield_result?;
+                        }
+                        Some(Err(e)) => return Err(wreq_error_to_magnus(e)),
+                        None => return Ok(()),
+                    }
+                }
+            })
+        });
+
+        // Unregister from GC now that we're done with the block
+        unsafe {
+            rb_sys::rb_gc_unregister_address(block_ptr);
+        }
+
+        result?;
+        Ok(ruby.qnil().as_value())
     }
 
     /// Close the response body, dropping any resources.
