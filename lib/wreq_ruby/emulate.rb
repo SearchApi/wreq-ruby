@@ -56,6 +56,8 @@ module Wreq
       Chrome145 = nil
       Chrome146 = nil
       Chrome147 = nil
+      Chrome148 = nil
+
       Edge101 = nil
       Edge122 = nil
       Edge127 = nil
@@ -74,6 +76,8 @@ module Wreq
       Edge145 = nil
       Edge146 = nil
       Edge147 = nil
+      Edge148 = nil
+
       Firefox109 = nil
       Firefox117 = nil
       Firefox128 = nil
@@ -92,6 +96,9 @@ module Wreq
       Firefox147 = nil
       Firefox148 = nil
       Firefox149 = nil
+      Firefox150 = nil
+      Firefox151 = nil
+
       SafariIos17_2 = nil
       SafariIos17_4_1 = nil
       SafariIos16_5 = nil
@@ -115,10 +122,13 @@ module Wreq
       Safari26 = nil
       Safari26_1 = nil
       Safari26_2 = nil
+      Safari26_3 = nil
+      Safari26_4 = nil
       SafariIos26 = nil
       SafariIos26_2 = nil
       SafariIPad26 = nil
       SafariIpad26_2 = nil
+
       OkHttp3_9 = nil
       OkHttp3_11 = nil
       OkHttp3_13 = nil
@@ -127,6 +137,7 @@ module Wreq
       OkHttp4_10 = nil
       OkHttp4_12 = nil
       OkHttp5 = nil
+
       Opera116 = nil
       Opera117 = nil
       Opera118 = nil
@@ -142,6 +153,7 @@ module Wreq
       Opera128 = nil
       Opera129 = nil
       Opera130 = nil
+      Opera131 = nils
     end
 
     unless method_defined?(:to_s)

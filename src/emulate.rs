@@ -48,6 +48,7 @@ define_ruby_enum!(
     Chrome145,
     Chrome146,
     Chrome147,
+    Chrome148,
 
     Edge101,
     Edge122,
@@ -67,6 +68,7 @@ define_ruby_enum!(
     Edge145,
     Edge146,
     Edge147,
+    Edge148,
 
     Firefox109,
     Firefox117,
@@ -86,6 +88,8 @@ define_ruby_enum!(
     Firefox147,
     Firefox148,
     Firefox149,
+    Firefox150,
+    Firefox151,
 
     SafariIos17_2,
     SafariIos17_4_1,
@@ -110,6 +114,8 @@ define_ruby_enum!(
     Safari26,
     Safari26_1,
     Safari26_2,
+    Safari26_3,
+    Safari26_4,
     SafariIos26,
     SafariIos26_2,
     SafariIPad26,
@@ -139,6 +145,7 @@ define_ruby_enum!(
     Opera128,
     Opera129,
     Opera130,
+    Opera131,
 );
 
 define_ruby_enum!(
@@ -253,6 +260,8 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     profile.const_set("Chrome145", Profile::Chrome145)?;
     profile.const_set("Chrome146", Profile::Chrome146)?;
     profile.const_set("Chrome147", Profile::Chrome147)?;
+    profile.const_set("Chrome148", Profile::Chrome148)?;
+
     profile.const_set("Edge101", Profile::Edge101)?;
     profile.const_set("Edge122", Profile::Edge122)?;
     profile.const_set("Edge127", Profile::Edge127)?;
@@ -271,6 +280,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     profile.const_set("Edge145", Profile::Edge145)?;
     profile.const_set("Edge146", Profile::Edge146)?;
     profile.const_set("Edge147", Profile::Edge147)?;
+    profile.const_set("Edge148", Profile::Edge148)?;
 
     profile.const_set("Firefox109", Profile::Firefox109)?;
     profile.const_set("Firefox117", Profile::Firefox117)?;
@@ -290,6 +300,8 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     profile.const_set("Firefox147", Profile::Firefox147)?;
     profile.const_set("Firefox148", Profile::Firefox148)?;
     profile.const_set("Firefox149", Profile::Firefox149)?;
+    profile.const_set("Firefox150", Profile::Firefox150)?;
+    profile.const_set("Firefox151", Profile::Firefox151)?;
 
     profile.const_set("SafariIos17_2", Profile::SafariIos17_2)?;
     profile.const_set("SafariIos17_4_1", Profile::SafariIos17_4_1)?;
@@ -314,6 +326,8 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     profile.const_set("Safari26", Profile::Safari26)?;
     profile.const_set("Safari26_1", Profile::Safari26_1)?;
     profile.const_set("Safari26_2", Profile::Safari26_2)?;
+    profile.const_set("Safari26_3", Profile::Safari26_3)?;
+    profile.const_set("Safari26_4", Profile::Safari26_4)?;
     profile.const_set("SafariIos26", Profile::SafariIos26)?;
     profile.const_set("SafariIos26_2", Profile::SafariIos26_2)?;
     profile.const_set("SafariIPad26", Profile::SafariIPad26)?;
@@ -343,6 +357,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     profile.const_set("Opera128", Profile::Opera128)?;
     profile.const_set("Opera129", Profile::Opera129)?;
     profile.const_set("Opera130", Profile::Opera130)?;
+    profile.const_set("Opera131", Profile::Opera131)?;
 
     // Platform enum binding
     let platform = gem_module.define_class("Platform", ruby.class_object())?;
