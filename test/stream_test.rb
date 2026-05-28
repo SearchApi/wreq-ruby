@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require "test_helper"
 
 class StreamTest < Minitest::Test
@@ -250,7 +248,7 @@ class StreamTest < Minitest::Test
     begin
       resp.chunks do |_chunk|
         chunks_before_error += 1
-        raise RuntimeError, "intentional error in block" if chunks_before_error == 2
+        raise "intentional error in block" if chunks_before_error == 2
       end
     rescue RuntimeError => e
       error_raised = true
