@@ -12,7 +12,7 @@ use magnus::{
 use serde::Deserialize;
 use wreq::{
     Proxy,
-    header::{HeaderMap, HeaderValue, OrigHeaderMap},
+    header::{HeaderValue, OrigHeaderMap},
 };
 
 use crate::{
@@ -22,6 +22,7 @@ use crate::{
     error::wreq_error_to_magnus,
     extractor::Extractor,
     gvl,
+    header::Headers,
     http::Method,
 };
 
@@ -36,7 +37,7 @@ struct Builder {
     user_agent: Option<HeaderValue>,
     /// The headers to use for the client.
     #[serde(skip)]
-    headers: Option<HeaderMap>,
+    headers: Option<Headers>,
     /// The original headers to use for the client.
     #[serde(skip)]
     orig_headers: Option<OrigHeaderMap>,
@@ -128,35 +129,33 @@ pub struct Client(wreq::Client);
 impl Builder {
     /// Create a new [`Builder`] from Ruby keyword arguments.
     fn new(ruby: &magnus::Ruby, keyword: &Value) -> Result<Self, magnus::Error> {
-        if let Ok(hash) = RHash::try_convert(*keyword) {
-            let mut builder: Self = serde_magnus::deserialize(ruby, hash)?;
-            // extra emulation handling
-            if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
-                let emulation_obj = Obj::<Emulation>::try_convert(v)?;
-                builder.emulation = Some((*emulation_obj).clone());
-            }
+        let Ok(hash) = RHash::try_convert(*keyword) else {
+            return Ok(Default::default());
+        };
 
-            // extra user agent handling
-            builder.user_agent = Extractor::<HeaderValue>::try_convert(*keyword)?.into_inner();
+        let mut builder: Self = serde_magnus::deserialize(ruby, hash)?;
 
-            // extra headers handling
-            builder.headers = Extractor::<HeaderMap>::try_convert(*keyword)?.into_inner();
-
-            // extra original headers handling
-            builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(*keyword)?.into_inner();
-
-            // extra proxy handling
-            builder.proxy = Extractor::<Proxy>::try_convert(*keyword)?.into_inner();
-
-            // extra cookie store handling
-            if let Some(jar) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
-                builder.cookie_provider = Some((*Obj::<Jar>::try_convert(jar)?).clone());
-            }
-
-            return Ok(builder);
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
+            builder.emulation = Some((*Obj::<Emulation>::try_convert(v)?).clone());
         }
 
-        Ok(Default::default())
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(headers))) {
+            builder.headers = Some(Headers::try_convert(v)?);
+        }
+
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
+            builder.cookie_provider = Some((*Obj::<Jar>::try_convert(v)?).clone());
+        }
+
+        if let Some(jar) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
+            builder.cookie_provider = Some((*Obj::<Jar>::try_convert(jar)?).clone());
+        }
+
+        builder.user_agent = Extractor::<HeaderValue>::try_convert(*keyword)?.into_inner();
+        builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(*keyword)?.into_inner();
+        builder.proxy = Extractor::<Proxy>::try_convert(*keyword)?.into_inner();
+
+        Ok(builder)
     }
 }
 
@@ -164,9 +163,9 @@ impl Builder {
 
 impl Client {
     /// Create a new [`Client`] with the given keyword arguments.
-    pub fn new(ruby: &Ruby, kwargs: &[Value]) -> Result<Self, magnus::Error> {
-        if let Some(kwargs) = kwargs.first() {
-            let mut params = Builder::new(ruby, kwargs)?;
+    pub fn new(ruby: &Ruby, keyword: &[Value]) -> Result<Self, magnus::Error> {
+        if let Some(keyword) = keyword.first() {
+            let mut params = Builder::new(ruby, keyword)?;
             gvl::nogvl(|| {
                 let mut builder = wreq::Client::builder();
 
@@ -177,7 +176,12 @@ impl Client {
                 apply_option!(set_if_some, builder, params.user_agent, user_agent);
 
                 // Default headers options.
-                apply_option!(set_if_some, builder, params.headers, default_headers);
+                apply_option!(
+                    set_if_some_into_inner,
+                    builder,
+                    params.headers,
+                    default_headers
+                );
                 apply_option!(set_if_some, builder, params.orig_headers, orig_headers);
 
                 // Allow redirects options.
