@@ -85,6 +85,14 @@ pub fn interrupt_error() -> MagnusError {
     MagnusError::new(ruby!().get_inner(&INTERRUPT_ERROR), "request interrupted")
 }
 
+/// LocalJumpError for methods that require a Ruby block.
+pub fn no_block_given_error() -> MagnusError {
+    MagnusError::new(
+        ruby!().exception_local_jump_error(),
+        "no block given (yield)",
+    )
+}
+
 /// Map [`tokio::sync::mpsc::error::SendError`] to corresponding [`magnus::Error`]
 pub fn mpsc_send_error_to_magnus<T>(err: SendError<T>) -> MagnusError {
     MagnusError::new(

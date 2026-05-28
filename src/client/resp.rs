@@ -5,14 +5,14 @@ use bytes::Bytes;
 use futures_util::TryFutureExt;
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RArray, RModule, Ruby, Value, block::Yield, scan_args::scan_args};
+use magnus::{Error, Module, RArray, RModule, Ruby, Value, scan_args::scan_args};
 use wreq::Uri;
 
 use crate::{
     client::body::{BodyReceiver, Json},
     cookie::Cookie,
-    error::{memory_error, wreq_error_to_magnus},
-    gvl,
+    error::{memory_error, no_block_given_error, wreq_error_to_magnus},
+    gvl::{self, nogvl},
     header::Headers,
     http::{StatusCode, Version},
     rt,
@@ -199,12 +199,24 @@ impl Response {
         })
     }
 
-    /// Get a chunk iterator for the response body.
-    pub fn chunks(&self) -> Result<Yield<BodyReceiver>, Error> {
-        self.response(true)
-            .map(wreq::Response::bytes_stream)
-            .map(BodyReceiver::new)
-            .map(Yield::Iter)
+    /// Yield response body chunks to the given Ruby block.
+    pub fn chunks(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
+        if !ruby.block_given() {
+            return Err(no_block_given_error());
+        }
+
+        let receiver = nogvl(|| {
+            rb_self
+                .response(true)
+                .map(wreq::Response::bytes_stream)
+                .map(BodyReceiver::new)
+        })?;
+
+        while let Some(chunk) = receiver.next()? {
+            let _: Value = ruby.yield_value(chunk)?;
+        }
+
+        Ok(())
     }
 
     /// Close the response body, dropping any resources.
@@ -222,23 +234,23 @@ impl Drop for Response {
 }
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
-    let response_class = gem_module.define_class("Response", ruby.class_object())?;
-    response_class.define_method("code", magnus::method!(Response::code, 0))?;
-    response_class.define_method("status", magnus::method!(Response::status, 0))?;
-    response_class.define_method("version", magnus::method!(Response::version, 0))?;
-    response_class.define_method("url", magnus::method!(Response::url, 0))?;
-    response_class.define_method(
+    let response = gem_module.define_class("Response", ruby.class_object())?;
+    response.define_method("code", magnus::method!(Response::code, 0))?;
+    response.define_method("status", magnus::method!(Response::status, 0))?;
+    response.define_method("version", magnus::method!(Response::version, 0))?;
+    response.define_method("url", magnus::method!(Response::url, 0))?;
+    response.define_method(
         "content_length",
         magnus::method!(Response::content_length, 0),
     )?;
-    response_class.define_method("cookies", magnus::method!(Response::cookies, 0))?;
-    response_class.define_method("headers", magnus::method!(Response::headers, 0))?;
-    response_class.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
-    response_class.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
-    response_class.define_method("bytes", magnus::method!(Response::bytes, 0))?;
-    response_class.define_method("text", magnus::method!(Response::text, -1))?;
-    response_class.define_method("json", magnus::method!(Response::json, 0))?;
-    response_class.define_method("chunks", magnus::method!(Response::chunks, 0))?;
-    response_class.define_method("close", magnus::method!(Response::close, 0))?;
+    response.define_method("cookies", magnus::method!(Response::cookies, 0))?;
+    response.define_method("headers", magnus::method!(Response::headers, 0))?;
+    response.define_method("local_addr", magnus::method!(Response::local_addr, 0))?;
+    response.define_method("remote_addr", magnus::method!(Response::remote_addr, 0))?;
+    response.define_method("bytes", magnus::method!(Response::bytes, 0))?;
+    response.define_method("text", magnus::method!(Response::text, -1))?;
+    response.define_method("json", magnus::method!(Response::json, 0))?;
+    response.define_method("chunks", magnus::method!(Response::chunks, 0))?;
+    response.define_method("close", magnus::method!(Response::close, 0))?;
     Ok(())
 }

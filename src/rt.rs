@@ -27,21 +27,3 @@ where
         })
     })
 }
-
-/// Block on a future to completion on the global Tokio runtime,
-/// returning `None` if cancelled via the provided `CancelFlag`.
-#[inline]
-pub fn maybe_block_on<F, T>(future: F) -> F::Output
-where
-    F: Future<Output = Option<T>>,
-{
-    gvl::nogvl_cancellable(|flag| {
-        RUNTIME.block_on(async move {
-            tokio::select! {
-                biased;
-                _ = flag.cancelled() => None,
-                result = future => result,
-            }
-        })
-    })
-}
