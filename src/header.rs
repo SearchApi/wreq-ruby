@@ -160,9 +160,9 @@ impl TryConvert for Headers {
             return Ok(Self::from(headers));
         }
 
-        return Obj::<Headers>::try_convert(value)
+        Obj::<Headers>::try_convert(value)
             .map(|headers| headers.0.clone())
-            .map(Self);
+            .map(Self)
     }
 }
 
