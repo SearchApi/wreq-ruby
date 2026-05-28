@@ -206,16 +206,10 @@ impl fmt::Display for Cookie {
 
 impl TryConvert for Cookies {
     fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
-        let ruby = Ruby::get_with(value);
-        let rhash = RHash::try_convert(value)?;
-
         // try extract uncompressed cookies
-        if let Some(hash) = rhash
-            .get(ruby.to_symbol(stringify!(cookies)))
-            .and_then(RHash::from_value)
-        {
+        if let Some(rhash) = RHash::from_value(value) {
             let mut cookies = Vec::new();
-            hash.foreach(|name: RString, value: RString| {
+            rhash.foreach(|name: RString, value: RString| {
                 let cookie = format!("{name}={value}");
                 let header_value = HeaderValue::from_maybe_shared(Bytes::from(cookie))
                     .map_err(header_value_error_to_magnus)?;
@@ -227,12 +221,9 @@ impl TryConvert for Cookies {
         }
 
         // try extract compressed cookies
-        if let Some(cookies) = rhash
-            .get(ruby.to_symbol(stringify!(cookies)))
-            .and_then(RString::from_value)
-        {
+        if let Some(cookies) = RString::from_value(value) {
             return Ok(Self(vec![
-                HeaderValue::from_maybe_shared(Bytes::from(cookies.to_string()?))
+                HeaderValue::from_maybe_shared(cookies.to_bytes())
                     .map_err(header_value_error_to_magnus)?,
             ]));
         }

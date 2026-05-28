@@ -35,7 +35,7 @@ unless defined?(Wreq)
       # @param user_agent [String, nil] Custom User-Agent header value.
       #   If not specified, a default user agent will be used.
       #
-      # @param headers [Hash{String=>String}, nil] Default headers to include
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Default headers to include
       #   in every request. Header names are case-insensitive. These headers
       #   can be overridden on a per-request basis.
       #
@@ -236,7 +236,7 @@ unless defined?(Wreq)
       #
       # @param method [Wreq::Method] HTTP method to use
       # @param url [String] Target URL
-      # @param headers [Hash{String=>String}, nil] Custom headers for this request
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
       # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
       # @param default_headers [Hash{String=>String}, nil] Default headers to merge
       # @param query [Hash, nil] URL query parameters
@@ -267,7 +267,7 @@ unless defined?(Wreq)
       # Send an HTTP GET request.
       #
       # @param url [String] Target URL
-      # @param headers [Hash{String=>String}, nil] Custom headers for this request
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
       # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
       # @param default_headers [Hash{String=>String}, nil] Default headers to merge
       # @param query [Hash, nil] URL query parameters
@@ -298,7 +298,7 @@ unless defined?(Wreq)
       # Send an HTTP HEAD request.
       #
       # @param url [String] Target URL
-      # @param headers [Hash{String=>String}, nil] Custom headers for this request
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
       # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
       # @param default_headers [Hash{String=>String}, nil] Default headers to merge
       # @param query [Hash, nil] URL query parameters
@@ -329,7 +329,7 @@ unless defined?(Wreq)
       # Send an HTTP POST request.
       #
       # @param url [String] Target URL
-      # @param headers [Hash{String=>String}, nil] Custom headers for this request
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
       # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
       # @param default_headers [Hash{String=>String}, nil] Default headers to merge
       # @param query [Hash, nil] URL query parameters
@@ -360,7 +360,7 @@ unless defined?(Wreq)
       # Send an HTTP PUT request.
       #
       # @param url [String] Target URL
-      # @param headers [Hash{String=>String}, nil] Custom headers for this request
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
       # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
       # @param default_headers [Hash{String=>String}, nil] Default headers to merge
       # @param query [Hash, nil] URL query parameters
@@ -391,7 +391,7 @@ unless defined?(Wreq)
       # Send an HTTP DELETE request.
       #
       # @param url [String] Target URL
-      # @param headers [Hash{String=>String}, nil] Custom headers for this request
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
       # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
       # @param default_headers [Hash{String=>String}, nil] Default headers to merge
       # @param query [Hash, nil] URL query parameters
@@ -422,7 +422,7 @@ unless defined?(Wreq)
       # Send an HTTP OPTIONS request.
       #
       # @param url [String] Target URL
-      # @param headers [Hash{String=>String}, nil] Custom headers for this request
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
       # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
       # @param default_headers [Hash{String=>String}, nil] Default headers to merge
       # @param query [Hash, nil] URL query parameters
@@ -453,7 +453,7 @@ unless defined?(Wreq)
       # Send an HTTP TRACE request.
       #
       # @param url [String] Target URL
-      # @param headers [Hash{String=>String}, nil] Custom headers for this request
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
       # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
       # @param default_headers [Hash{String=>String}, nil] Default headers to merge
       # @param query [Hash, nil] URL query parameters
@@ -484,7 +484,7 @@ unless defined?(Wreq)
       # Send an HTTP PATCH request.
       #
       # @param url [String] Target URL
-      # @param headers [Hash{String=>String}, nil] Custom headers for this request
+      # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
       # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
       # @param default_headers [Hash{String=>String}, nil] Default headers to merge
       # @param query [Hash, nil] URL query parameters
