@@ -13,7 +13,7 @@ use tokio::sync::{
 };
 
 use crate::{
-    error::{memory_error, mpsc_send_error_to_magnus},
+    error::{memory_error, mpsc_send_error_to_magnus, wreq_error_to_magnus},
     rt,
 };
 
@@ -37,20 +37,15 @@ impl BodyReceiver {
     pub fn new(stream: impl Stream<Item = wreq::Result<Bytes>> + Send + 'static) -> BodyReceiver {
         BodyReceiver(Mutex::new(Box::pin(stream)))
     }
-}
 
-impl Iterator for BodyReceiver {
-    type Item = Bytes;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        rt::maybe_block_on(async {
-            self.0
-                .lock()
-                .await
-                .as_mut()
-                .next()
-                .await
-                .and_then(|r| r.ok())
+    /// Read the next body chunk, converting stream errors into Ruby errors.
+    pub fn next(&self) -> Result<Option<Bytes>, Error> {
+        rt::try_block_on(async {
+            match self.0.lock().await.as_mut().next().await {
+                Some(Ok(data)) => Ok(Some(data)),
+                Some(Err(err)) => Err(wreq_error_to_magnus(err)),
+                None => Ok(None),
+            }
         })
     }
 }

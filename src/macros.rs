@@ -14,6 +14,11 @@ macro_rules! apply_option {
             $builder = $builder.$method(value.0);
         }
     };
+    (set_if_some_into_inner, $builder:expr, $option:expr, $method:ident) => {
+        if let Some(value) = $option.take() {
+            $builder = $builder.$method(value.0.into_inner());
+        }
+    };
     (set_if_some_map, $builder:expr, $option:expr, $method:ident, $transform:expr) => {
         if let Some(value) = $option.take() {
             $builder = $builder.$method($transform(value));

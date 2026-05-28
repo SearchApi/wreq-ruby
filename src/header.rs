@@ -3,8 +3,11 @@ use std::cell::RefCell;
 use bytes::Bytes;
 use http::{HeaderMap, HeaderName, HeaderValue};
 use magnus::{
-    Error, Module, Object, RArray, RModule, Ruby, block::Yield, function, method,
-    typed_data::Inspect,
+    Error, Module, Object, RArray, RHash, RModule, RString, Ruby, TryConvert, Value,
+    block::Yield,
+    function, method,
+    r_hash::ForEach,
+    typed_data::{Inspect, Obj},
 };
 
 use crate::error::{header_name_error_to_magnus, header_value_error_to_magnus};
@@ -15,7 +18,14 @@ use crate::error::{header_name_error_to_magnus, header_value_error_to_magnus};
 /// accessing, modifying, and iterating over header name-value pairs.
 #[derive(Clone, Default)]
 #[magnus::wrap(class = "Wreq::Headers", free_immediately, size)]
-pub struct Headers(RefCell<HeaderMap>);
+pub struct Headers(pub RefCell<HeaderMap>);
+
+struct HeaderIter {
+    inner: http::header::IntoIter<HeaderValue>,
+    next_name: Option<HeaderName>,
+}
+
+// ===== impl Headers =====
 
 impl Headers {
     /// Create a new empty Headers instance.
@@ -132,10 +142,31 @@ impl From<HeaderMap> for Headers {
     }
 }
 
-struct HeaderIter {
-    inner: http::header::IntoIter<HeaderValue>,
-    next_name: Option<HeaderName>,
+impl TryConvert for Headers {
+    fn try_convert(value: Value) -> Result<Self, Error> {
+        if let Some(rhash) = RHash::from_value(value) {
+            let mut headers = HeaderMap::new();
+
+            rhash.foreach(|name: RString, value: RString| {
+                let name = HeaderName::from_bytes(&name.to_bytes())
+                    .map_err(header_name_error_to_magnus)?;
+                let value = HeaderValue::from_maybe_shared(value.to_bytes())
+                    .map_err(header_value_error_to_magnus)?;
+                headers.insert(name, value);
+
+                Ok(ForEach::Continue)
+            })?;
+
+            return Ok(Self::from(headers));
+        }
+
+        Obj::<Headers>::try_convert(value)
+            .map(|headers| headers.0.clone())
+            .map(Self)
+    }
 }
+
+// ===== impl HeaderIter =====
 
 impl Iterator for HeaderIter {
     type Item = (Bytes, Bytes);

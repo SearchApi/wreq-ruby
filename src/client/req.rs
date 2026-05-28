@@ -3,10 +3,7 @@ use std::{net::IpAddr, time::Duration};
 use http::header;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
 use serde::Deserialize;
-use wreq::{
-    Client, Proxy, Version,
-    header::{HeaderMap, OrigHeaderMap},
-};
+use wreq::{Client, Proxy, Version, header::OrigHeaderMap};
 
 use super::body::{Body, Form, Json};
 use crate::{
@@ -15,6 +12,7 @@ use crate::{
     emulate::Emulation,
     error::wreq_error_to_magnus,
     extractor::Extractor,
+    header::Headers,
     http::Method,
     rt,
 };
@@ -47,16 +45,16 @@ pub struct Request {
     #[serde(skip)]
     version: Option<Version>,
 
+    /// The option enables default headers.
+    default_headers: Option<bool>,
+
     /// The headers to use for the request.
     #[serde(skip)]
-    headers: Option<HeaderMap>,
+    headers: Option<Headers>,
 
     /// The original headers to use for the request.
     #[serde(skip)]
     orig_headers: Option<OrigHeaderMap>,
-
-    /// The option enables default headers.
-    default_headers: Option<bool>,
 
     /// The cookies to use for the request.
     #[serde(skip)]
@@ -106,34 +104,29 @@ pub struct Request {
 impl Request {
     /// Create a new [`Request`] from Ruby keyword arguments.
     pub fn new(ruby: &magnus::Ruby, hash: RHash) -> Result<Self, magnus::Error> {
-        let kwargs = hash.as_value();
-        let mut builder: Self = serde_magnus::deserialize(ruby, kwargs)?;
+        let keyword = hash.as_value();
+        let mut builder: Self = serde_magnus::deserialize(ruby, keyword)?;
 
-        // extra version handling
-        builder.version = Extractor::<Version>::try_convert(kwargs)?.into_inner();
-
-        // extra headers handling
-        builder.headers = Extractor::<HeaderMap>::try_convert(kwargs)?.into_inner();
-
-        // extra original headers handling
-        builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(kwargs)?.into_inner();
-
-        // extra cookies handling
-        builder.cookies = Cookies::try_convert(kwargs).map(Some)?;
-
-        // extra proxy handling
-        builder.proxy = Extractor::<Proxy>::try_convert(kwargs)?.into_inner();
-
-        // extra emulation handling
         if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
-            let emulation_obj = Obj::<Emulation>::try_convert(v)?;
-            builder.emulation = Some((*emulation_obj).clone());
+            let obj = Obj::<Emulation>::try_convert(v)?;
+            builder.emulation = Some((*obj).clone());
         }
 
-        // extra body handling
-        if let Some(body) = hash.get(ruby.to_symbol(stringify!(body))) {
-            builder.body = Some(Body::try_convert(body)?);
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(headers))) {
+            builder.headers = Some(Headers::try_convert(v)?);
         }
+
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(cookies))) {
+            builder.cookies = Some(Cookies::try_convert(v)?);
+        }
+
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(body))) {
+            builder.body = Some(Body::try_convert(v)?);
+        }
+
+        builder.proxy = Extractor::<Proxy>::try_convert(keyword)?.into_inner();
+        builder.version = Extractor::<Version>::try_convert(keyword)?.into_inner();
+        builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(keyword)?.into_inner();
 
         Ok(builder)
     }
@@ -176,7 +169,7 @@ pub fn execute_request<U: AsRef<str>>(
         apply_option!(set_if_some, builder, request.interface, interface);
 
         // Headers options.
-        apply_option!(set_if_some, builder, request.headers, headers);
+        apply_option!(set_if_some_into_inner, builder, request.headers, headers);
         apply_option!(set_if_some, builder, request.orig_headers, orig_headers);
         apply_option!(
             set_if_some,
@@ -184,6 +177,13 @@ pub fn execute_request<U: AsRef<str>>(
             request.default_headers,
             default_headers
         );
+
+        // Cookies options.
+        if let Some(cookies) = request.cookies.take() {
+            for cookie in cookies.0 {
+                builder = builder.header(header::COOKIE, cookie);
+            }
+        }
 
         // Authentication options.
         apply_option!(
@@ -196,13 +196,6 @@ pub fn execute_request<U: AsRef<str>>(
         apply_option!(set_if_some, builder, request.bearer_auth, bearer_auth);
         if let Some(basic_auth) = request.basic_auth.take() {
             builder = builder.basic_auth(basic_auth.0, basic_auth.1);
-        }
-
-        // Cookies options.
-        if let Some(cookies) = request.cookies.take() {
-            for cookie in cookies.0 {
-                builder = builder.header(header::COOKIE, cookie);
-            }
         }
 
         // Allow redirects options.
