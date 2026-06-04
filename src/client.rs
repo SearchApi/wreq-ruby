@@ -26,6 +26,15 @@ use crate::{
     http::Method,
 };
 
+macro_rules! request {
+    ($args:expr, $required:ty) => {{
+        let args = magnus::scan_args::scan_args::<$required, (), (), (), magnus::RHash, ()>($args)?;
+        let required = args.required;
+        let request = crate::client::req::Request::new(&ruby!(), args.keywords)?;
+        (required, request)
+    }};
+}
+
 /// A builder for `Client`.
 #[derive(Default, Deserialize)]
 struct Builder {
@@ -170,7 +179,7 @@ impl Client {
                 let mut builder = wreq::Client::builder();
 
                 // Emulation options.
-                apply_option!(set_if_some_inner, builder, params.emulation, emulation);
+                apply_option!(set_if_some, builder, params.emulation, emulation);
 
                 // User agent options.
                 apply_option!(set_if_some, builder, params.user_agent, user_agent);
@@ -316,63 +325,63 @@ impl Client {
     /// Send a HTTP request.
     #[inline]
     pub fn request(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((method, url), request) = extract_request!(args, (Obj<Method>, String));
+        let ((method, url), request) = request!(args, (Obj<Method>, String));
         execute_request(rb_self.0.clone(), *method, url, request)
     }
 
     /// Send a GET request.
     #[inline]
     pub fn get(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_request!(args, (String,));
+        let ((url,), request) = request!(args, (String,));
         execute_request(rb_self.0.clone(), Method::GET, url, request)
     }
 
     /// Send a POST request.
     #[inline]
     pub fn post(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_request!(args, (String,));
+        let ((url,), request) = request!(args, (String,));
         execute_request(rb_self.0.clone(), Method::POST, url, request)
     }
 
     /// Send a PUT request.
     #[inline]
     pub fn put(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_request!(args, (String,));
+        let ((url,), request) = request!(args, (String,));
         execute_request(rb_self.0.clone(), Method::PUT, url, request)
     }
 
     /// Send a DELETE request.
     #[inline]
     pub fn delete(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_request!(args, (String,));
+        let ((url,), request) = request!(args, (String,));
         execute_request(rb_self.0.clone(), Method::DELETE, url, request)
     }
 
     /// Send a HEAD request.
     #[inline]
     pub fn head(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_request!(args, (String,));
+        let ((url,), request) = request!(args, (String,));
         execute_request(rb_self.0.clone(), Method::HEAD, url, request)
     }
 
     /// Send an OPTIONS request.
     #[inline]
     pub fn options(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_request!(args, (String,));
+        let ((url,), request) = request!(args, (String,));
         execute_request(rb_self.0.clone(), Method::OPTIONS, url, request)
     }
 
     /// Send a TRACE request.
     #[inline]
     pub fn trace(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_request!(args, (String,));
+        let ((url,), request) = request!(args, (String,));
         execute_request(rb_self.0.clone(), Method::TRACE, url, request)
     }
 
     /// Send a PATCH request.
     #[inline]
     pub fn patch(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
-        let ((url,), request) = extract_request!(args, (String,));
+        let ((url,), request) = request!(args, (String,));
         execute_request(rb_self.0.clone(), Method::PATCH, url, request)
     }
 }

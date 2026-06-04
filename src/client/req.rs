@@ -142,7 +142,7 @@ pub fn execute_request<U: AsRef<str>>(
         let mut builder = client.request(method.into_ffi(), url.as_ref());
 
         // Emulation options.
-        apply_option!(set_if_some_inner, builder, request.emulation, emulation);
+        apply_option!(set_if_some, builder, request.emulation, emulation);
 
         // Version options.
         apply_option!(set_if_some, builder, request.version, version);
