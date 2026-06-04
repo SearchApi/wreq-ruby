@@ -17,7 +17,7 @@ name = "wreq_ruby"
 magnus = { version = "0.8.2", features = ["bytes"] }
 rb-sys = { version = "0.9.128", default-features = false }
 tokio = { version = "1.52.3", features = ["full"] }
-wreq = { git = "https://github.com/0x676e67/wreq", features = [
+wreq = { version = "6.0.0-rc", features = [
     "query",
     "form",
     "json",
@@ -31,7 +31,7 @@ wreq = { git = "https://github.com/0x676e67/wreq", features = [
     "zstd",
     "system-proxy",
 ] }
-wreq-util = { git = "https://github.com/0x676e67/wreq-util", features = ["emulation-compression"] }
+wreq-util = { version = "3.0.0-rc", features = ["emulation-compression"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_magnus = "0.11.0"
 indexmap = { version = "2.14.0", features = ["serde"] }
