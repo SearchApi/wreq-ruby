@@ -1,4 +1,4 @@
-use magnus::{Error, Module, RModule, Ruby, method, typed_data::Inspect};
+use magnus::{Error, Module, RModule, Ruby, TryConvert, Value, method, typed_data::Inspect};
 
 define_ruby_enum!(
     /// An HTTP version.
@@ -40,6 +40,20 @@ impl Version {
     #[inline]
     pub fn to_s(&self) -> String {
         self.into_ffi().inspect()
+    }
+
+    /// Value-based equality for Ruby (`==`).
+    #[inline]
+    pub fn equals(&self, other: Value) -> bool {
+        <&Version>::try_convert(other)
+            .map(|other| *self == *other)
+            .unwrap_or(false)
+    }
+}
+
+impl TryConvert for Version {
+    fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
+        <&Version>::try_convert(value).cloned()
     }
 }
 
@@ -113,6 +127,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     version_class.const_set("HTTP_2", Version::HTTP_2)?;
     version_class.const_set("HTTP_3", Version::HTTP_3)?;
     version_class.define_method("to_s", method!(Version::to_s, 0))?;
+    version_class.define_method("==", method!(Version::equals, 1))?;
 
     let status_code_class = gem_module.define_class("StatusCode", ruby.class_object())?;
     status_code_class.define_method("as_int", method!(StatusCode::as_int, 0))?;

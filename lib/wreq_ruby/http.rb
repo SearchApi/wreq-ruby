@@ -49,6 +49,20 @@ module Wreq
       def to_s
       end
     end
+
+    # Compares HTTP versions by semantic value, not object identity.
+    #
+    # This method is implemented by the native extension.
+    # When comparing with non-{Wreq::Version} objects, it returns false.
+    #
+    # @param other [Object] object to compare against
+    # @return [Boolean] true when both represent the same HTTP version
+    # @example
+    #   Wreq::Version::HTTP_11 == response.version
+    unless method_defined?(:==)
+      def ==(other)
+      end
+    end
   end
 
   # HTTP status code wrapper.
