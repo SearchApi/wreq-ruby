@@ -10,10 +10,7 @@ use magnus::{
     Module, Object, RHash, RModule, Ruby, TryConvert, Value, function, method, typed_data::Obj,
 };
 use serde::Deserialize;
-use wreq::{
-    Proxy,
-    header::{HeaderValue, OrigHeaderMap},
-};
+use wreq::{Proxy, header::HeaderValue};
 
 use crate::{
     client::{req::execute_request, resp::Response},
@@ -22,7 +19,7 @@ use crate::{
     error::wreq_error_to_magnus,
     extractor::Extractor,
     gvl,
-    header::Headers,
+    header::{Headers, OrigHeaders},
     http::Method,
 };
 
@@ -40,7 +37,7 @@ struct Builder {
     headers: Option<Headers>,
     /// The original headers to use for the client.
     #[serde(skip)]
-    orig_headers: Option<OrigHeaderMap>,
+    orig_headers: Option<OrigHeaders>,
     /// Whether to use referer.
     referer: Option<bool>,
     /// Whether to allow redirects.
@@ -143,6 +140,10 @@ impl Builder {
             builder.headers = Some(Headers::try_convert(v)?);
         }
 
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(orig_headers))) {
+            builder.orig_headers = Some(OrigHeaders::try_convert(v)?);
+        }
+
         if let Some(v) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
             builder.cookie_provider = Some((*Obj::<Jar>::try_convert(v)?).clone());
         }
@@ -152,7 +153,6 @@ impl Builder {
         }
 
         builder.user_agent = Extractor::<HeaderValue>::try_convert(*keyword)?.into_inner();
-        builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(*keyword)?.into_inner();
         builder.proxy = Extractor::<Proxy>::try_convert(*keyword)?.into_inner();
 
         Ok(builder)
@@ -175,14 +175,19 @@ impl Client {
                 // User agent options.
                 apply_option!(set_if_some, builder, params.user_agent, user_agent);
 
-                // Default headers options.
+                // Headers options.
                 apply_option!(
                     set_if_some_into_inner,
                     builder,
                     params.headers,
                     default_headers
                 );
-                apply_option!(set_if_some, builder, params.orig_headers, orig_headers);
+                apply_option!(
+                    set_if_some_inner,
+                    builder,
+                    params.orig_headers,
+                    orig_headers
+                );
 
                 // Allow redirects options.
                 apply_option!(set_if_some, builder, params.referer, referer);

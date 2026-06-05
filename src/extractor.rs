@@ -40,8 +40,10 @@ impl ExtractorName for Version {
 
 impl TryConvert for Extractor<Version> {
     fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
+        println!("try_convert Version: {value:#?}");
         let keyword = RHash::try_convert(value)?;
         if let Some(version_val) = keyword.get(Version::NAME) {
+            println!("version_val: {version_val:#?}");
             return <&crate::http::Version>::try_convert(version_val)
                 .cloned()
                 .map(crate::http::Version::into_ffi)

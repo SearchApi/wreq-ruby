@@ -117,6 +117,14 @@ pub fn header_value_error_to_magnus(err: wreq::header::InvalidHeaderValue) -> Ma
     )
 }
 
+/// Map type/value errors to corresponding [`magnus::Error`]
+pub fn type_value_error_to_magnus(err: &str) -> MagnusError {
+    MagnusError::new(
+        ruby!().get_inner(&BUILDER_ERROR),
+        format!("type error: {err}"),
+    )
+}
+
 /// Map [`wreq::Error`] to corresponding [`magnus::Error`]
 pub fn wreq_error_to_magnus(err: wreq::Error) -> MagnusError {
     let error_msg = err.to_string();
