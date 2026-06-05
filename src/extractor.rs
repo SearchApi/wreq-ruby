@@ -1,6 +1,6 @@
 use magnus::{RArray, RHash, RString, Ruby, TryConvert, r_hash::ForEach};
 use wreq::{
-    Proxy, Version,
+    Proxy,
     header::{HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
 };
 
@@ -29,27 +29,6 @@ where
     #[inline]
     pub fn into_inner(self) -> Option<T> {
         self.0
-    }
-}
-
-// ===== impl Extractor<Version> =====
-
-impl ExtractorName for Version {
-    const NAME: &str = "version";
-}
-
-impl TryConvert for Extractor<Version> {
-    fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
-        let keyword = RHash::try_convert(value)?;
-        if let Some(version_val) = keyword.get(Version::NAME) {
-            return <&crate::http::Version>::try_convert(version_val)
-                .cloned()
-                .map(crate::http::Version::into_ffi)
-                .map(Some)
-                .map(Extractor);
-        }
-
-        Ok(Extractor(None))
     }
 }
 

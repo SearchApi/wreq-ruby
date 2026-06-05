@@ -3,7 +3,7 @@ use std::{net::IpAddr, time::Duration};
 use http::header;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
 use serde::Deserialize;
-use wreq::{Client, Proxy, header::OrigHeaderMap};
+use wreq::{Client, Proxy};
 
 use super::body::{Body, Form, Json};
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
     emulate::Emulation,
     error::wreq_error_to_magnus,
     extractor::Extractor,
-    header::Headers,
+    header::{Headers, OrigHeaders},
     http::{Method, Version},
     rt,
 };
@@ -54,7 +54,7 @@ pub struct Request {
 
     /// The original headers to use for the request.
     #[serde(skip)]
-    orig_headers: Option<OrigHeaderMap>,
+    orig_headers: Option<OrigHeaders>,
 
     /// The cookies to use for the request.
     #[serde(skip)]
@@ -120,6 +120,10 @@ impl Request {
             builder.headers = Some(Headers::try_convert(v)?);
         }
 
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(orig_headers))) {
+            builder.orig_headers = Some(OrigHeaders::try_convert(v)?);
+        }
+
         if let Some(v) = hash.get(ruby.to_symbol(stringify!(cookies))) {
             builder.cookies = Some(Cookies::try_convert(v)?);
         }
@@ -129,7 +133,6 @@ impl Request {
         }
 
         builder.proxy = Extractor::<Proxy>::try_convert(keyword)?.into_inner();
-        builder.orig_headers = Extractor::<OrigHeaderMap>::try_convert(keyword)?.into_inner();
 
         Ok(builder)
     }
@@ -179,7 +182,12 @@ pub fn execute_request<U: AsRef<str>>(
 
         // Headers options.
         apply_option!(set_if_some_into_inner, builder, request.headers, headers);
-        apply_option!(set_if_some, builder, request.orig_headers, orig_headers);
+        apply_option!(
+            set_if_some_inner,
+            builder,
+            request.orig_headers,
+            orig_headers
+        );
         apply_option!(
             set_if_some,
             builder,

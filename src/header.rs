@@ -9,8 +9,11 @@ use magnus::{
     r_hash::ForEach,
     typed_data::{Inspect, Obj},
 };
+use wreq::header::OrigHeaderMap;
 
-use crate::error::{header_name_error_to_magnus, header_value_error_to_magnus};
+use crate::error::{
+    header_name_error_to_magnus, header_value_error_to_magnus, type_value_error_to_magnus,
+};
 
 /// HTTP headers collection with read and write operations.
 ///
@@ -19,6 +22,9 @@ use crate::error::{header_name_error_to_magnus, header_value_error_to_magnus};
 #[derive(Clone, Default)]
 #[magnus::wrap(class = "Wreq::Headers", free_immediately, size)]
 pub struct Headers(pub RefCell<HeaderMap>);
+
+/// A map from header names to their original casing as received in an HTTP message.
+pub struct OrigHeaders(pub OrigHeaderMap);
 
 struct HeaderIter {
     inner: http::header::IntoIter<HeaderValue>,
@@ -163,6 +169,23 @@ impl TryConvert for Headers {
         Obj::<Headers>::try_convert(value)
             .map(|headers| headers.0.clone())
             .map(Self)
+    }
+}
+
+// ===== impl OrigHeaders =====
+
+impl TryConvert for OrigHeaders {
+    fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
+        let mut map = OrigHeaderMap::new();
+
+        let rarray = RArray::from_value(value)
+            .ok_or_else(|| type_value_error_to_magnus("Expected an array of strings"))?;
+
+        for value in rarray.into_iter().flat_map(RString::from_value) {
+            map.insert(value.to_bytes());
+        }
+
+        Ok(Self(map))
     }
 }
 

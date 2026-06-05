@@ -25,7 +25,7 @@ unless defined?(Wreq)
     # @param method [Wreq::Method] HTTP method to use
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
-    # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
+    # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
@@ -56,7 +56,7 @@ unless defined?(Wreq)
     #
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
-    # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
+    # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
@@ -87,7 +87,7 @@ unless defined?(Wreq)
     #
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
-    # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
+    # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
@@ -118,7 +118,7 @@ unless defined?(Wreq)
     #
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
-    # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
+    # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
@@ -149,7 +149,7 @@ unless defined?(Wreq)
     #
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
-    # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
+    # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
@@ -180,7 +180,7 @@ unless defined?(Wreq)
     #
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
-    # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
+    # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
@@ -211,7 +211,7 @@ unless defined?(Wreq)
     #
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
-    # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
+    # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
@@ -242,7 +242,7 @@ unless defined?(Wreq)
     #
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
-    # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
+    # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
@@ -273,7 +273,7 @@ unless defined?(Wreq)
     #
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
-    # @param orig_headers [Hash{String=>String}, nil] Original headers (raw, unmodified)
+    # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
     # @param default_headers [Hash{String=>String}, nil] Default headers to merge
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
