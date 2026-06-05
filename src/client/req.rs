@@ -3,7 +3,7 @@ use std::{net::IpAddr, time::Duration};
 use http::header;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
 use serde::Deserialize;
-use wreq::{Client, Proxy, Version};
+use wreq::{Client, Proxy};
 
 use super::body::{Body, Form, Json};
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
     error::wreq_error_to_magnus,
     extractor::Extractor,
     header::{Headers, OrigHeaders},
-    http::Method,
+    http::{Method, Version},
     rt,
 };
 
@@ -112,6 +112,10 @@ impl Request {
             builder.emulation = Some((*obj).clone());
         }
 
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(version))) {
+            builder.version = Some(Version::try_convert(v)?);
+        }
+
         if let Some(v) = hash.get(ruby.to_symbol(stringify!(headers))) {
             builder.headers = Some(Headers::try_convert(v)?);
         }
@@ -128,7 +132,6 @@ impl Request {
             builder.body = Some(Body::try_convert(v)?);
         }
 
-        builder.version = Extractor::<Version>::try_convert(keyword)?.into_inner();
         builder.proxy = Extractor::<Proxy>::try_convert(keyword)?.into_inner();
 
         Ok(builder)
@@ -148,7 +151,13 @@ pub fn execute_request<U: AsRef<str>>(
         apply_option!(set_if_some_inner, builder, request.emulation, emulation);
 
         // Version options.
-        apply_option!(set_if_some, builder, request.version, version);
+        apply_option!(
+            set_if_some_map,
+            builder,
+            request.version,
+            version,
+            Version::into_ffi
+        );
 
         // Timeout options.
         apply_option!(

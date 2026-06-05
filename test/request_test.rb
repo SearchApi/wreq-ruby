@@ -6,6 +6,16 @@ class WreqHttpbinTest < Minitest::Test
     @client = Wreq::Client.new(timeout: 30)
   end
 
+  def test_spec_http1_version
+    response = Wreq.get("https://tls.browserleaks.com", version: Wreq::Version::HTTP_11)
+    assert_equal response.version, Wreq::Version::HTTP_11
+  end
+
+  def test_spec_http2_version
+    response = Wreq.get("https://tls.browserleaks.com", version: Wreq::Version::HTTP_2)
+    assert_equal response.version, Wreq::Version::HTTP_2
+  end
+
   def test_module_get_method
     response = Wreq.get("http://localhost:8080/get")
     assert_equal 200, response.code

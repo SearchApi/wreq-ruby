@@ -77,7 +77,6 @@ class OrigHeaderTest < Minitest::Test
   private
 
   def extract_http1_headers(json, case_name)
-    puts json
     http1 = fetch_by_name(json, "http1")
     refute_nil http1, "case=#{case_name}: expected JSON key 'http1', got #{json.keys.inspect}"
 
