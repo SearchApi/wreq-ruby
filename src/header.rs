@@ -15,6 +15,9 @@ use crate::error::{
     header_name_error_to_magnus, header_value_error_to_magnus, type_value_error_to_magnus,
 };
 
+/// A wrapper for the User-Agent header value.
+pub struct UserAgent(pub HeaderValue);
+
 /// HTTP headers collection with read and write operations.
 ///
 /// This class wraps HTTP headers and provides convenient methods for
@@ -29,6 +32,17 @@ pub struct OrigHeaders(pub OrigHeaderMap);
 struct HeaderIter {
     inner: http::header::IntoIter<HeaderValue>,
     next_name: Option<HeaderName>,
+}
+
+// ===== impl UserAgent =====
+
+impl TryConvert for UserAgent {
+    fn try_convert(value: Value) -> Result<Self, Error> {
+        let s = RString::try_convert(value)?;
+        let header_value =
+            HeaderValue::from_maybe_shared(s.to_bytes()).map_err(header_value_error_to_magnus)?;
+        Ok(Self(header_value))
+    }
 }
 
 // ===== impl Headers =====

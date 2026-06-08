@@ -32,31 +32,6 @@ where
     }
 }
 
-// ===== impl Extractor<HeaderValue> =====
-
-impl ExtractorName for HeaderValue {
-    const NAME: &str = "user_agent";
-}
-
-impl TryConvert for Extractor<HeaderValue> {
-    fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
-        let ruby = Ruby::get_with(value);
-        let keyword = RHash::try_convert(value)?;
-
-        if let Some(ruby_value) = keyword
-            .get(ruby.to_symbol(HeaderValue::NAME))
-            .and_then(RString::from_value)
-        {
-            return HeaderValue::from_maybe_shared(ruby_value.to_bytes())
-                .map(Some)
-                .map(Extractor)
-                .map_err(header_value_error_to_magnus);
-        }
-
-        Ok(Extractor(None))
-    }
-}
-
 // ===== impl Extractor<HeaderMap> =====
 
 impl ExtractorName for HeaderMap {
