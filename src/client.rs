@@ -148,10 +148,6 @@ impl Builder {
             builder.cookie_provider = Some((*Obj::<Jar>::try_convert(v)?).clone());
         }
 
-        if let Some(jar) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
-            builder.cookie_provider = Some((*Obj::<Jar>::try_convert(jar)?).clone());
-        }
-
         builder.user_agent = Extractor::<HeaderValue>::try_convert(*keyword)?.into_inner();
         builder.proxy = Extractor::<Proxy>::try_convert(*keyword)?.into_inner();
 
