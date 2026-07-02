@@ -4,6 +4,7 @@
 use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use rb_sys::rb_thread_call_without_gvl;
+#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
 use tokio::sync::watch;
 
 /// Container for safely passing closure and result through C callback.
@@ -13,15 +14,18 @@ struct Args<F, R> {
 }
 
 /// Cancellation flag for thread interruption support.
+#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
 #[derive(Clone)]
 pub struct CancelFlag {
     rx: watch::Receiver<bool>,
 }
 
+#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
 struct CancelSender {
     tx: watch::Sender<bool>,
 }
 
+#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
 impl CancelSender {
     fn new() -> (Self, CancelFlag) {
         let (tx, rx) = watch::channel(false);
@@ -33,6 +37,7 @@ impl CancelSender {
     }
 }
 
+#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
 impl CancelFlag {
     /// Wait until cancellation is signaled (zero-latency, no polling).
     pub async fn cancelled(&self) {
@@ -51,6 +56,7 @@ impl CancelFlag {
     }
 }
 
+#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
 struct UnblockData {
     sender: CancelSender,
 }
@@ -70,6 +76,7 @@ where
     null_mut()
 }
 
+#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
 unsafe extern "C" fn unblock_func(arg: *mut c_void) {
     if !arg.is_null() {
         let data = unsafe { &*(arg as *const UnblockData) };
@@ -108,6 +115,7 @@ where
 /// Nesting these functions will cause Ruby thread deadlock, because the inner call
 /// will block waiting for the GVL while the outer call has already released it.
 /// This results in all Ruby threads being suspended indefinitely.
+#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
 pub fn nogvl_cancellable<F, R>(func: F) -> R
 where
     F: FnOnce(CancelFlag) -> R,
