@@ -1,4 +1,5 @@
 require "test_helper"
+require "socket"
 
 class StreamTest < Minitest::Test
   def test_simple_push_stream
@@ -222,21 +223,16 @@ class StreamTest < Minitest::Test
 
   def test_chunks_propagates_streaming_errors
     client = Wreq::Client.new
-    error_raised = false
 
-    begin
-      resp = client.get("#{HTTPBIN_URL}/drip?duration=10&numbytes=10", timeout: 1)
-      resp.chunks do |_chunk|
+    with_truncated_chunked_response do |url|
+      resp = client.get(url)
+      error = assert_raises(Wreq::BodyError, Wreq::ConnectionResetError, Wreq::DecodingError) do
+        resp.chunks do |_chunk|
+        end
       end
-    rescue => e
-      error_raised = true
-      assert(
-        e.is_a?(Wreq::TimeoutError) || e.is_a?(Wreq::BodyError) || e.is_a?(Wreq::ConnectionResetError),
-        "Expected a streaming error (TimeoutError/BodyError/ConnectionResetError), got #{e.class}: #{e.message}"
-      )
-    end
 
-    assert error_raised, "A streaming error should have been raised for a timed-out drip response"
+      assert_match(/body|connection|decode|incomplete|closed|unexpected/i, error.message)
+    end
   end
 
   def test_exception_in_block_propagates
@@ -367,5 +363,35 @@ class StreamTest < Minitest::Test
     end
 
     assert_equal 3, chunks.size, "Client instance get + chunks should work"
+  end
+
+  private
+
+  def with_truncated_chunked_response
+    server = TCPServer.new("127.0.0.1", 0)
+    port = server.addr[1]
+    thread = Thread.new do
+      socket = server.accept
+      begin
+        socket.readpartial(4096) if IO.select([socket], nil, nil, 5)
+        socket.write "HTTP/1.1 200 OK\r\n"
+        socket.write "Content-Type: text/plain\r\n"
+        socket.write "Transfer-Encoding: chunked\r\n"
+        socket.write "\r\n"
+        socket.write "5\r\nhello\r\n"
+        socket.write "A\r\nshort"
+      ensure
+        socket.close unless socket.closed?
+      end
+    rescue IOError, SystemCallError
+    ensure
+      server.close unless server.closed?
+    end
+    thread.report_on_exception = false
+
+    yield "http://127.0.0.1:#{port}/"
+  ensure
+    server&.close unless server&.closed?
+    thread&.join(5)
   end
 end
