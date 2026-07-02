@@ -84,12 +84,12 @@ class InspectTest < Minitest::Test
   # ---- Response ----
 
   def test_response_to_s_returns_body
-    response = Wreq.get("http://localhost:8080/json")
+    response = Wreq.get("#{HTTPBIN_URL}/json")
     assert_equal response.text, response.to_s
   end
 
   def test_response_inspect_format
-    response = Wreq.get("http://localhost:8080/json")
+    response = Wreq.get("#{HTTPBIN_URL}/json")
     result = response.inspect
     assert result.start_with?("#<Wreq::Response")
     assert_includes result, "200"
@@ -99,7 +99,7 @@ class InspectTest < Minitest::Test
   # ---- StatusCode ----
 
   def test_status_code_inspect
-    response = Wreq.get("http://localhost:8080/status/200")
+    response = Wreq.get("#{HTTPBIN_URL}/status/200")
     result = response.status.inspect
     assert result.start_with?("#<Wreq::StatusCode")
     assert_includes result, response.status.to_s
@@ -117,7 +117,7 @@ class InspectTest < Minitest::Test
   end
 
   def test_version_inspect_from_response
-    response = Wreq.get("http://localhost:8080/get")
+    response = Wreq.get("#{HTTPBIN_URL}/get")
     result = response.version.inspect
     assert result.start_with?("#<Wreq::Version")
     assert result.end_with?(">")

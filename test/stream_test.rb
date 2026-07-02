@@ -9,7 +9,7 @@ class StreamTest < Minitest::Test
       sender.close
     end
 
-    resp = client.post("http://localhost:8080/post", body: sender, headers: {"Content-Type" => "text/plain"})
+    resp = client.post("#{HTTPBIN_URL}/post", body: sender, headers: {"Content-Type" => "text/plain"})
 
     assert_equal 200, resp.code
 
@@ -23,7 +23,7 @@ class StreamTest < Minitest::Test
 
   def test_response_body_chunks_stream
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/5")
+    resp = client.get("#{HTTPBIN_URL}/stream/5")
     chunks = []
 
     resp.chunks do |chunk|
@@ -37,7 +37,7 @@ class StreamTest < Minitest::Test
 
   def test_chunks_yields_binary_encoding
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/3")
+    resp = client.get("#{HTTPBIN_URL}/stream/3")
 
     resp.chunks do |chunk|
       assert chunk.encoding == Encoding::BINARY || chunk.encoding == Encoding::ASCII_8BIT,
@@ -47,7 +47,7 @@ class StreamTest < Minitest::Test
 
   def test_chunks_with_single_chunk_body
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/bytes/1024")
+    resp = client.get("#{HTTPBIN_URL}/bytes/1024")
     chunk_count = 0
     total_bytes = 0
 
@@ -62,7 +62,7 @@ class StreamTest < Minitest::Test
 
   def test_chunks_returns_nil
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/3")
+    resp = client.get("#{HTTPBIN_URL}/stream/3")
 
     result = resp.chunks { |_chunk| :processing }
 
@@ -71,7 +71,7 @@ class StreamTest < Minitest::Test
 
   def test_chunks_with_empty_body
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/status/204")
+    resp = client.get("#{HTTPBIN_URL}/status/204")
     chunk_count = 0
 
     resp.chunks do |_chunk|
@@ -83,7 +83,7 @@ class StreamTest < Minitest::Test
 
   def test_chunks_without_block_raises_error
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/3")
+    resp = client.get("#{HTTPBIN_URL}/stream/3")
 
     assert_raises(LocalJumpError) do
       resp.chunks
@@ -92,7 +92,7 @@ class StreamTest < Minitest::Test
 
   def test_other_threads_run_during_streaming
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/drip?duration=3&numbytes=3&delay=1")
+    resp = client.get("#{HTTPBIN_URL}/drip?duration=3&numbytes=3&delay=1")
 
     counter = 0
     tick_thread = Thread.new do
@@ -121,7 +121,7 @@ class StreamTest < Minitest::Test
     done = {}
 
     t1 = Thread.new do
-      resp = client.get("http://localhost:8080/stream/3")
+      resp = client.get("#{HTTPBIN_URL}/stream/3")
       chunks = []
       resp.chunks { |chunk| chunks << chunk }
       results[:t1] = chunks.size
@@ -129,7 +129,7 @@ class StreamTest < Minitest::Test
     end
 
     t2 = Thread.new do
-      resp = client.get("http://localhost:8080/stream/3")
+      resp = client.get("#{HTTPBIN_URL}/stream/3")
       chunks = []
       resp.chunks { |chunk| chunks << chunk }
       results[:t2] = chunks.size
@@ -174,7 +174,7 @@ class StreamTest < Minitest::Test
   end
 
   def test_thread_interrupt_body_reading
-    url = "http://localhost:8080/drip?duration=5&numbytes=5"
+    url = "#{HTTPBIN_URL}/drip?duration=5&numbytes=5"
     thread = Thread.new do
       resp = Wreq.get(url)
       resp.text
@@ -189,7 +189,7 @@ class StreamTest < Minitest::Test
   end
 
   def test_thread_interrupt_body_streaming
-    url = "http://localhost:8080/drip?duration=5&numbytes=5"
+    url = "#{HTTPBIN_URL}/drip?duration=5&numbytes=5"
     thread = Thread.new do
       resp = Wreq.get(url)
       resp.chunks { |chunk| chunk }
@@ -204,7 +204,7 @@ class StreamTest < Minitest::Test
   end
 
   def test_thread_interrupt_during_slow_stream_with_block_processing
-    url = "http://localhost:8080/drip?duration=5&numbytes=5&delay=1"
+    url = "#{HTTPBIN_URL}/drip?duration=5&numbytes=5&delay=1"
     thread = Thread.new do
       resp = Wreq.get(url)
       resp.chunks do |_chunk|
@@ -222,7 +222,7 @@ class StreamTest < Minitest::Test
 
   def test_chunks_propagates_streaming_errors
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/drip?duration=10&numbytes=10", timeout: 1)
+    resp = client.get("#{HTTPBIN_URL}/drip?duration=10&numbytes=10", timeout: 1)
     error_raised = false
 
     begin
@@ -241,7 +241,7 @@ class StreamTest < Minitest::Test
 
   def test_exception_in_block_propagates
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/5")
+    resp = client.get("#{HTTPBIN_URL}/stream/5")
     error_raised = false
     chunks_before_error = 0
 
@@ -261,7 +261,7 @@ class StreamTest < Minitest::Test
 
   def test_chunks_called_twice_raises_error
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/3")
+    resp = client.get("#{HTTPBIN_URL}/stream/3")
     resp.chunks { |_chunk| }
     error_raised = false
 
@@ -278,7 +278,7 @@ class StreamTest < Minitest::Test
 
   def test_text_after_chunks_raises_error
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/3")
+    resp = client.get("#{HTTPBIN_URL}/stream/3")
     resp.chunks { |_chunk| }
     error_raised = false
 
@@ -295,10 +295,10 @@ class StreamTest < Minitest::Test
 
   def test_chunks_content_matches_full_body
     client = Wreq::Client.new
-    resp_full = client.get("http://localhost:8080/bytes/4096")
+    resp_full = client.get("#{HTTPBIN_URL}/bytes/4096")
     full_bytes = resp_full.bytes
 
-    resp_stream = client.get("http://localhost:8080/bytes/4096")
+    resp_stream = client.get("#{HTTPBIN_URL}/bytes/4096")
     streamed_bytes = "".b
     resp_stream.chunks do |chunk|
       streamed_bytes << chunk
@@ -310,7 +310,7 @@ class StreamTest < Minitest::Test
 
   def test_chunks_json_stream_content
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/5")
+    resp = client.get("#{HTTPBIN_URL}/stream/5")
     chunks = []
 
     resp.chunks do |chunk|
@@ -325,7 +325,7 @@ class StreamTest < Minitest::Test
 
   def test_block_not_garbage_collected_during_streaming
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/drip?duration=3&numbytes=3&delay=1")
+    resp = client.get("#{HTTPBIN_URL}/drip?duration=3&numbytes=3&delay=1")
     chunks_received = 0
 
     resp.chunks do |_chunk|
@@ -340,14 +340,14 @@ class StreamTest < Minitest::Test
 
   def test_close_after_streaming
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/3")
+    resp = client.get("#{HTTPBIN_URL}/stream/3")
 
     resp.chunks { |_chunk| }
     resp.close
   end
 
   def test_chunks_via_module_method
-    resp = Wreq.get("http://localhost:8080/stream/3")
+    resp = Wreq.get("#{HTTPBIN_URL}/stream/3")
     chunks = []
 
     resp.chunks do |chunk|
@@ -359,7 +359,7 @@ class StreamTest < Minitest::Test
 
   def test_chunks_via_client_instance
     client = Wreq::Client.new
-    resp = client.get("http://localhost:8080/stream/3")
+    resp = client.get("#{HTTPBIN_URL}/stream/3")
     chunks = []
 
     resp.chunks do |chunk|

@@ -37,11 +37,8 @@ jobs:
   ruby-binding-tests:
     name: Ruby Binding Tests
     runs-on: ${{ matrix.os }}
-    services:
-      httpbin:
-        image: kennethreitz/httpbin
-        ports:
-          - 8080:80
+    env:
+      HTTPBIN_URL: https://httpbin.io
     strategy:
       fail-fast: false
       matrix:

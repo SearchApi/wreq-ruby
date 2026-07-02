@@ -2,7 +2,7 @@ require "test_helper"
 
 class RequestParametersTest < Minitest::Test
   def test_query_parameters
-    response = Wreq.get("http://localhost:8080/get",
+    response = Wreq.get("#{HTTPBIN_URL}/get",
       query: {
         "string" => "value",
         "number" => "123",
@@ -24,7 +24,7 @@ class RequestParametersTest < Minitest::Test
       "Accept" => "application/json"
     }
 
-    response = Wreq.get("http://localhost:8080/get", headers: custom_headers)
+    response = Wreq.get("#{HTTPBIN_URL}/get", headers: custom_headers)
     assert_equal 200, response.code
 
     json_data = response.json
@@ -44,7 +44,7 @@ class RequestParametersTest < Minitest::Test
       "object" => {"nested" => "value"}
     }
 
-    response = Wreq.post("http://localhost:8080/post", json: json_data)
+    response = Wreq.post("#{HTTPBIN_URL}/post", json: json_data)
     assert_equal 200, response.code
 
     response_data = response.json
@@ -64,7 +64,7 @@ class RequestParametersTest < Minitest::Test
       "number" => "123"
     }
 
-    response = Wreq.post("http://localhost:8080/post", form: form_data)
+    response = Wreq.post("#{HTTPBIN_URL}/post", form: form_data)
     assert_equal 200, response.code
 
     response_data = response.json
@@ -76,7 +76,7 @@ class RequestParametersTest < Minitest::Test
   end
 
   def test_combined_parameters
-    response = Wreq.post("http://localhost:8080/post",
+    response = Wreq.post("#{HTTPBIN_URL}/post",
       query: {"q" => "search"},
       headers: {"X-Test" => "combined"},
       json: {"data" => "payload"})
@@ -97,7 +97,7 @@ class RequestParametersTest < Minitest::Test
 
   def test_empty_parameters
     # Test with no additional parameters
-    response = Wreq.get("http://localhost:8080/get")
+    response = Wreq.get("#{HTTPBIN_URL}/get")
     assert_equal 200, response.code
 
     json_data = response.json
@@ -113,7 +113,7 @@ class RequestParametersTest < Minitest::Test
       "url_chars" => "a=b&c=d"
     }
 
-    response = Wreq.get("http://localhost:8080/get", query: special_data)
+    response = Wreq.get("#{HTTPBIN_URL}/get", query: special_data)
     assert_equal 200, response.code
 
     json_data = response.json
@@ -140,7 +140,7 @@ class RequestParametersTest < Minitest::Test
       }
     }
 
-    response = Wreq.post("http://localhost:8080/post", json: nested_data)
+    response = Wreq.post("#{HTTPBIN_URL}/post", json: nested_data)
     assert_equal 200, response.code
 
     response_data = response.json
@@ -153,11 +153,11 @@ class RequestParametersTest < Minitest::Test
 
   def test_method_specific_parameters
     methods_and_urls = {
-      get: "http://localhost:8080/get",
-      post: "http://localhost:8080/post",
-      put: "http://localhost:8080/put",
-      patch: "http://localhost:8080/patch",
-      delete: "http://localhost:8080/delete"
+      get: "#{HTTPBIN_URL}/get",
+      post: "#{HTTPBIN_URL}/post",
+      put: "#{HTTPBIN_URL}/put",
+      patch: "#{HTTPBIN_URL}/patch",
+      delete: "#{HTTPBIN_URL}/delete"
     }
 
     methods_and_urls.each do |method, url|

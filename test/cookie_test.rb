@@ -157,24 +157,26 @@ class CookieTest < Minitest::Test
   def test_request_uncompressed_cookies
     client = Wreq::Client.new
     resp = client.get(
-      "https://httpbin.io/cookies",
+      "#{HTTPBIN_URL}/cookies",
       cookies: {"foo" => "bar", "baz" => "qux"}
     )
     json = resp.json
     assert_instance_of Hash, json
-    assert_equal "bar", json["foo"]
-    assert_equal "qux", json["baz"]
+    cookies = json.fetch("cookies", json)
+    assert_equal "bar", cookies["foo"]
+    assert_equal "qux", cookies["baz"]
   end
 
   def test_request_compressed_cookies
     client = Wreq::Client.new
     resp = client.get(
-      "https://httpbin.io/cookies",
+      "#{HTTPBIN_URL}/cookies",
       cookies: "foo=bar; baz=qux"
     )
     json = resp.json
     assert_instance_of Hash, json
-    assert_equal "bar", json["foo"]
-    assert_equal "qux", json["baz"]
+    cookies = json.fetch("cookies", json)
+    assert_equal "bar", cookies["foo"]
+    assert_equal "qux", cookies["baz"]
   end
 end

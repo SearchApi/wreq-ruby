@@ -3,7 +3,7 @@
 require "test_helper"
 
 class ClientCookieProviderTest < Minitest::Test
-  HOST = "http://localhost:8080"
+  HOST = HTTPBIN_URL
 
   def setup
     @jar = Wreq::Jar.new
