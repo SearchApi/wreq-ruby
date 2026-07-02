@@ -29,9 +29,9 @@ class ClientCookieProviderTest < Minitest::Test
     # subsequent request should send the stored cookie automatically
     res2 = @client.get("#{HOST}/cookies")
     assert_equal 200, res2.code
-    body = res2.json
-    assert_kind_of Hash, body
-    assert_equal "bar", body.dig("cookies", "foo")
+    cookies = httpbin_cookies(res2.json)
+    assert_kind_of Hash, cookies
+    assert_equal "bar", httpbin_fetch(cookies, "foo")
   end
 
   def test_prepopulated_jar_is_used_by_client
@@ -40,7 +40,7 @@ class ClientCookieProviderTest < Minitest::Test
 
     res = @client.get("#{HOST}/cookies")
     assert_equal 200, res.code
-    cookies = res.json["cookies"]
-    assert_equal "1", cookies["pref"]
+    cookies = httpbin_cookies(res.json)
+    assert_equal "1", httpbin_fetch(cookies, "pref")
   end
 end

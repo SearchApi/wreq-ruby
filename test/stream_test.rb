@@ -222,10 +222,10 @@ class StreamTest < Minitest::Test
 
   def test_chunks_propagates_streaming_errors
     client = Wreq::Client.new
-    resp = client.get("#{HTTPBIN_URL}/drip?duration=10&numbytes=10", timeout: 1)
     error_raised = false
 
     begin
+      resp = client.get("#{HTTPBIN_URL}/drip?duration=10&numbytes=10", timeout: 1)
       resp.chunks do |_chunk|
       end
     rescue => e
@@ -325,7 +325,7 @@ class StreamTest < Minitest::Test
 
   def test_block_not_garbage_collected_during_streaming
     client = Wreq::Client.new
-    resp = client.get("#{HTTPBIN_URL}/drip?duration=3&numbytes=3&delay=1")
+    resp = client.get("#{HTTPBIN_URL}/stream/3")
     chunks_received = 0
 
     resp.chunks do |_chunk|

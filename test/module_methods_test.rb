@@ -48,7 +48,7 @@ class ModuleMethodsTest < Minitest::Test
       query: {"test" => "module"})
     refute_nil response
     assert_equal "#{HTTPBIN_URL}/get?test=module", response.url
-    assert_includes response.text, "#{HTTPBIN_URL}/get?test=module"
+    assert_equal "module", httpbin_fetch(response.json["args"], "test")
     assert_equal 200, response.code
   end
 

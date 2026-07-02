@@ -63,7 +63,7 @@ class ResponseTest < Minitest::Test
 
     json_data = response.json
     args = json_data["args"]
-    assert_equal "value1", args["param1"]
-    assert_equal "value2", args["param2"]
+    assert_equal "value1", httpbin_fetch(args, "param1")
+    assert_equal "value2", httpbin_fetch(args, "param2")
   end
 end
