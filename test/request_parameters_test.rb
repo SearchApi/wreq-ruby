@@ -2,7 +2,7 @@ require "test_helper"
 
 class RequestParametersTest < Minitest::Test
   def test_query_parameters
-    response = Wreq.get("http://localhost:8080/get",
+    response = Wreq.get("#{HTTPBIN_URL}/get",
       query: {
         "string" => "value",
         "number" => "123",
@@ -12,9 +12,9 @@ class RequestParametersTest < Minitest::Test
 
     json_data = response.json
     args = json_data["args"]
-    assert_equal "value", args["string"]
-    assert_equal "123", args["number"]  # Query params are strings
-    assert_equal "true", args["boolean"]
+    assert_equal "value", httpbin_fetch(args, "string")
+    assert_equal "123", httpbin_fetch(args, "number")  # Query params are strings
+    assert_equal "true", httpbin_fetch(args, "boolean")
   end
 
   def test_headers
@@ -24,15 +24,15 @@ class RequestParametersTest < Minitest::Test
       "Accept" => "application/json"
     }
 
-    response = Wreq.get("http://localhost:8080/get", headers: custom_headers)
+    response = Wreq.get("#{HTTPBIN_URL}/get", headers: custom_headers)
     assert_equal 200, response.code
 
     json_data = response.json
     request_headers = json_data["headers"]
 
-    assert_equal "custom-value", request_headers["X-Custom-Header"]
-    assert_equal "wreq-ruby-test/1.0", request_headers["User-Agent"]
-    assert_equal "application/json", request_headers["Accept"]
+    assert_equal "custom-value", httpbin_fetch(request_headers, "X-Custom-Header")
+    assert_equal "wreq-ruby-test/1.0", httpbin_fetch(request_headers, "User-Agent")
+    assert_equal "application/json", httpbin_fetch(request_headers, "Accept")
   end
 
   def test_json_body
@@ -44,7 +44,7 @@ class RequestParametersTest < Minitest::Test
       "object" => {"nested" => "value"}
     }
 
-    response = Wreq.post("http://localhost:8080/post", json: json_data)
+    response = Wreq.post("#{HTTPBIN_URL}/post", json: json_data)
     assert_equal 200, response.code
 
     response_data = response.json
@@ -64,19 +64,19 @@ class RequestParametersTest < Minitest::Test
       "number" => "123"
     }
 
-    response = Wreq.post("http://localhost:8080/post", form: form_data)
+    response = Wreq.post("#{HTTPBIN_URL}/post", form: form_data)
     assert_equal 200, response.code
 
     response_data = response.json
     sent_form = response_data["form"]
 
-    assert_equal "value1", sent_form["field1"]
-    assert_equal "value2", sent_form["field2"]
-    assert_equal "123", sent_form["number"]
+    assert_equal "value1", httpbin_fetch(sent_form, "field1")
+    assert_equal "value2", httpbin_fetch(sent_form, "field2")
+    assert_equal "123", httpbin_fetch(sent_form, "number")
   end
 
   def test_combined_parameters
-    response = Wreq.post("http://localhost:8080/post",
+    response = Wreq.post("#{HTTPBIN_URL}/post",
       query: {"q" => "search"},
       headers: {"X-Test" => "combined"},
       json: {"data" => "payload"})
@@ -86,10 +86,10 @@ class RequestParametersTest < Minitest::Test
     json_data = response.json
 
     # Check query parameters
-    assert_equal "search", json_data["args"]["q"]
+    assert_equal "search", httpbin_fetch(json_data["args"], "q")
 
     # Check headers
-    assert_equal "combined", json_data["headers"]["X-Test"]
+    assert_equal "combined", httpbin_fetch(json_data["headers"], "X-Test")
 
     # Check JSON body
     assert_equal "payload", json_data["json"]["data"]
@@ -97,7 +97,7 @@ class RequestParametersTest < Minitest::Test
 
   def test_empty_parameters
     # Test with no additional parameters
-    response = Wreq.get("http://localhost:8080/get")
+    response = Wreq.get("#{HTTPBIN_URL}/get")
     assert_equal 200, response.code
 
     json_data = response.json
@@ -113,16 +113,16 @@ class RequestParametersTest < Minitest::Test
       "url_chars" => "a=b&c=d"
     }
 
-    response = Wreq.get("http://localhost:8080/get", query: special_data)
+    response = Wreq.get("#{HTTPBIN_URL}/get", query: special_data)
     assert_equal 200, response.code
 
     json_data = response.json
     args = json_data["args"]
 
-    assert_equal "value with spaces", args["space"]
-    assert_equal "!@#$%^&*()", args["symbols"]
-    assert_equal "测试中文", args["unicode"]
-    assert_equal "a=b&c=d", args["url_chars"]
+    assert_equal "value with spaces", httpbin_fetch(args, "space")
+    assert_equal "!@#$%^&*()", httpbin_fetch(args, "symbols")
+    assert_equal "测试中文", httpbin_fetch(args, "unicode")
+    assert_equal "a=b&c=d", httpbin_fetch(args, "url_chars")
   end
 
   def test_nested_json_data
@@ -140,7 +140,7 @@ class RequestParametersTest < Minitest::Test
       }
     }
 
-    response = Wreq.post("http://localhost:8080/post", json: nested_data)
+    response = Wreq.post("#{HTTPBIN_URL}/post", json: nested_data)
     assert_equal 200, response.code
 
     response_data = response.json
@@ -153,11 +153,11 @@ class RequestParametersTest < Minitest::Test
 
   def test_method_specific_parameters
     methods_and_urls = {
-      get: "http://localhost:8080/get",
-      post: "http://localhost:8080/post",
-      put: "http://localhost:8080/put",
-      patch: "http://localhost:8080/patch",
-      delete: "http://localhost:8080/delete"
+      get: "#{HTTPBIN_URL}/get",
+      post: "#{HTTPBIN_URL}/post",
+      put: "#{HTTPBIN_URL}/put",
+      patch: "#{HTTPBIN_URL}/patch",
+      delete: "#{HTTPBIN_URL}/delete"
     }
 
     methods_and_urls.each do |method, url|
@@ -168,8 +168,8 @@ class RequestParametersTest < Minitest::Test
       assert_equal 200, response.code, "#{method} request failed"
 
       json_data = response.json
-      assert_equal method.to_s, json_data["headers"]["X-Method"]
-      assert_equal method.to_s, json_data["args"]["method"]
+      assert_equal method.to_s, httpbin_fetch(json_data["headers"], "X-Method")
+      assert_equal method.to_s, httpbin_fetch(json_data["args"], "method")
     end
   end
 end

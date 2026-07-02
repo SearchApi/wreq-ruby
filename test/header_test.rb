@@ -2,7 +2,7 @@ require "test_helper"
 
 class HeadersTest < Minitest::Test
   def setup
-    @response = Wreq.get("http://localhost:8080/response-headers",
+    @response = Wreq.get("#{HTTPBIN_URL}/response-headers",
       query: {
         "X-Custom-Header" => "custom-value",
         "X-Multi-Header" => "value1"
