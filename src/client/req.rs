@@ -33,6 +33,7 @@ pub struct Request {
     local_address: Option<IpAddr>,
 
     /// Bind to an interface by `SO_BINDTODEVICE`.
+    #[allow(dead_code)]
     interface: Option<String>,
 
     /// The timeout to use for the request.
@@ -178,6 +179,18 @@ pub fn execute_request<U: AsRef<str>>(
         // Network options.
         apply_option!(set_if_some, builder, request.proxy, proxy);
         apply_option!(set_if_some, builder, request.local_address, local_address);
+        #[cfg(any(
+            target_os = "android",
+            target_os = "fuchsia",
+            target_os = "illumos",
+            target_os = "ios",
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "solaris",
+            target_os = "tvos",
+            target_os = "visionos",
+            target_os = "watchos",
+        ))]
         apply_option!(set_if_some, builder, request.interface, interface);
 
         // Headers options.

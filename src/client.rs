@@ -104,6 +104,7 @@ struct Builder {
     /// Bind to a local IP Address.
     local_address: Option<IpAddr>,
     /// Bind to an interface by `SO_BINDTODEVICE`.
+    #[allow(dead_code)]
     interface: Option<String>,
 
     // ========= Compression options =========
@@ -300,6 +301,18 @@ impl Client {
                 apply_option!(set_if_some, builder, params.proxy, proxy);
                 apply_option!(set_if_true, builder, params.no_proxy, no_proxy, false);
                 apply_option!(set_if_some, builder, params.local_address, local_address);
+                #[cfg(any(
+                    target_os = "android",
+                    target_os = "fuchsia",
+                    target_os = "illumos",
+                    target_os = "ios",
+                    target_os = "linux",
+                    target_os = "macos",
+                    target_os = "solaris",
+                    target_os = "tvos",
+                    target_os = "visionos",
+                    target_os = "watchos",
+                ))]
                 apply_option!(set_if_some, builder, params.interface, interface);
 
                 // Compression options.

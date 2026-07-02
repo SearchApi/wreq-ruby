@@ -70,3 +70,30 @@ jobs:
     
     - name: Run tests
       run: bundle exec rake test
+
+  windows-gnu-build:
+    name: Windows GNU Build
+    runs-on: windows-latest
+    env:
+      CARGO_BUILD_TARGET: x86_64-pc-windows-gnu
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: x86_64-pc-windows-gnu
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '4.0'
+        bundler-cache: true
+
+    - name: Compile native extension and build platform gem
+      shell: pwsh
+      run: ./script/build_windows_gnu.ps1 -SkipBundleInstall -BuildGem
+
+    - name: Inspect platform gem
+      run: ruby -rrubygems/package -e "spec = Gem::Package.new(Dir['pkg/*x64-mingw-ucrt.gem'].first).spec; puts spec.platform; puts spec.files.grep(/wreq_ruby\/.*wreq_ruby\.so/)"
