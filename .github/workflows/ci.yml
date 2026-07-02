@@ -41,6 +41,7 @@ jobs:
       HTTPBIN_URL: https://httpbin.io
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         os: [ubuntu-latest]
         ruby: ['3.3', '3.4', '4.0']
