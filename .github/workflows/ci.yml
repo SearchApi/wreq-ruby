@@ -34,14 +34,13 @@ jobs:
     - name: Run cargo clippy
       run: cargo clippy --all-targets --all-features -- -D warnings
 
-  ruby-binding-tests:
-    name: Ruby Binding Tests
+  linux-tests:
+    name: Linux Tests (${{ matrix.os }}, ${{ matrix.ruby }})
     runs-on: ${{ matrix.os }}
     env:
       HTTPBIN_URL: https://httpbin.io
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         os: [ubuntu-latest]
         ruby: ['3.3', '3.4', '4.0']
@@ -77,7 +76,6 @@ jobs:
       HTTPBIN_URL: https://httpbin.io
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         ruby: ['3.3', '3.4', '4.0']
 
