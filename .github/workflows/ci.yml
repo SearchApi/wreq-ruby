@@ -69,13 +69,15 @@ jobs:
     - name: Run tests
       run: bundle exec rake test
 
-  windows-gnu-build:
-    name: Windows GNU Build (windows-latest, ${{ matrix.ruby }})
+  windows-gnu-tests:
+    name: Ruby Binding Tests (windows-latest, ${{ matrix.ruby }})
     runs-on: windows-latest
     env:
       CARGO_BUILD_TARGET: x86_64-pc-windows-gnu
+      HTTPBIN_URL: https://httpbin.io
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         ruby: ['3.3', '3.4', '4.0']
 
@@ -93,9 +95,6 @@ jobs:
         ruby-version: ${{ matrix.ruby }}
         bundler-cache: true
 
-    - name: Compile, build, and test platform gem
+    - name: Run tests
       shell: pwsh
-      run: ./script/build_windows_gnu.ps1 -SkipBundleInstall -BuildGem -TestGem
-
-    - name: Inspect platform gem
-      run: ruby -rrubygems/package -e "spec = Gem::Package.new(Dir['pkg/*x64-mingw-ucrt.gem'].first).spec; puts spec.platform; puts spec.files.grep(/wreq_ruby\/.*wreq_ruby\.so/)"
+      run: ./script/build_windows_gnu.ps1 -SkipBundleInstall -RunTests

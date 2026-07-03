@@ -3,6 +3,7 @@ param(
     [switch]$SkipToolInstall,
     [switch]$BuildGem,
     [switch]$TestGem,
+    [switch]$RunTests,
     [string]$SmokeUrl = $env:WREQ_SMOKE_URL
 )
 
@@ -155,6 +156,12 @@ Invoke-Step "Compile native extension" {
 
 Invoke-Step "Verify extension loads" {
     ruby -Ilib -rwreq -e "puts Wreq::VERSION; puts Wreq::Client.new.class"
+}
+
+if ($RunTests) {
+    Invoke-Step "Run tests" {
+        ridk exec ruby -S bundle exec rake test
+    }
 }
 
 if ($BuildGem) {
