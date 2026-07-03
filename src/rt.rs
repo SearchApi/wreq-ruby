@@ -2,9 +2,7 @@ use std::sync::LazyLock;
 
 use tokio::runtime::{Builder, Runtime};
 
-#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
-use crate::error::interrupt_error;
-use crate::gvl;
+use crate::{error::interrupt_error, gvl};
 
 static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
     // RubyInstaller's GNU/UCRT build can crash while Tokio starts its
@@ -23,7 +21,6 @@ static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
 });
 
 enum BlockOnError<E> {
-    #[cfg(not(all(target_os = "windows", target_env = "gnu")))]
     Interrupted,
     Future(E),
 }
@@ -38,10 +35,6 @@ where
     F: Future<Output = Result<T, E>>,
     M: FnOnce(E) -> magnus::Error,
 {
-    #[cfg(all(target_os = "windows", target_env = "gnu"))]
-    let result = gvl::nogvl(|| RUNTIME.block_on(future).map_err(BlockOnError::Future));
-
-    #[cfg(not(all(target_os = "windows", target_env = "gnu")))]
     let result = gvl::nogvl_cancellable(|flag| {
         RUNTIME.block_on(async move {
             tokio::select! {
@@ -54,7 +47,6 @@ where
 
     match result {
         Ok(value) => Ok(value),
-        #[cfg(not(all(target_os = "windows", target_env = "gnu")))]
         Err(BlockOnError::Interrupted) => Err(interrupt_error()),
         Err(BlockOnError::Future(err)) => Err(map_err(err)),
     }

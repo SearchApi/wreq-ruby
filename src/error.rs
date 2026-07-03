@@ -81,7 +81,6 @@ pub fn memory_error() -> MagnusError {
 }
 
 /// Thread interruption error (raised when Thread.kill cancels a request)
-#[cfg(not(all(target_os = "windows", target_env = "gnu")))]
 pub fn interrupt_error() -> MagnusError {
     MagnusError::new(ruby!().get_inner(&INTERRUPT_ERROR), "request interrupted")
 }
