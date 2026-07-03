@@ -7,6 +7,9 @@ use crate::error::interrupt_error;
 use crate::gvl;
 
 static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
+    // RubyInstaller's GNU/UCRT build can crash while Tokio starts its
+    // multi-threaded runtime on Windows. Keep that target on a current-thread
+    // runtime while still releasing Ruby's GVL around blocking requests.
     #[cfg(all(target_os = "windows", target_env = "gnu"))]
     let mut builder = Builder::new_current_thread();
 
