@@ -21,7 +21,7 @@ class ErrorHandlingTest < Minitest::Test
   def test_http_error_status_codes
     # These should not raise errors, just return responses with error codes
     [400, 401, 403, 404, 500, 502, 503].each do |status_code|
-      response = Wreq.get("http://localhost:8080/status/#{status_code}")
+      response = Wreq.get("#{HTTPBIN_URL}/status/#{status_code}")
       assert_equal status_code, response.code
       # Should not raise an exception for HTTP error codes
     end
@@ -31,7 +31,7 @@ class ErrorHandlingTest < Minitest::Test
     # Test timeout with a delay that should definitely cause timeout
 
     # Request with a very short timeout that should fail
-    response = Wreq.get("http://localhost:8080/delay/10", timeout: 1)
+    response = Wreq.get("#{HTTPBIN_URL}/delay/10", timeout: 1)
     # If we get here, the request didn't timeout (unexpected)
     flunk "Expected timeout error but got response: #{response.code}"
   rescue => e
@@ -42,7 +42,7 @@ class ErrorHandlingTest < Minitest::Test
 
   def test_invalid_json_response
     # Get a non-JSON response and try to parse as JSON
-    response = Wreq.get("http://localhost:8080/html")
+    response = Wreq.get("#{HTTPBIN_URL}/html")
     assert_equal 200, response.code
 
     # Should raise an error when trying to parse HTML as JSON
@@ -54,7 +54,7 @@ class ErrorHandlingTest < Minitest::Test
   end
 
   def test_empty_response_json
-    response = Wreq.get("http://localhost:8080/status/204")
+    response = Wreq.get("#{HTTPBIN_URL}/status/204")
     assert_equal 204, response.code
     assert_equal "", response.text
 

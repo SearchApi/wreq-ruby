@@ -20,40 +20,40 @@ class ClientTest < Minitest::Test
   end
 
   def test_get_request
-    response = @client.get("http://localhost:8080/get")
+    response = @client.get("#{HTTPBIN_URL}/get")
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_post_request
-    response = @client.post("http://localhost:8080/post",
+    response = @client.post("#{HTTPBIN_URL}/post",
       json: {test: "wreq-ruby"})
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_put_request
-    response = @client.put("http://localhost:8080/put",
+    response = @client.put("#{HTTPBIN_URL}/put",
       json: {data: "test"})
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_delete_request
-    response = @client.delete("http://localhost:8080/delete")
+    response = @client.delete("#{HTTPBIN_URL}/delete")
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_patch_request
-    response = @client.patch("http://localhost:8080/patch",
+    response = @client.patch("#{HTTPBIN_URL}/patch",
       json: {update: "field"})
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_request_with_query_params
-    response = @client.get("http://localhost:8080/get",
+    response = @client.get("#{HTTPBIN_URL}/get",
       query: {"param" => "value"})
     refute_nil response
     assert_equal 200, response.code
@@ -61,7 +61,7 @@ class ClientTest < Minitest::Test
   end
 
   def test_request_with_form_data
-    response = @client.post("http://localhost:8080/post",
+    response = @client.post("#{HTTPBIN_URL}/post",
       form: {"field" => "value"})
     refute_nil response
     assert_equal 200, response.code
@@ -69,7 +69,7 @@ class ClientTest < Minitest::Test
   end
 
   def test_request_with_raw_body
-    response = @client.post("http://localhost:8080/post",
+    response = @client.post("#{HTTPBIN_URL}/post",
       body: "raw content",
       headers: {"Content-Type" => "text/plain"})
     refute_nil response
@@ -78,14 +78,14 @@ class ClientTest < Minitest::Test
   end
 
   def test_basic_authentication
-    response = @client.get("http://localhost:8080/basic-auth/user/pass",
+    response = @client.get("#{HTTPBIN_URL}/basic-auth/user/pass",
       basic_auth: ["user", "pass"])
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_bearer_authentication
-    response = @client.get("http://localhost:8080/bearer",
+    response = @client.get("#{HTTPBIN_URL}/bearer",
       bearer_auth: "test-token")
     refute_nil response
     assert_equal 200, response.code
@@ -93,21 +93,21 @@ class ClientTest < Minitest::Test
   end
 
   def test_redirect_following
-    response = @client.get("http://localhost:8080/redirect/1",
+    response = @client.get("#{HTTPBIN_URL}/redirect/1",
       allow_redirects: true)
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_redirect_blocking
-    response = @client.get("http://localhost:8080/redirect/1",
+    response = @client.get("#{HTTPBIN_URL}/redirect/1",
       allow_redirects: false)
     refute_nil response
     assert_equal 302, response.code
   end
 
   def test_gzip_compression
-    response = @client.get("http://localhost:8080/gzip", gzip: true)
+    response = @client.get("#{HTTPBIN_URL}/gzip", gzip: true)
     refute_nil response
     assert_equal 200, response.code
   end
@@ -115,12 +115,12 @@ class ClientTest < Minitest::Test
   def test_timeout_handling
     # Test that short timeouts properly raise exceptions
     assert_raises(Wreq::TimeoutError) do
-      @client.get("http://localhost:8080/delay/10", timeout: 1)
+      @client.get("#{HTTPBIN_URL}/delay/10", timeout: 1)
     end
 
     # Test that reasonable timeouts work normally
     start_time = Time.now
-    response = @client.get("http://localhost:8080/delay/1", timeout: 5)
+    response = @client.get("#{HTTPBIN_URL}/delay/1", timeout: 5)
     elapsed = Time.now - start_time
 
     refute_nil response
@@ -129,7 +129,7 @@ class ClientTest < Minitest::Test
   end
 
   def test_status_codes
-    response = @client.get("http://localhost:8080/status/404")
+    response = @client.get("#{HTTPBIN_URL}/status/404")
     refute_nil response
     assert_equal 404, response.code
   end

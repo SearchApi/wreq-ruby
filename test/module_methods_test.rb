@@ -2,33 +2,33 @@ require "test_helper"
 
 class ModuleMethodsTest < Minitest::Test
   def test_module_get
-    response = Wreq.get("http://localhost:8080/get")
+    response = Wreq.get("#{HTTPBIN_URL}/get")
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_module_post
-    response = Wreq.post("http://localhost:8080/post",
+    response = Wreq.post("#{HTTPBIN_URL}/post",
       json: {module: "test"})
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_module_put
-    response = Wreq.put("http://localhost:8080/put",
+    response = Wreq.put("#{HTTPBIN_URL}/put",
       json: {data: "test"})
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_module_delete
-    response = Wreq.delete("http://localhost:8080/delete")
+    response = Wreq.delete("#{HTTPBIN_URL}/delete")
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_module_patch
-    response = Wreq.patch("http://localhost:8080/patch",
+    response = Wreq.patch("#{HTTPBIN_URL}/patch",
       json: {update: "field"})
     refute_nil response
     assert_equal 200, response.code
@@ -37,23 +37,23 @@ class ModuleMethodsTest < Minitest::Test
   end
 
   def test_module_request_method
-    response = Wreq.request(Wreq::Method::GET, "http://localhost:8080/get")
+    response = Wreq.request(Wreq::Method::GET, "#{HTTPBIN_URL}/get")
     refute_nil response
     assert_equal 200, response.code
   end
 
   def test_module_methods_with_parameters
-    response = Wreq.get("http://localhost:8080/get",
+    response = Wreq.get("#{HTTPBIN_URL}/get",
       headers: {"Accept" => "application/json"},
       query: {"test" => "module"})
     refute_nil response
-    assert_equal response.url, "http://localhost:8080/get?test=module"
-    assert_includes response.text, "http://localhost:8080/get?test=module"
+    assert_equal "#{HTTPBIN_URL}/get?test=module", response.url
+    assert_equal "module", httpbin_fetch(response.json["args"], "test")
     assert_equal 200, response.code
   end
 
   def test_module_post_with_json
-    response = Wreq.post("http://localhost:8080/post",
+    response = Wreq.post("#{HTTPBIN_URL}/post",
       json: {
         string: "test",
         number: 123,
@@ -65,7 +65,7 @@ class ModuleMethodsTest < Minitest::Test
   end
 
   def test_module_post_with_form
-    response = Wreq.post("http://localhost:8080/post",
+    response = Wreq.post("#{HTTPBIN_URL}/post",
       form: {"field1" => "value1", "field2" => "value2"})
     refute_nil response
     assert_equal 200, response.code

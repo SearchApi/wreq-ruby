@@ -17,25 +17,25 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_module_get_method
-    response = Wreq.get("http://localhost:8080/get")
+    response = Wreq.get("#{HTTPBIN_URL}/get")
     assert_equal 200, response.code
     assert_respond_to response, :text
   end
 
   def test_module_post_with_json
     data = {name: "wreq-ruby", version: "0.1.0"}
-    response = Wreq.post("http://localhost:8080/post", json: data)
+    response = Wreq.post("#{HTTPBIN_URL}/post", json: data)
     assert_equal 200, response.code
   end
 
   def test_client_instance_basic
-    response = @client.get("http://localhost:8080/get")
+    response = @client.get("#{HTTPBIN_URL}/get")
     assert_equal 200, response.code
   end
 
   def test_client_with_custom_headers
     headers = {"User-Agent" => "wreq-ruby/test", "Accept" => "application/json"}
-    response = @client.get("http://localhost:8080/headers", headers: headers)
+    response = @client.get("#{HTTPBIN_URL}/headers", headers: headers)
     assert_equal 200, response.code
   end
 
@@ -51,14 +51,14 @@ class WreqHttpbinTest < Minitest::Test
     ]
 
     methods.each do |method|
-      response = @client.request(method, "http://localhost:8080/#{method}")
+      response = @client.request(method, "#{HTTPBIN_URL}/anything")
       assert [200, 405].include?(response.code), "client.#{method} failed with status #{response.code}"
     end
   end
 
   def test_request_with_query_params
     params = {"param1" => "value1", "param2" => "value2", "param3" => 123, "param4" => true}
-    response = Wreq.get("http://localhost:8080/get", query: params)
+    response = Wreq.get("#{HTTPBIN_URL}/get", query: params)
     assert_equal 200, response.code
     assert_includes response.text, "param1=value1"
     assert_includes response.text, "param2=value2"
@@ -68,7 +68,7 @@ class WreqHttpbinTest < Minitest::Test
 
   def test_post_with_form_data
     data = {"field1" => "value1", "field2" => "value2", "field3" => 456, "field4" => false}
-    response = Wreq.post("http://localhost:8080/post", form: data)
+    response = Wreq.post("#{HTTPBIN_URL}/post", form: data)
     assert_equal 200, response.code
     assert_includes response.text, "field1"
     assert_includes response.text, "value1"
@@ -83,33 +83,33 @@ class WreqHttpbinTest < Minitest::Test
   def test_post_with_raw_body
     body = "This is raw body content"
     headers = {"Content-Type" => "text/plain"}
-    response = Wreq.post("http://localhost:8080/post", body: body, headers: headers)
+    response = Wreq.post("#{HTTPBIN_URL}/post", body: body, headers: headers)
     assert_equal 200, response.code
     assert_includes response.text, body
   end
 
   def test_basic_authentication
-    response = Wreq.get("http://localhost:8080/basic-auth/user/pass", basic_auth: ["user", "pass"])
+    response = Wreq.get("#{HTTPBIN_URL}/basic-auth/user/pass", basic_auth: ["user", "pass"])
     assert_equal 200, response.code
   end
 
   def test_bearer_authentication
-    response = Wreq.get("http://localhost:8080/bearer", bearer_auth: "test-token")
+    response = Wreq.get("#{HTTPBIN_URL}/bearer", bearer_auth: "test-token")
     assert_equal 200, response.code
   end
 
   def test_redirect_following
-    response = Wreq.get("http://localhost:8080/redirect/2", allow_redirects: true)
+    response = Wreq.get("#{HTTPBIN_URL}/redirect/2", allow_redirects: true)
     assert_equal 200, response.code
   end
 
   def test_redirect_blocking
-    response = Wreq.get("http://localhost:8080/redirect/1", allow_redirects: false)
+    response = Wreq.get("#{HTTPBIN_URL}/redirect/1", allow_redirects: false)
     assert_equal 302, response.code
   end
 
   def test_response_status_methods
-    response = Wreq.get("http://localhost:8080/status/200")
+    response = Wreq.get("#{HTTPBIN_URL}/status/200")
     assert_equal 200, response.code
 
     if response.status.respond_to?(:success?)
@@ -118,7 +118,7 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_404_response
-    response = Wreq.get("http://localhost:8080/status/404")
+    response = Wreq.get("#{HTTPBIN_URL}/status/404")
     assert_equal 404, response.code
 
     if response.status.respond_to?(:client_error?)
@@ -127,7 +127,7 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_json_response_parsing
-    response = Wreq.get("http://localhost:8080/json")
+    response = Wreq.get("#{HTTPBIN_URL}/json")
     assert_equal 200, response.code
 
     if response.respond_to?(:json)
@@ -137,12 +137,12 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_gzip_compression
-    response = Wreq.get("http://localhost:8080/gzip", gzip: true)
+    response = Wreq.get("#{HTTPBIN_URL}/gzip", gzip: true)
     assert_equal 200, response.code
   end
 
   def test_headers_iteration
-    response = Wreq.get("http://localhost:8080/get")
+    response = Wreq.get("#{HTTPBIN_URL}/get")
 
     if response.respond_to?(:each_header)
       count = 0
@@ -157,7 +157,7 @@ class WreqHttpbinTest < Minitest::Test
   end
 
   def test_response_properties
-    response = Wreq.get("http://localhost:8080/get")
+    response = Wreq.get("#{HTTPBIN_URL}/get")
 
     assert_respond_to response, :code
     assert_respond_to response, :status
@@ -171,12 +171,12 @@ class WreqHttpbinTest < Minitest::Test
   def test_timeout_functionality
     # Test that short timeouts properly raise exceptions
     assert_raises(Wreq::TimeoutError) do
-      Wreq.get("http://localhost:8080/delay/10", timeout: 1)
+      Wreq.get("#{HTTPBIN_URL}/delay/10", timeout: 1)
     end
 
     # Test that reasonable timeouts work normally
     start_time = Time.now
-    response = Wreq.get("http://localhost:8080/delay/1", timeout: 5)
+    response = Wreq.get("#{HTTPBIN_URL}/delay/1", timeout: 5)
     elapsed = Time.now - start_time
 
     assert_equal 200, response.code
@@ -187,7 +187,7 @@ class WreqHttpbinTest < Minitest::Test
     start_time = Time.now
 
     3.times do |i|
-      response = Wreq.get("http://localhost:8080/get?request=#{i}")
+      response = Wreq.get("#{HTTPBIN_URL}/get?request=#{i}")
       assert_equal 200, response.code
     end
 
@@ -212,7 +212,7 @@ class WreqHttpbinTest < Minitest::Test
     assert_instance_of Wreq::Client, client
 
     # Test that it can make requests
-    response = client.get("http://localhost:8080/get")
+    response = client.get("#{HTTPBIN_URL}/get")
     assert_equal 200, response.code
   end
 
