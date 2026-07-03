@@ -2,6 +2,7 @@
 
 #[macro_use]
 mod macros;
+mod arch;
 mod client;
 mod cookie;
 mod emulate;
@@ -11,8 +12,6 @@ mod gvl;
 mod header;
 mod http;
 mod rt;
-#[cfg(all(target_os = "windows", target_env = "gnu"))]
-mod windows_gnu;
 
 use magnus::{Error, Module, Ruby, Value};
 
