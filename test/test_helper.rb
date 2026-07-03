@@ -6,6 +6,15 @@ require "wreq"
 HTTPBIN_URL = ENV.fetch("HTTPBIN_URL", "https://httpbin.io").delete_suffix("/")
 
 require "minitest/autorun"
+require "minitest/retry"
+
+# httpbin.io is a shared external service, so the integration tests can see
+# occasional network failures even when the client behavior is correct.
+Minitest::Retry.use!(
+  retry_count: Integer(ENV.fetch("MINITEST_RETRY_COUNT", "3")),
+  verbose: true,
+  io: $stderr
+)
 
 module HttpbinHelpers
   def httpbin_value(value)

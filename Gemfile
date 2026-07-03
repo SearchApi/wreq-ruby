@@ -8,6 +8,7 @@ group :development, :test do
   gem "rb_sys", "~> 0.9.110" # for Makefile generation in extconf.rb
   gem "rake-compiler", "~> 1.2.9" # to build a debug build
   gem "minitest", "~> 6.0" # test library
+  gem "minitest-retry", "~> 0.3", require: false # retry flaky network tests
   gem "activesupport", "~> 8.0.1" # testing support
   gem "standard", "~> 1.52" # linter with pre-specified rules
   gem "redcarpet", "~> 3.6" # for documentation markdown parsing
