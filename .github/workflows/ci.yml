@@ -69,7 +69,7 @@ jobs:
       run: bundle exec rake test
 
   windows-gnu-tests:
-    name: Ruby Binding Tests (windows-latest, ${{ matrix.ruby }})
+    name: Windows Tests (windows-latest, ${{ matrix.ruby }})
     runs-on: windows-latest
     env:
       CARGO_BUILD_TARGET: x86_64-pc-windows-gnu
