@@ -81,9 +81,8 @@ impl Response {
                         Ok(build_response(body))
                     } else {
                         let bytes = rt::try_block_on(
-                            BodyExt::collect(body)
-                                .map_ok(|buf| buf.to_bytes())
-                                .map_err(wreq_error_to_magnus),
+                            BodyExt::collect(body).map_ok(|buf| buf.to_bytes()),
+                            wreq_error_to_magnus,
                         )?;
 
                         self.body
@@ -170,7 +169,7 @@ impl Response {
     /// Get the response body as bytes.
     pub fn bytes(&self) -> Result<Bytes, Error> {
         let response = self.response(false)?;
-        rt::try_block_on(response.bytes().map_err(wreq_error_to_magnus))
+        rt::try_block_on(response.bytes(), wreq_error_to_magnus)
     }
 
     ///  Get the full response text given a specific encoding.
@@ -178,25 +177,18 @@ impl Response {
         let args = scan_args::<(), (Option<String>,), (), (), (), ()>(args)?;
         let response = self.response(false)?;
         match args.optional.0 {
-            Some(encoding) => rt::try_block_on(
-                response
-                    .text_with_charset(encoding)
-                    .map_err(wreq_error_to_magnus),
-            ),
-            None => rt::try_block_on(response.text().map_err(wreq_error_to_magnus)),
+            Some(encoding) => {
+                rt::try_block_on(response.text_with_charset(encoding), wreq_error_to_magnus)
+            }
+            None => rt::try_block_on(response.text(), wreq_error_to_magnus),
         }
     }
 
     /// Get the response body as JSON.
     pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
         let response = rb_self.response(false)?;
-        rt::try_block_on(async move {
-            let json = response
-                .json::<Json>()
-                .await
-                .map_err(wreq_error_to_magnus)?;
-            serde_magnus::serialize(ruby, &json)
-        })
+        let json = rt::try_block_on(response.json::<Json>(), wreq_error_to_magnus)?;
+        serde_magnus::serialize(ruby, &json)
     }
 
     /// Yield response body chunks to the given Ruby block.

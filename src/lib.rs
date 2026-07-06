@@ -2,6 +2,7 @@
 
 #[macro_use]
 mod macros;
+mod arch;
 mod client;
 mod cookie;
 mod emulate;

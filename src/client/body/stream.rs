@@ -5,7 +5,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use futures_util::{Stream, StreamExt, TryFutureExt};
+use futures_util::{Stream, StreamExt};
 use magnus::{Error, RString, TryConvert, Value};
 use tokio::sync::{
     Mutex,
@@ -40,13 +40,16 @@ impl BodyReceiver {
 
     /// Read the next body chunk, converting stream errors into Ruby errors.
     pub fn next(&self) -> Result<Option<Bytes>, Error> {
-        rt::try_block_on(async {
-            match self.0.lock().await.as_mut().next().await {
-                Some(Ok(data)) => Ok(Some(data)),
-                Some(Err(err)) => Err(wreq_error_to_magnus(err)),
-                None => Ok(None),
-            }
-        })
+        rt::try_block_on(
+            async {
+                match self.0.lock().await.as_mut().next().await {
+                    Some(Ok(data)) => Ok(Some(data)),
+                    Some(Err(err)) => Err(err),
+                    None => Ok(None),
+                }
+            },
+            wreq_error_to_magnus,
+        )
     }
 }
 
@@ -73,7 +76,7 @@ impl BodySender {
         let bytes = data.to_bytes();
         let inner = rb_self.0.read().unwrap();
         if let Some(ref tx) = inner.tx {
-            rt::try_block_on(tx.send(bytes).map_err(mpsc_send_error_to_magnus))?;
+            rt::try_block_on(tx.send(bytes), mpsc_send_error_to_magnus)?;
         }
         Ok(())
     }
