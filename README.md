@@ -1,8 +1,8 @@
 # wreq-ruby
 
 [![CI](https://github.com/SearchApi/wreq-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/SearchApi/wreq-ruby/actions/workflows/ci.yml)
-[![Gem Version](https://badge.fury.io/rb/wreq.svg)](https://rubygems.org/gems/wreq)
 ![GitHub License](https://img.shields.io/github/license/SearchApi/wreq-ruby)
+[![Gem Version](https://badge.fury.io/rb/wreq.svg)](https://rubygems.org/gems/wreq)
 
 An easy and powerful Ruby HTTP client with advanced browser fingerprinting that accurately emulates **Chrome**, **Edge**, **Firefox**, **Safari**, **Opera**, and **OkHttp**, with precise **TLS/HTTP2** signatures, and powered by [wreq](https://github.com/0x676e67/wreq).
 
@@ -34,6 +34,7 @@ gem "wreq"
 Pre-compiled native gems are available for:
 - Linux (x86_64, aarch64)
 - macOS (arm64)
+- Windows (x86_64)
 
 ## Example
 
