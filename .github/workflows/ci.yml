@@ -68,6 +68,37 @@ jobs:
     - name: Run tests
       run: bundle exec rake test
 
+  macos-tests:
+    name: macOS Tests (macos-latest, ${{ matrix.ruby }})
+    runs-on: macos-latest
+    env:
+      HTTPBIN_URL: https://httpbin.io
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.3', '3.4', '4.0']
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby }}
+        bundler-cache: true
+
+    - name: Install dependencies
+      run: bundle install
+
+    - name: Compile native extension
+      run: bundle exec rake compile
+
+    - name: Run tests
+      run: bundle exec rake test
+
   windows-gnu-tests:
     name: Windows Tests (windows-latest, ${{ matrix.ruby }})
     runs-on: windows-latest
