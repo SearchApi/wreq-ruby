@@ -4,6 +4,12 @@ on:
   workflow_dispatch:
   push:
     tags: ["v*"]
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "benchmark/**"
+      - "examples/**"
+      - "*.md"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,7 +37,7 @@ jobs:
           path: pkg/*.gem
           if-no-files-found: error
 
-  cross-compile:
+  native-linux:
     name: Build native gem (${{ matrix.platform }})
     runs-on: ubuntu-latest
     strategy:
@@ -52,7 +58,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: cross-gem-${{ matrix.platform }}
+          name: native-gem-${{ matrix.platform }}
           path: pkg/*.gem
           if-no-files-found: error
 
@@ -125,9 +131,70 @@ jobs:
           path: pkg/*arm64-darwin*.gem
           if-no-files-found: error
 
+  native-windows:
+    name: Build native gem (x64-mingw-ucrt)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Compile for Ruby 3.3
+        shell: pwsh
+        env:
+          RB_SYS_CARGO_PROFILE: release
+        run: |
+          ./script/build_windows_gnu.ps1 -SkipBundleInstall
+          New-Item -ItemType Directory -Force "lib\wreq_ruby\3.3" | Out-Null
+          Copy-Item "lib\wreq_ruby\wreq_ruby.so" "lib\wreq_ruby\3.3\wreq_ruby.so" -Force
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Compile for Ruby 3.4
+        shell: pwsh
+        env:
+          RB_SYS_CARGO_PROFILE: release
+        run: |
+          ./script/build_windows_gnu.ps1 -SkipBundleInstall
+          New-Item -ItemType Directory -Force "lib\wreq_ruby\3.4" | Out-Null
+          Copy-Item "lib\wreq_ruby\wreq_ruby.so" "lib\wreq_ruby\3.4\wreq_ruby.so" -Force
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+
+      - name: Compile for Ruby 4.0
+        shell: pwsh
+        env:
+          RB_SYS_CARGO_PROFILE: release
+        run: |
+          ./script/build_windows_gnu.ps1 -SkipBundleInstall
+          New-Item -ItemType Directory -Force "lib\wreq_ruby\4.0" | Out-Null
+          Copy-Item "lib\wreq_ruby\wreq_ruby.so" "lib\wreq_ruby\4.0\wreq_ruby.so" -Force
+
+      - name: Build platform gem
+        run: ruby script/build_platform_gem.rb x64-mingw-ucrt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: native-gem-x64-mingw-ucrt
+          path: pkg/*x64-mingw-ucrt*.gem
+          if-no-files-found: error
+
   smoke-test:
     name: Smoke test Linux (Ruby ${{ matrix.ruby }})
-    needs: [cross-compile]
+    needs: [native-linux]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -140,7 +207,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: cross-gem-x86_64-linux
+          name: native-gem-x86_64-linux
           path: pkg/
 
       - name: Install native gem
@@ -173,9 +240,48 @@ jobs:
       - name: Verify gem loads and prints version
         run: ruby -rwreq -e "puts Wreq::VERSION"
 
+  smoke-test-windows:
+    name: Smoke test Windows (${{ matrix.platform }}, Ruby ${{ matrix.ruby }})
+    needs: [native-windows]
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64-mingw-ucrt
+            ruby: "3.3"
+          - platform: x64-mingw-ucrt
+            ruby: "3.4"
+          - platform: x64-mingw-ucrt
+            ruby: "4.0"
+    steps:
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: native-gem-${{ matrix.platform }}
+          path: pkg/
+
+      - name: Install native gem
+        run: gem install pkg/wreq-*-${{ matrix.platform }}.gem
+
+      - name: Verify gem loads and prints version
+        run: ruby -rwreq -e "puts Wreq::VERSION"
+
   release:
     name: Release
-    needs: [source-gem, cross-compile, native-darwin, smoke-test, smoke-test-darwin]
+    needs:
+      [
+        source-gem,
+        native-linux,
+        native-darwin,
+        native-windows,
+        smoke-test,
+        smoke-test-darwin,
+        smoke-test-windows,
+      ]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -194,7 +300,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: pkg/
-          pattern: "{cross-gem-*,native-gem-*,source-gem}"
+          pattern: "{native-gem-*,source-gem}"
           merge-multiple: true
 
       - name: List gems

@@ -32,6 +32,7 @@ gem "wreq"
 ```
 
 Pre-compiled native gems are available for:
+
 - Linux (x86_64, aarch64)
 - macOS (arm64)
 - Windows (x86_64)
