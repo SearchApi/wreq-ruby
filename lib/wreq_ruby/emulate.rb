@@ -57,6 +57,7 @@ module Wreq
       Chrome146 = nil
       Chrome147 = nil
       Chrome148 = nil
+      Chrome149 = nil
 
       Edge101 = nil
       Edge122 = nil
