@@ -4,12 +4,6 @@ on:
   workflow_dispatch:
   push:
     tags: ["v*"]
-  pull_request:
-    paths-ignore:
-      - "docs/**"
-      - "benchmark/**"
-      - "examples/**"
-      - "*.md"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
