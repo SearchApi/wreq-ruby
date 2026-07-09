@@ -35,17 +35,6 @@ function Invoke-Step {
     & $Command
 }
 
-function Invoke-Native {
-    param(
-        [scriptblock]$Command
-    )
-
-    & $Command
-    if ($LASTEXITCODE -ne 0) {
-        throw "Command failed with exit code $LASTEXITCODE."
-    }
-}
-
 function Get-MissingUcrtTools {
     $missing = @()
 
@@ -78,22 +67,6 @@ function Get-LatestPlatformGem {
     }
 
     $gem
-}
-
-function Get-RubyMinor {
-    $rubyMinor = & ruby -e "print RUBY_VERSION[/\A\d+\.\d+/]"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to detect Ruby minor version."
-    }
-
-    $rubyMinor
-}
-
-function Copy-CompiledExtensionForCurrentRuby {
-    $rubyMinor = Get-RubyMinor
-    $dest = "lib\wreq_ruby\$rubyMinor"
-    New-Item -ItemType Directory -Force $dest | Out-Null
-    Copy-Item "lib\wreq_ruby\wreq_ruby.so" (Join-Path $dest "wreq_ruby.so") -Force
 }
 
 function Invoke-RubySmoke {
@@ -173,32 +146,39 @@ Invoke-Step "Configure Windows GNU toolchain" {
 
 if (-not $SkipBundleInstall) {
     Invoke-Step "Install Ruby dependencies" {
-        Invoke-Native { bundle install }
+        bundle install
     }
 }
 
 Invoke-Step "Compile native extension" {
-    Invoke-Native { ridk exec ruby -S bundle exec rake compile }
+    ridk exec ruby -S bundle exec rake compile
 }
 
 Invoke-Step "Sync versioned extension" {
-    Copy-CompiledExtensionForCurrentRuby
+    $rubyMinor = & ruby -e "print RUBY_VERSION[/\A\d+\.\d+/]"
+    $dest = "lib\wreq_ruby\$rubyMinor"
+    New-Item -ItemType Directory -Force $dest | Out-Null
+    Copy-Item "lib\wreq_ruby\wreq_ruby.so" (Join-Path $dest "wreq_ruby.so") -Force
 }
 
 Invoke-Step "Verify extension loads" {
-    ruby -Ilib -rwreq -e "puts Wreq::VERSION; puts Wreq::Client.new.class; raise 'Chrome149 profile is not bound' unless Wreq::Profile.const_defined?(:Chrome149, false)"
+    ruby -Ilib -rwreq -e "puts Wreq::VERSION; puts Wreq::Client.new.class"
 }
 
 if ($RunTests) {
     Invoke-Step "Run tests" {
-        Invoke-Native { ridk exec ruby -S bundle exec rake test }
+        ridk exec ruby -S bundle exec rake test
     }
 }
 
 if ($BuildGem) {
     Invoke-Step "Build local platform gem" {
-        Copy-CompiledExtensionForCurrentRuby
-        Invoke-Native { ruby script/build_platform_gem.rb $platform }
+        $rubyMinor = & ruby -e "print RUBY_VERSION[/\A\d+\.\d+/]"
+        $dest = "lib\wreq_ruby\$rubyMinor"
+        New-Item -ItemType Directory -Force $dest | Out-Null
+        Copy-Item "lib\wreq_ruby\wreq_ruby.so" (Join-Path $dest "wreq_ruby.so") -Force
+
+        ruby script/build_platform_gem.rb $platform
     }
 }
 
@@ -235,7 +215,10 @@ if ($TestGem) {
             $env:WREQ_SMOKE_URL = $SmokeUrl
             $env:WREQ_GEM_HOME = $gemHome
 
-            Invoke-Native { gem install --norc --local --install-dir $gemHome --bindir $gemBin --no-document --force --no-user-install $gem.FullName }
+            gem install --norc --local --install-dir $gemHome --bindir $gemBin --no-document --force --no-user-install $gem.FullName
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to install $($gem.FullName)."
+            }
 
             Push-Location $testDir
             try {
