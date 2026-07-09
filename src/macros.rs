@@ -75,6 +75,11 @@ macro_rules! define_ruby_enum {
                     _ => unreachable!(),
                 }
             }
+
+            pub fn define_constants(class: magnus::RClass) -> Result<(), magnus::Error> {
+                $(class.const_set(stringify!($rust_variant), <$enum_type>::$rust_variant)?;)*
+                Ok(())
+            }
         }
     };
 
@@ -102,6 +107,11 @@ macro_rules! define_ruby_enum {
                     $(<$ffi_type>::$ffi_variant => <$enum_type>::$rust_variant,)*
                     _ => unreachable!(),
                 }
+            }
+
+            pub fn define_constants(class: magnus::RClass) -> Result<(), magnus::Error> {
+                $(class.const_set(stringify!($rust_variant), <$enum_type>::$rust_variant)?;)*
+                Ok(())
             }
         }
     };
