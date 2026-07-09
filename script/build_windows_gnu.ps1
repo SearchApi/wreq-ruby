@@ -154,6 +154,13 @@ Invoke-Step "Compile native extension" {
     ridk exec ruby -S bundle exec rake compile
 }
 
+Invoke-Step "Sync versioned extension" {
+    $rubyMinor = & ruby -e "print RUBY_VERSION[/\A\d+\.\d+/]"
+    $dest = "lib\wreq_ruby\$rubyMinor"
+    New-Item -ItemType Directory -Force $dest | Out-Null
+    Copy-Item "lib\wreq_ruby\wreq_ruby.so" (Join-Path $dest "wreq_ruby.so") -Force
+}
+
 Invoke-Step "Verify extension loads" {
     ruby -Ilib -rwreq -e "puts Wreq::VERSION; puts Wreq::Client.new.class"
 }
