@@ -18,6 +18,8 @@ require_relative "wreq_ruby/cookie"
 
 unless defined?(Wreq)
   module Wreq
+    # Current wreq gem version.
+    # @return [String]
     VERSION = nil
 
     # Send an HTTP request.
@@ -26,7 +28,7 @@ unless defined?(Wreq)
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
     # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
-    # @param default_headers [Hash{String=>String}, nil] Default headers to merge
+    # @param default_headers [Boolean, nil] Whether to apply default emulation headers
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
@@ -47,7 +49,7 @@ unless defined?(Wreq)
     # @param version [Wreq::Version, nil] HTTP version to use
     # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
     # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
+    # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
     # @return [Wreq::Response] HTTP response
     def self.request(method, url, **options)
     end
@@ -57,7 +59,7 @@ unless defined?(Wreq)
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
     # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
-    # @param default_headers [Hash{String=>String}, nil] Default headers to merge
+    # @param default_headers [Boolean, nil] Whether to apply default emulation headers
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
@@ -78,7 +80,7 @@ unless defined?(Wreq)
     # @param version [Wreq::Version, nil] HTTP version to use
     # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
     # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
+    # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
     # @return [Wreq::Response] HTTP response
     def self.get(url, **options)
     end
@@ -88,7 +90,7 @@ unless defined?(Wreq)
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
     # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
-    # @param default_headers [Hash{String=>String}, nil] Default headers to merge
+    # @param default_headers [Boolean, nil] Whether to apply default emulation headers
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
@@ -109,7 +111,7 @@ unless defined?(Wreq)
     # @param version [Wreq::Version, nil] HTTP version to use
     # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
     # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
+    # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
     # @return [Wreq::Response] HTTP response
     def self.head(url, **options)
     end
@@ -119,7 +121,7 @@ unless defined?(Wreq)
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
     # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
-    # @param default_headers [Hash{String=>String}, nil] Default headers to merge
+    # @param default_headers [Boolean, nil] Whether to apply default emulation headers
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
@@ -140,7 +142,7 @@ unless defined?(Wreq)
     # @param version [Wreq::Version, nil] HTTP version to use
     # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
     # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
+    # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
     # @return [Wreq::Response] HTTP response
     def self.post(url, **options)
     end
@@ -150,7 +152,7 @@ unless defined?(Wreq)
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
     # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
-    # @param default_headers [Hash{String=>String}, nil] Default headers to merge
+    # @param default_headers [Boolean, nil] Whether to apply default emulation headers
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
@@ -171,7 +173,7 @@ unless defined?(Wreq)
     # @param version [Wreq::Version, nil] HTTP version to use
     # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
     # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
+    # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
     # @return [Wreq::Response] HTTP response
     def self.put(url, **options)
     end
@@ -181,7 +183,7 @@ unless defined?(Wreq)
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
     # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
-    # @param default_headers [Hash{String=>String}, nil] Default headers to merge
+    # @param default_headers [Boolean, nil] Whether to apply default emulation headers
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
@@ -202,7 +204,7 @@ unless defined?(Wreq)
     # @param version [Wreq::Version, nil] HTTP version to use
     # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
     # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
+    # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
     # @return [Wreq::Response] HTTP response
     def self.delete(url, **options)
     end
@@ -212,7 +214,7 @@ unless defined?(Wreq)
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
     # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
-    # @param default_headers [Hash{String=>String}, nil] Default headers to merge
+    # @param default_headers [Boolean, nil] Whether to apply default emulation headers
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
@@ -233,7 +235,7 @@ unless defined?(Wreq)
     # @param version [Wreq::Version, nil] HTTP version to use
     # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
     # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
+    # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
     # @return [Wreq::Response] HTTP response
     def self.options(url, **options)
     end
@@ -243,7 +245,7 @@ unless defined?(Wreq)
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
     # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
-    # @param default_headers [Hash{String=>String}, nil] Default headers to merge
+    # @param default_headers [Boolean, nil] Whether to apply default emulation headers
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
@@ -264,7 +266,7 @@ unless defined?(Wreq)
     # @param version [Wreq::Version, nil] HTTP version to use
     # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
     # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
+    # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
     # @return [Wreq::Response] HTTP response
     def self.trace(url, **options)
     end
@@ -274,7 +276,7 @@ unless defined?(Wreq)
     # @param url [String] Target URL
     # @param headers [Wreq::Headers, Hash{String=>String}, nil] Custom headers for this request
     # @param orig_headers [Array<String>, nil] Original header names used to preserve raw header order and HTTP/1 case-sensitive header handling
-    # @param default_headers [Hash{String=>String}, nil] Default headers to merge
+    # @param default_headers [Boolean, nil] Whether to apply default emulation headers
     # @param query [Hash, nil] URL query parameters
     # @param auth [String, nil] Authorization header value
     # @param bearer_auth [String, nil] Bearer token for Authorization header
@@ -295,7 +297,7 @@ unless defined?(Wreq)
     # @param version [Wreq::Version, nil] HTTP version to use
     # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
     # @param json [Object, nil] JSON body (will be serialized)
-    # @param body [String, IO, nil] Raw request body (string or stream)
+    # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
     # @return [Wreq::Response] HTTP response
     def self.patch(url, **options)
     end

@@ -190,6 +190,7 @@ unless defined?(Wreq)
       end
 
       # Convert headers to a string representation.
+      # @return [String] String representation of the headers
       def to_s
       end
     end
