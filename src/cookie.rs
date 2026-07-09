@@ -280,9 +280,7 @@ impl Jar {
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     // SameSite enum
     let same_site_class = gem_module.define_class("SameSite", ruby.class_object())?;
-    same_site_class.const_set("Strict", SameSite::Strict)?;
-    same_site_class.const_set("Lax", SameSite::Lax)?;
-    same_site_class.const_set("None", SameSite::None)?;
+    SameSite::define_constants(same_site_class)?;
 
     // Cookie class
     let cookie_class = gem_module.define_class("Cookie", ruby.class_object())?;
