@@ -91,6 +91,18 @@ unless defined?(Wreq)
       def remote_addr
       end
 
+      # Get cookies parsed from the response's `Set-Cookie` headers.
+      #
+      # Invalid `Set-Cookie` values are skipped.
+      #
+      # @return [Array<Wreq::Cookie>] Parsed response cookies
+      # @example
+      #   response.cookies.each do |cookie|
+      #     puts "#{cookie.name}=#{cookie.value}"
+      #   end
+      def cookies
+      end
+
       # Get the response bytes as a binary string.
       # @return [String] Response body as binary data
       # @example
