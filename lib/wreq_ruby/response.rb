@@ -64,6 +64,17 @@ unless defined?(Wreq)
       def content_length
       end
 
+      # Get the response headers.
+      #
+      # Header names are case-insensitive. Use {Wreq::Headers#get_all} to get
+      # every value when a header appears more than once.
+      #
+      # @return [Wreq::Headers] Response headers
+      # @example
+      #   response.headers.get("content-type")  # => "application/json"
+      def headers
+      end
+
       # Get the local socket address.
       #
       # @return [String, nil] Local address (e.g., "127.0.0.1:54321"), or nil
