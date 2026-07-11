@@ -127,6 +127,9 @@ unless defined?(Wreq)
 
       # Parse the response body as JSON.
       #
+      # Integral JSON numbers are returned as arbitrary-precision Ruby Integer
+      # values. Fractional and exponent-form numbers are returned as Float values.
+      #
       # @return [Object] Parsed JSON (Hash, Array, String, Integer, Float, Boolean, nil)
       # @raise [Wreq::DecodingError] if body is not valid JSON
       # @example

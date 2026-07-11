@@ -6,10 +6,10 @@ pub mod resp;
 
 use std::{net::IpAddr, time::Duration};
 
+use ::serde::Deserialize;
 use magnus::{
     Module, Object, RHash, RModule, Ruby, TryConvert, Value, function, method, typed_data::Obj,
 };
-use serde::Deserialize;
 use wreq::Proxy;
 
 use crate::{
@@ -21,6 +21,7 @@ use crate::{
     gvl,
     header::{Headers, OrigHeaders, UserAgent},
     http::Method,
+    serde,
 };
 
 /// A builder for `Client`.
@@ -131,7 +132,7 @@ impl Builder {
             return Ok(Default::default());
         };
 
-        let mut builder: Self = serde_magnus::deserialize(ruby, hash)?;
+        let mut builder: Self = serde::deserialize(ruby, hash)?;
 
         if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
             builder.emulation = Some((*Obj::<Emulation>::try_convert(v)?).clone());

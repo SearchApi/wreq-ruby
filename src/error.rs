@@ -125,6 +125,19 @@ pub fn type_value_error_to_magnus(err: &str) -> MagnusError {
     )
 }
 
+/// Build a `Wreq::BuilderError` for unsupported request JSON values.
+pub fn json_serialization_error(err: impl Into<String>) -> MagnusError {
+    MagnusError::new(
+        ruby!().get_inner(&BUILDER_ERROR),
+        format!("JSON serialization error: {}", err.into()),
+    )
+}
+
+/// Build a `Wreq::DecodingError` for invalid response JSON.
+pub fn decoding_error_to_magnus(err: serde_json::Error) -> MagnusError {
+    MagnusError::new(ruby!().get_inner(&DECODING_ERROR), err.to_string())
+}
+
 /// Map [`wreq::Error`] to corresponding [`magnus::Error`]
 pub fn wreq_error_to_magnus(err: wreq::Error) -> MagnusError {
     let error_msg = err.to_string();

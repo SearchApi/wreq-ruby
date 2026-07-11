@@ -1,5 +1,5 @@
+use ::serde::{Deserialize, Serialize};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 
 /// Represents HTTP parameters from Python as either a mapping or a sequence of key-value pairs.
 pub type Params = IndexMap<String, ParamValue>;

@@ -1,8 +1,8 @@
 use std::{net::IpAddr, time::Duration};
 
+use ::serde::Deserialize;
 use http::header;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
-use serde::Deserialize;
 use wreq::{Client, Proxy};
 
 use super::body::{Body, Form, Json};
@@ -14,7 +14,7 @@ use crate::{
     extractor::Extractor,
     header::{Headers, OrigHeaders},
     http::{Method, Version},
-    rt,
+    rt, serde,
 };
 
 /// The parameters for a request.
@@ -95,6 +95,7 @@ pub struct Request {
     form: Option<Form>,
 
     /// The JSON body to use for the request.
+    #[serde(skip)]
     json: Option<Json>,
 
     /// The body to use for the request.
@@ -106,7 +107,7 @@ impl Request {
     /// Create a new [`Request`] from Ruby keyword arguments.
     pub fn new(ruby: &magnus::Ruby, hash: RHash) -> Result<Self, magnus::Error> {
         let keyword = hash.as_value();
-        let mut builder: Self = serde_magnus::deserialize(ruby, keyword)?;
+        let mut builder: Self = serde::deserialize(ruby, keyword)?;
 
         if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
             let obj = Obj::<Emulation>::try_convert(v)?;
@@ -131,6 +132,10 @@ impl Request {
 
         if let Some(v) = hash.get(ruby.to_symbol(stringify!(body))) {
             builder.body = Some(Body::try_convert(v)?);
+        }
+
+        if let Some(v) = hash.get(ruby.to_symbol(stringify!(json))) {
+            builder.json = Some(Json::try_convert(v)?);
         }
 
         builder.proxy = Extractor::<Proxy>::try_convert(keyword)?.into_inner();

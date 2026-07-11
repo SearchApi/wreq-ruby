@@ -12,6 +12,7 @@ mod gvl;
 mod header;
 mod http;
 mod rt;
+mod serde;
 
 use magnus::{Error, Module, Ruby, Value};
 

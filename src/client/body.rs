@@ -1,5 +1,5 @@
-mod form;
-mod json;
+pub mod form;
+pub mod json;
 mod stream;
 
 use bytes::Bytes;

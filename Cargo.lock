@@ -1007,22 +1007,12 @@ version = "1.0.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9"
 dependencies = [
+ "indexmap",
  "itoa",
  "memchr",
  "serde",
  "serde_core",
  "zmij",
-]
-
-[[package]]
-name = "serde_magnus"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ff64c88ddd26acdcad5a501f18bcc339927b77b69f4a03bfaf2a6fc5ba2ac4b"
-dependencies = [
- "magnus",
- "serde",
- "tap",
 ]
 
 [[package]]
@@ -1138,12 +1128,6 @@ dependencies = [
  "core-foundation-sys",
  "libc",
 ]
-
-[[package]]
-name = "tap"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "thiserror"
@@ -1550,7 +1534,7 @@ dependencies = [
  "rb-sys",
  "rb-sys-env",
  "serde",
- "serde_magnus",
+ "serde_json",
  "tokio",
  "wreq",
  "wreq-util",
