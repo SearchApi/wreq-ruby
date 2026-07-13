@@ -18,6 +18,8 @@ require_relative "wreq_ruby/cookie"
 
 unless defined?(Wreq)
   module Wreq
+    # Current wreq gem version.
+    # @return [String]
     VERSION = nil
 
     # Module request methods accept only the options documented for each

@@ -154,7 +154,7 @@ module Wreq
       Opera128 = nil
       Opera129 = nil
       Opera130 = nil
-      Opera131 = nils
+      Opera131 = nil
     end
 
     unless method_defined?(:to_s)

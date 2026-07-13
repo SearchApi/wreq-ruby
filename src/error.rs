@@ -81,17 +81,14 @@ define_exception!(DECODING_ERROR, "DecodingError", exception_runtime_error);
 // Configuration and builder errors
 define_exception!(BUILDER_ERROR, "BuilderError", exception_runtime_error);
 
-// Thread interruption error
-define_exception!(INTERRUPT_ERROR, "InterruptError", exception_interrupt);
-
 /// Memory error constant
 pub fn memory_error(ruby: &Ruby) -> MagnusError {
     MagnusError::new(ruby.get_inner(&MEMORY), RACE_CONDITION_ERROR_MSG)
 }
 
-/// Thread interruption error (raised when Thread.kill cancels a request)
+/// Create Ruby's standard thread interruption error.
 pub fn interrupt_error(ruby: &Ruby) -> MagnusError {
-    MagnusError::new(ruby.get_inner(&INTERRUPT_ERROR), "request interrupted")
+    MagnusError::new(ruby.exception_interrupt(), "request interrupted")
 }
 
 /// Map a Tokio runtime initialization failure to `Wreq::BuilderError`.
@@ -308,13 +305,6 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), MagnusError> {
         BUILDER_ERROR,
         "BuilderError",
         exception_runtime_error
-    );
-    initialize_exception!(
-        ruby,
-        gem_module,
-        INTERRUPT_ERROR,
-        "InterruptError",
-        exception_interrupt
     );
     Ok(())
 }
