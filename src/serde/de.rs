@@ -13,6 +13,7 @@ use magnus::{
 use serde_json::Value as JsonValue;
 
 use super::{Error, MAX_JSON_NESTING};
+use crate::options::NATIVE_OPTION_TOKEN;
 use array_deserializer::ArrayDeserializer;
 use enum_deserializer::EnumDeserializer;
 use hash_deserializer::HashDeserializer;
@@ -23,6 +24,7 @@ use variant_deserializer::VariantDeserializer;
 #[derive(Clone, Copy)]
 pub(super) enum Mode {
     Generic,
+    OptionKeys,
     Json,
 }
 
@@ -58,6 +60,11 @@ impl<'ruby> Deserializer<'ruby> {
     /// Create a generic deserializer with upstream `serde_magnus` behavior.
     pub(super) fn new(ruby: &'ruby Ruby, value: Value) -> Self {
         Self::with_mode(ruby, value, 0, Mode::Generic)
+    }
+
+    /// Create a deserializer that visits option keys without reading values.
+    pub(super) fn new_option_keys(ruby: &'ruby Ruby, value: Value) -> Self {
+        Self::with_mode(ruby, value, 0, Mode::OptionKeys)
     }
 
     /// Create a JSON deserializer with validation and arbitrary precision.
@@ -173,7 +180,7 @@ impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
     where
         Visitor: ::serde::de::Visitor<'de>,
     {
-        if self.value.is_nil() {
+        if matches!(self.mode, Mode::OptionKeys) || self.value.is_nil() {
             visitor.visit_none()
         } else {
             visitor.visit_some(self)
@@ -225,13 +232,17 @@ impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
 
     fn deserialize_newtype_struct<Visitor>(
         self,
-        _name: &'static str,
+        name: &'static str,
         visitor: Visitor,
     ) -> Result<Visitor::Value, Self::Error>
     where
         Visitor: ::serde::de::Visitor<'de>,
     {
-        visitor.visit_newtype_struct(self)
+        if name == NATIVE_OPTION_TOKEN {
+            visitor.visit_unit()
+        } else {
+            visitor.visit_newtype_struct(self)
+        }
     }
 
     fn deserialize_ignored_any<Visitor>(
@@ -244,9 +255,32 @@ impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
         visitor.visit_unit()
     }
 
+    fn deserialize_identifier<Visitor>(
+        self,
+        visitor: Visitor,
+    ) -> Result<Visitor::Value, Self::Error>
+    where
+        Visitor: ::serde::de::Visitor<'de>,
+    {
+        if matches!(self.mode, Mode::OptionKeys) {
+            if let Some(value) = RString::from_value(self.value) {
+                return visitor.visit_string(value.to_string()?);
+            }
+            if let Some(value) = Symbol::from_value(self.value) {
+                return match value.name()? {
+                    std::borrow::Cow::Borrowed(name) => visitor.visit_borrowed_str(name),
+                    std::borrow::Cow::Owned(name) => visitor.visit_string(name),
+                };
+            }
+            return Err(Error::type_error("option keys must be Symbols or Strings"));
+        }
+
+        self.deserialize_any(visitor)
+    }
+
     forward_to_deserialize_any! {
         <Visitor: Visitor<'de>>
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        unit unit_struct seq tuple tuple_struct map struct identifier
+        unit unit_struct seq tuple tuple_struct map struct
     }
 }

@@ -1,12 +1,11 @@
-use magnus::{RArray, RHash, RString, Ruby, TryConvert, r_hash::ForEach};
+use magnus::{RArray, RHash, RString, Ruby, TryConvert, r_hash::ForEach, value::ReprValue};
 use wreq::{
     Proxy,
     header::{HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
 };
 
-use crate::error::{
-    header_name_error_to_magnus, header_value_error_to_magnus, wreq_error_to_magnus,
-};
+use crate::error::{header_name_error, header_value_error, option_value_error, wreq_error};
+use crate::options;
 
 /// A trait that defines the parameter name for extraction.
 pub trait ExtractorName {
@@ -50,9 +49,9 @@ impl TryConvert for Extractor<HeaderMap> {
         {
             hash.foreach(|name: RString, value: RString| {
                 let name = HeaderName::from_bytes(&name.to_bytes())
-                    .map_err(header_name_error_to_magnus)?;
+                    .map_err(|err| header_name_error(&ruby, err))?;
                 let value = HeaderValue::from_maybe_shared(value.to_bytes())
-                    .map_err(header_value_error_to_magnus)?;
+                    .map_err(|err| header_value_error(&ruby, err))?;
                 headers.insert(name, value);
 
                 Ok(ForEach::Continue)
@@ -102,16 +101,19 @@ impl TryConvert for Extractor<Proxy> {
         let ruby = Ruby::get_with(value);
         let rhash = RHash::try_convert(value)?;
 
-        if let Some(proxy) = rhash
-            .get(ruby.to_symbol(Proxy::NAME))
-            .and_then(RString::from_value)
-        {
-            return Proxy::all(proxy.to_bytes().as_ref())
-                .map(Some)
-                .map(Extractor)
-                .map_err(wreq_error_to_magnus);
+        let Some(value) = options::get(&ruby, rhash, Proxy::NAME) else {
+            return Ok(Extractor(None));
+        };
+        if value.is_nil() {
+            return Ok(Extractor(None));
         }
 
-        Ok(Extractor(None))
+        let proxy = RString::try_convert(value)
+            .map_err(|error| option_value_error(&ruby, Proxy::NAME, error))?;
+        let proxy = Proxy::all(proxy.to_bytes().as_ref())
+            .map_err(|err| wreq_error(&ruby, err))
+            .map_err(|error| option_value_error(&ruby, Proxy::NAME, error))?;
+
+        Ok(Extractor(Some(proxy)))
     }
 }

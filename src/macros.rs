@@ -41,6 +41,23 @@ macro_rules! apply_option {
     };
 }
 
+/// Convert a Ruby-native option whose field name is also its keyword name.
+macro_rules! extract_native_option {
+    ($options:expr, $target:expr, $field:ident) => {{
+        $target.$field.set($options.convert(stringify!($field))?);
+    }};
+    ($options:expr, $target:expr, $field:ident, present) => {{
+        $target
+            .$field
+            .set($options.convert_present(stringify!($field))?);
+    }};
+    ($options:expr, $target:expr, $field:ident, $source:ty => $map:expr) => {{
+        $target
+            .$field
+            .set($options.convert::<$source>(stringify!($field))?.map($map));
+    }};
+}
+
 macro_rules! define_ruby_enum {
     ($(#[$meta:meta])* $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $($variant:ident),* $(,)?) => {
         define_ruby_enum!($(#[$meta])* $enum_type, $ruby_class, $ffi_type, $( ($variant, $variant) ),*);
@@ -117,17 +134,12 @@ macro_rules! define_ruby_enum {
     };
 }
 
-macro_rules! ruby {
-    () => {
-        magnus::Ruby::get().expect("Failed to get Ruby VM instance")
-    };
-}
-
 macro_rules! extract_request {
     ($args:expr, $required:ty) => {{
         let args = magnus::scan_args::scan_args::<$required, (), (), (), magnus::RHash, ()>($args)?;
         let required = args.required;
-        let request = crate::client::req::Request::new(&ruby!(), args.keywords)?;
+        let ruby = magnus::Ruby::get_with(args.keywords);
+        let request = crate::client::req::Request::new(&ruby, args.keywords)?;
         (required, request)
     }};
 }

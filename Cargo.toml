@@ -33,10 +33,12 @@ wreq = { version = "6.0.0-rc", features = [
 ] }
 wreq-util = { version = "3.0.0-rc", features = ["emulation-compression"] }
 serde = { version = "1.0.228", features = ["derive"] }
+serde_ignored = "0.1.14"
 serde_json = { version = "1.0.150", features = [
     "arbitrary_precision",
     "preserve_order",
 ] }
+serde_path_to_error = "0.1.20"
 indexmap = { version = "2.14.0", features = ["serde"] }
 cookie = "0.18.1"
 bytes = "1.12.1"

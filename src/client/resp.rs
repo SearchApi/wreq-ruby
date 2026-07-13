@@ -11,8 +11,8 @@ use wreq::Uri;
 use crate::{
     client::body::{BodyReceiver, json},
     cookie::Cookie,
-    error::{memory_error, no_block_given_error, wreq_error_to_magnus},
-    gvl::{self, nogvl},
+    error::{memory_error, no_block_given_error, wreq_error},
+    gvl,
     header::Headers,
     http::{StatusCode, Version},
     rt,
@@ -64,7 +64,7 @@ impl Response {
     }
 
     /// Internal method to get the wreq::Response, optionally streaming the body.
-    fn response(&self, stream: bool) -> Result<wreq::Response, Error> {
+    fn response(&self, ruby: &Ruby, stream: bool) -> Result<wreq::Response, Error> {
         let build_response = |body: wreq::Body| -> wreq::Response {
             let mut response = HttpResponse::new(body);
             *response.version_mut() = self.version.into_ffi();
@@ -81,8 +81,9 @@ impl Response {
                         Ok(build_response(body))
                     } else {
                         let bytes = rt::try_block_on(
+                            ruby,
                             BodyExt::collect(body).map_ok(|buf| buf.to_bytes()),
-                            wreq_error_to_magnus,
+                            wreq_error,
                         )?;
 
                         self.body
@@ -103,7 +104,7 @@ impl Response {
             };
         }
 
-        Err(memory_error())
+        Err(memory_error(ruby))
     }
 }
 
@@ -167,42 +168,40 @@ impl Response {
     }
 
     /// Get the response body as bytes.
-    pub fn bytes(&self) -> Result<Bytes, Error> {
-        let response = self.response(false)?;
-        rt::try_block_on(response.bytes(), wreq_error_to_magnus)
+    pub fn bytes(ruby: &Ruby, rb_self: &Self) -> Result<Bytes, Error> {
+        let response = rb_self.response(ruby, false)?;
+        rt::try_block_on(ruby, response.bytes(), wreq_error)
     }
 
     ///  Get the full response text given a specific encoding.
-    pub fn text(&self, args: &[Value]) -> Result<String, Error> {
+    pub fn text(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<String, Error> {
         let args = scan_args::<(), (Option<String>,), (), (), (), ()>(args)?;
-        let response = self.response(false)?;
+        let response = rb_self.response(ruby, false)?;
         match args.optional.0 {
             Some(encoding) => {
-                rt::try_block_on(response.text_with_charset(encoding), wreq_error_to_magnus)
+                rt::try_block_on(ruby, response.text_with_charset(encoding), wreq_error)
             }
-            None => rt::try_block_on(response.text(), wreq_error_to_magnus),
+            None => rt::try_block_on(ruby, response.text(), wreq_error),
         }
     }
 
     /// Get the response body as JSON.
     pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
-        json::parse(ruby, rb_self.bytes()?)
+        json::parse(ruby, Self::bytes(ruby, rb_self)?)
     }
 
     /// Yield response body chunks to the given Ruby block.
     pub fn chunks(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
         if !ruby.block_given() {
-            return Err(no_block_given_error());
+            return Err(no_block_given_error(ruby));
         }
 
-        let receiver = nogvl(|| {
-            rb_self
-                .response(true)
-                .map(wreq::Response::bytes_stream)
-                .map(BodyReceiver::new)
-        })?;
+        let receiver = rb_self
+            .response(ruby, true)
+            .map(wreq::Response::bytes_stream)
+            .map(BodyReceiver::new)?;
 
-        while let Some(chunk) = receiver.next()? {
+        while let Some(chunk) = receiver.next(ruby)? {
             let _: Value = ruby.yield_value(chunk)?;
         }
 

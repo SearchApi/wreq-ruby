@@ -2,11 +2,11 @@
 
 use bytes::Bytes;
 use http::{HeaderName, HeaderValue};
-use magnus::{Error, RArray, RString, Symbol, TryConvert, Value, prelude::*, typed_data::Obj};
-
-use crate::error::{
-    header_name_error_to_magnus, header_value_error_to_magnus, type_value_error_to_magnus,
+use magnus::{
+    Error, RArray, RString, Ruby, Symbol, TryConvert, Value, prelude::*, typed_data::Obj,
 };
+
+use crate::error::{header_name_error, header_type_error, header_value_error};
 
 use super::Headers;
 
@@ -19,11 +19,13 @@ const MAX_HEADER_ENTRIES: usize = 1 << 15;
 /// contains two-element name-value pairs. Array values are delegated to
 /// [`Headers::append`] so each value remains a separate occurrence.
 pub(super) fn from_source(source: Value) -> Result<Headers, Error> {
+    let ruby = Ruby::get_with(source);
     if let Ok(headers) = Obj::<Headers>::try_convert(source) {
         return Ok((*headers).clone());
     }
     if !source.respond_to("to_a", false)? {
-        return Err(type_value_error_to_magnus(
+        return Err(header_type_error(
+            &ruby,
             "Expected Headers, a Hash, or an enumerable of pairs",
         ));
     }
@@ -32,9 +34,10 @@ pub(super) fn from_source(source: Value) -> Result<Headers, Error> {
     let headers = Headers::default();
     for pair in pairs {
         let pair = RArray::try_convert(pair)
-            .map_err(|_| type_value_error_to_magnus("Expected each header entry to be a pair"))?;
+            .map_err(|_| header_type_error(&ruby, "Expected each header entry to be a pair"))?;
         if pair.len() != 2 {
-            return Err(type_value_error_to_magnus(
+            return Err(header_type_error(
+                &ruby,
                 "Expected each header entry to contain a name and value",
             ));
         }
@@ -49,16 +52,18 @@ pub(super) fn from_source(source: Value) -> Result<Headers, Error> {
 /// Symbol underscores are changed to hyphens before [`HeaderName`] validates
 /// and normalizes the name. Other Ruby types produce `Wreq::BuilderError`.
 pub(super) fn parse_header_name(value: Value) -> Result<HeaderName, Error> {
+    let ruby = Ruby::get_with(value);
     let name = match (RString::from_value(value), Symbol::from_value(value)) {
         (Some(name), _) => name.to_bytes(),
         (None, Some(name)) => Bytes::from(name.name()?.replace('_', "-")),
         (None, None) => {
-            return Err(type_value_error_to_magnus(
+            return Err(header_type_error(
+                &ruby,
                 "Expected a String or Symbol header name",
             ));
         }
     };
-    HeaderName::from_bytes(name.as_ref()).map_err(header_name_error_to_magnus)
+    HeaderName::from_bytes(name.as_ref()).map_err(|err| header_name_error(&ruby, err))
 }
 
 /// Convert a Ruby String or Array of Strings into validated header values.
@@ -79,9 +84,10 @@ pub(super) fn parse_header_values(value: Value) -> Result<Vec<HeaderValue>, Erro
 /// Invalid Ruby types and bytes rejected by [`HeaderValue`] are mapped to
 /// `Wreq::BuilderError`.
 fn parse_header_value(value: Value) -> Result<HeaderValue, Error> {
+    let ruby = Ruby::get_with(value);
     let value = RString::try_convert(value)
-        .map_err(|_| type_value_error_to_magnus("Expected a String header value"))?;
-    HeaderValue::from_maybe_shared(value.to_bytes()).map_err(header_value_error_to_magnus)
+        .map_err(|_| header_type_error(&ruby, "Expected a String header value"))?;
+    HeaderValue::from_maybe_shared(value.to_bytes()).map_err(|err| header_value_error(&ruby, err))
 }
 
 /// Validate the resulting number of header occurrences before a mutation.
@@ -92,6 +98,7 @@ fn parse_header_value(value: Value) -> Result<HeaderValue, Error> {
 /// above the native [`HeaderMap`](http::HeaderMap) limit returns
 /// `Wreq::BuilderError` without mutating the collection.
 pub(super) fn ensure_header_count(
+    ruby: &Ruby,
     current: usize,
     replaced: usize,
     added: usize,
@@ -102,11 +109,11 @@ pub(super) fn ensure_header_count(
     if count.is_some_and(|count| count <= MAX_HEADER_ENTRIES) {
         Ok(())
     } else {
-        Err(header_count_error())
+        Err(header_count_error(ruby))
     }
 }
 
 /// Build the error returned when the native header map reaches its entry limit.
-pub(super) fn header_count_error() -> Error {
-    type_value_error_to_magnus("Header collection exceeds 32,768 entries")
+pub(super) fn header_count_error(ruby: &Ruby) -> Error {
+    header_type_error(ruby, "Header collection exceeds 32,768 entries")
 }

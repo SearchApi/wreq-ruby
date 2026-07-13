@@ -17,11 +17,12 @@ use http::{HeaderMap, HeaderValue};
 use magnus::{
     Error, RArray, RModule, RString, Ruby, TryConvert, Value, function, method,
     prelude::*,
+    scan_args::scan_args,
     typed_data::{Inspect, Obj},
 };
 use wreq::header::OrigHeaderMap;
 
-use crate::error::{header_value_error_to_magnus, type_value_error_to_magnus};
+use crate::error::{header_type_error, header_value_error};
 
 use self::helper::{
     ensure_header_count, from_source, header_count_error, parse_header_name, parse_header_values,
@@ -45,10 +46,11 @@ pub struct OrigHeaders(pub OrigHeaderMap);
 
 impl TryConvert for UserAgent {
     fn try_convert(value: Value) -> Result<Self, Error> {
+        let ruby = Ruby::get_with(value);
         let s = RString::try_convert(value)?;
         HeaderValue::from_maybe_shared(s.to_bytes())
             .map(Self)
-            .map_err(header_value_error_to_magnus)
+            .map_err(|err| header_value_error(&ruby, err))
     }
 }
 
@@ -78,11 +80,12 @@ impl Headers {
     /// A String stores one occurrence, while an Array stores each String as a
     /// separate occurrence. An empty Array removes the header.
     pub fn set(&self, name: Value, value: Value) -> Result<(), Error> {
+        let ruby = Ruby::get_with(name);
         let name = parse_header_name(name)?;
         let values = parse_header_values(value)?;
         let mut headers = self.0.borrow_mut();
         let replaced = headers.get_all(&name).iter().count();
-        ensure_header_count(headers.len(), replaced, values.len())?;
+        ensure_header_count(&ruby, headers.len(), replaced, values.len())?;
 
         let mut values = values.into_iter();
         let Some(first) = values.next() else {
@@ -92,11 +95,11 @@ impl Headers {
 
         headers
             .try_insert(name.clone(), first)
-            .map_err(|_| header_count_error())?;
+            .map_err(|_| header_count_error(&ruby))?;
         for value in values {
             headers
                 .try_append(name.clone(), value)
-                .map_err(|_| header_count_error())?;
+                .map_err(|_| header_count_error(&ruby))?;
         }
         Ok(())
     }
@@ -105,15 +108,16 @@ impl Headers {
     ///
     /// Array elements are appended separately and are never comma-folded.
     pub fn append(&self, name: Value, value: Value) -> Result<(), Error> {
+        let ruby = Ruby::get_with(name);
         let name = parse_header_name(name)?;
         let values = parse_header_values(value)?;
         let mut headers = self.0.borrow_mut();
-        ensure_header_count(headers.len(), 0, values.len())?;
+        ensure_header_count(&ruby, headers.len(), 0, values.len())?;
 
         for value in values {
             headers
                 .try_append(name.clone(), value)
-                .map_err(|_| header_count_error())?;
+                .map_err(|_| header_count_error(&ruby))?;
         }
         Ok(())
     }
@@ -170,18 +174,13 @@ impl Headers {
     ///
     /// The optional source may be a Hash, another `Wreq::Headers`, or an
     /// Enumerable whose elements are name-value pairs.
-    pub fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
-        match args {
-            [] => Ok(Self::default()),
-            [source] => from_source(*source),
-            _ => Err(Error::new(
-                ruby.exception_arg_error(),
-                format!(
-                    "wrong number of arguments (given {}, expected 0..1)",
-                    args.len()
-                ),
-            )),
-        }
+    pub fn new(args: &[Value]) -> Result<Self, Error> {
+        scan_args::<(), (Option<Value>,), (), (), (), ()>(args)?
+            .optional
+            .0
+            .map(from_source)
+            .transpose()
+            .map(Option::unwrap_or_default)
     }
 
     /// Return a value using Ruby collection semantics.
@@ -268,12 +267,15 @@ impl TryConvert for Headers {
 
 impl TryConvert for OrigHeaders {
     fn try_convert(value: Value) -> Result<Self, Error> {
+        let ruby = Ruby::get_with(value);
         let mut map = OrigHeaderMap::new();
 
         let rarray = RArray::from_value(value)
-            .ok_or_else(|| type_value_error_to_magnus("Expected an array of strings"))?;
+            .ok_or_else(|| header_type_error(&ruby, "Expected an array of strings"))?;
 
-        for value in rarray.into_iter().flat_map(RString::from_value) {
+        for value in rarray {
+            let value = RString::try_convert(value)
+                .map_err(|_| header_type_error(&ruby, "Expected an array of strings"))?;
             map.insert(value.to_bytes());
         }
 

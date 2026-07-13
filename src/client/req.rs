@@ -7,14 +7,16 @@ use wreq::{Client, Proxy};
 
 use super::body::{Body, Form, Json};
 use crate::{
+    arch::SUPPORTS_INTERFACE,
     client::{query::Query, resp::Response},
     cookie::Cookies,
     emulate::Emulation,
-    error::wreq_error_to_magnus,
+    error::wreq_error,
     extractor::Extractor,
     header::{Headers, OrigHeaders},
     http::{Method, Version},
-    rt, serde,
+    options::{NativeOption, Options},
+    rt,
 };
 
 /// The parameters for a request.
@@ -22,12 +24,12 @@ use crate::{
 #[non_exhaustive]
 pub struct Request {
     /// The emulation option for the request.
-    #[serde(skip)]
-    emulation: Option<Emulation>,
+    #[serde(default)]
+    emulation: NativeOption<Emulation>,
 
     /// The proxy to use for the request.
-    #[serde(skip)]
-    proxy: Option<Proxy>,
+    #[serde(default)]
+    proxy: NativeOption<Proxy>,
 
     /// Bind to a local IP Address.
     local_address: Option<IpAddr>,
@@ -43,23 +45,23 @@ pub struct Request {
     read_timeout: Option<u64>,
 
     /// The HTTP version to use for the request.
-    #[serde(skip)]
-    version: Option<Version>,
+    #[serde(default)]
+    version: NativeOption<Version>,
 
     /// The option enables default headers.
     default_headers: Option<bool>,
 
     /// The headers to use for the request.
-    #[serde(skip)]
-    headers: Option<Headers>,
+    #[serde(default)]
+    headers: NativeOption<Headers>,
 
     /// The original headers to use for the request.
-    #[serde(skip)]
-    orig_headers: Option<OrigHeaders>,
+    #[serde(default)]
+    orig_headers: NativeOption<OrigHeaders>,
 
     /// The cookies to use for the request.
-    #[serde(skip)]
-    cookies: Option<Cookies>,
+    #[serde(default)]
+    cookies: NativeOption<Cookies>,
 
     /// Whether to allow redirects.
     allow_redirects: Option<bool>,
@@ -95,62 +97,95 @@ pub struct Request {
     form: Option<Form>,
 
     /// The JSON body to use for the request.
-    #[serde(skip)]
-    json: Option<Json>,
+    #[serde(default)]
+    json: NativeOption<Json>,
 
     /// The body to use for the request.
-    #[serde(skip)]
-    body: Option<Body>,
+    #[serde(default)]
+    body: NativeOption<Body>,
 }
 
 impl Request {
     /// Create a new [`Request`] from Ruby keyword arguments.
+    ///
+    /// # Errors
+    ///
+    /// Returns before network I/O for unknown, duplicate, unsupported,
+    /// conflicting, ineffective, or invalid option values.
     pub fn new(ruby: &magnus::Ruby, hash: RHash) -> Result<Self, magnus::Error> {
         let keyword = hash.as_value();
-        let mut builder: Self = serde::deserialize(ruby, keyword)?;
+        let options = Options::new(ruby, hash);
+        let mut builder = Self::deserialize_options(&options)?;
+        options
+            .validator()
+            .require_when_present(
+                stringify!(max_redirects),
+                builder.max_redirects.is_some(),
+                builder.allow_redirects == Some(true),
+                ":allow_redirects to be true",
+            )
+            .finish()?;
 
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
-            let obj = Obj::<Emulation>::try_convert(v)?;
-            builder.emulation = Some((*obj).clone());
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(version))) {
-            builder.version = Some(Version::try_convert(v)?);
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(headers))) {
-            builder.headers = Some(Headers::try_convert(v)?);
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(orig_headers))) {
-            builder.orig_headers = Some(OrigHeaders::try_convert(v)?);
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(cookies))) {
-            builder.cookies = Some(Cookies::try_convert(v)?);
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(body))) {
-            builder.body = Some(Body::try_convert(v)?);
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(json))) {
-            builder.json = Some(Json::try_convert(v)?);
-        }
-
-        builder.proxy = Extractor::<Proxy>::try_convert(keyword)?.into_inner();
+        extract_native_option!(
+            options,
+            builder,
+            emulation,
+            Obj<Emulation> => |value| (*value).clone()
+        );
+        extract_native_option!(options, builder, version);
+        extract_native_option!(options, builder, headers);
+        extract_native_option!(options, builder, orig_headers);
+        extract_native_option!(options, builder, cookies);
+        extract_native_option!(options, builder, json, present);
+        builder
+            .proxy
+            .set(Extractor::<Proxy>::try_convert(keyword)?.into_inner());
+        extract_native_option!(options, builder, body);
 
         Ok(builder)
+    }
+
+    /// Validate pre-conversion rules and deserialize the request options.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ArgumentError` for failed rules or the Ruby conversion error
+    /// produced by an invalid option value.
+    fn deserialize_options(options: &Options<'_>) -> Result<Self, magnus::Error> {
+        options
+            .validate_keys::<Self>()?
+            .validator()
+            .reject_unsupported(stringify!(interface), SUPPORTS_INTERFACE)
+            .reject_conflicts([
+                (stringify!(body), options.is_non_nil(stringify!(body))),
+                (stringify!(form), options.is_non_nil(stringify!(form))),
+                (stringify!(json), options.is_present(stringify!(json))),
+            ])
+            .reject_conflicts([
+                (stringify!(auth), options.is_non_nil(stringify!(auth))),
+                (
+                    stringify!(bearer_auth),
+                    options.is_non_nil(stringify!(bearer_auth)),
+                ),
+                (
+                    stringify!(basic_auth),
+                    options.is_non_nil(stringify!(basic_auth)),
+                ),
+            ])
+            .finish()?
+            .deserialize::<Self>()
     }
 }
 
 pub fn execute_request<U: AsRef<str>>(
+    ruby: &magnus::Ruby,
     client: Client,
     method: Method,
     url: U,
     mut request: Request,
 ) -> Result<Response, magnus::Error> {
     rt::try_block_on(
+        ruby,
         async move {
             let mut builder = client.request(method.into_ffi(), url.as_ref());
 
@@ -274,6 +309,6 @@ pub fn execute_request<U: AsRef<str>>(
             // Send request.
             builder.send().await.map(Response::new)
         },
-        wreq_error_to_magnus,
+        wreq_error,
     )
 }

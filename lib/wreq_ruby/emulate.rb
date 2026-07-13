@@ -215,17 +215,28 @@ module Wreq
   #
   # @param profile [Wreq::Profile, nil] Fingerprint profile to emulate
   # @param platform [Wreq::Platform, nil] Operating system platform to emulate
-  # @param http2 [Boolean] Whether HTTP/2 support is enabled
-  # @param headers [Boolean] Whether default emulation headers are enabled
+  # @param http2 [Boolean, nil] Whether HTTP/2 emulation is enabled; defaults
+  #   to true when omitted or nil
+  # @param headers [Boolean, nil] Whether default emulation headers are enabled;
+  #   defaults to true when omitted or nil
+  # @return [Wreq::Emulation] Configured emulation settings
+  # @raise [ArgumentError] if an option is unknown or extra arguments are given
+  # @raise [TypeError] if the option argument is not a Hash or a value has the
+  #   wrong Ruby type
   class Emulation
     # Native fields and methods are set by the extension.
     # This stub is for documentation only.
     unless method_defined?(:new)
       # @param profile [Wreq::Profile, nil] Fingerprint profile to emulate
       # @param platform [Wreq::Platform, nil] Operating system platform to emulate
-      # @param http2 [Boolean] Whether HTTP/2 support is enabled
-      # @param headers [Boolean] Whether default emulation headers are enabled
-      def self.new(profile: nil, platform: nil, http2: true, headers: true)
+      # @param http2 [Boolean, nil] Whether HTTP/2 emulation is enabled; defaults
+      #   to true when omitted or nil
+      # @param headers [Boolean, nil] Whether default emulation headers are enabled;
+      #   defaults to true when omitted or nil
+      # @return [Wreq::Emulation] Configured emulation settings
+      # @raise [ArgumentError] if an option is unknown or extra arguments are given
+      # @raise [TypeError] if an option or value has the wrong Ruby type
+      def self.new(**options)
       end
     end
   end

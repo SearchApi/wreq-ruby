@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 
 use ::serde::de::{DeserializeSeed, MapAccess};
-use magnus::{RHash, RString, Ruby, Symbol, Value, value::ReprValue};
+use magnus::{RHash, RString, Ruby, Symbol, Value, r_hash::ForEach};
 
 use super::{Deserializer, Mode, array_enumerator::ArrayEnumerator};
 use crate::serde::Error;
@@ -23,7 +23,11 @@ impl<'ruby> HashDeserializer<'ruby> {
         depth: usize,
         mode: Mode,
     ) -> Result<Self, Error> {
-        let keys = hash.funcall("keys", ())?;
+        let keys = ruby.ary_new_capa(hash.len());
+        hash.foreach(|key: Value, _value: Value| {
+            keys.push(key)?;
+            Ok(ForEach::Continue)
+        })?;
         Ok(Self {
             ruby,
             hash,
