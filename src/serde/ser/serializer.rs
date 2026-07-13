@@ -8,6 +8,17 @@ use super::{
     tuple_variant_serializer::TupleVariantSerializer,
 };
 
+/// Implement primitive numeric serialization through Magnus's `IntoValue`.
+macro_rules! impl_serialize_numbers {
+    ($($method:ident => $type:ty),+ $(,)?) => {
+        $(
+            fn $method(self, value: $type) -> Result<Self::Ok, Self::Error> {
+                Ok(value.into_value_with(self.ruby))
+            }
+        )+
+    };
+}
+
 /// Serde serializer that creates Ruby values.
 pub(super) struct Serializer<'ruby> {
     ruby: &'ruby Ruby,
@@ -36,52 +47,19 @@ impl<'ruby> ::serde::Serializer for Serializer<'ruby> {
         Ok(value.into_value_with(self.ruby))
     }
 
-    fn serialize_i8(self, value: i8) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_i16(self, value: i16) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_i32(self, value: i32) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_i64(self, value: i64) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_i128(self, value: i128) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_u8(self, value: u8) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_u16(self, value: u16) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_u32(self, value: u32) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_u64(self, value: u64) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_u128(self, value: u128) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
-    }
-
-    fn serialize_f32(self, value: f32) -> Result<Self::Ok, Self::Error> {
-        self.serialize_f64(f64::from(value))
-    }
-
-    fn serialize_f64(self, value: f64) -> Result<Self::Ok, Self::Error> {
-        Ok(value.into_value_with(self.ruby))
+    impl_serialize_numbers! {
+        serialize_i8 => i8,
+        serialize_i16 => i16,
+        serialize_i32 => i32,
+        serialize_i64 => i64,
+        serialize_i128 => i128,
+        serialize_u8 => u8,
+        serialize_u16 => u16,
+        serialize_u32 => u32,
+        serialize_u64 => u64,
+        serialize_u128 => u128,
+        serialize_f32 => f32,
+        serialize_f64 => f64,
     }
 
     fn serialize_char(self, value: char) -> Result<Self::Ok, Self::Error> {

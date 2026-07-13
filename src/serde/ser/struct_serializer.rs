@@ -52,6 +52,7 @@ impl SerializeStruct for StructSerializer<'_> {
                 if name != JSON_NUMBER_TOKEN {
                     return Err(Error::message("invalid arbitrary-precision number field"));
                 }
+
                 if output.is_some() {
                     return Err(Error::message(
                         "arbitrary-precision number has duplicate fields",
