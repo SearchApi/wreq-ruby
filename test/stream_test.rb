@@ -1,5 +1,6 @@
 require "test_helper"
 require "socket"
+require "timeout"
 
 class StreamTest < Minitest::Test
   def test_simple_push_stream
@@ -172,6 +173,41 @@ class StreamTest < Minitest::Test
     killed = thread.join(5)
 
     assert killed, "Connect+timeout phase should be interruptible"
+  end
+
+  def test_thread_raise_propagates_ruby_interrupt
+    server = TCPServer.new("127.0.0.1", 0)
+    accepted = Queue.new
+    errors = Queue.new
+
+    server_thread = Thread.new do
+      socket = server.accept
+      accepted << true
+      sleep
+    ensure
+      socket&.close
+    end
+
+    request_thread = Thread.new do
+      Wreq.get("http://127.0.0.1:#{server.addr[1]}/", timeout: 60)
+    rescue Interrupt, StandardError => error
+      errors << error
+    end
+
+    Timeout.timeout(5) { accepted.pop }
+    request_thread.raise(Interrupt, "test interrupt")
+
+    assert request_thread.join(5), "Interrupted request thread should stop"
+
+    error = Timeout.timeout(1) { errors.pop }
+    assert_instance_of Interrupt, error
+    assert_equal "test interrupt", error.message
+  ensure
+    request_thread&.kill
+    request_thread&.join(1)
+    server_thread&.kill
+    server_thread&.join(1)
+    server&.close
   end
 
   def test_thread_interrupt_body_reading

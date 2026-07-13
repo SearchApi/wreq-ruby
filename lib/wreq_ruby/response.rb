@@ -114,13 +114,13 @@ unless defined?(Wreq)
       # Get the response body as text with a specific charset.
       # This method allows you to specify a default encoding
       # to use when decoding the response body.
-      # # @param default_encoding [String] Default encoding to use (e.g., "UTF-8")
-      # # @return [String] Response body decoded as text using the specified encoding
+      # @param default_encoding [String] Default encoding to use (e.g., "UTF-8")
+      # @return [String] Response body decoded as text using the specified encoding
       # @example
       #   html = response.text("ISO-8859-1")
       #   puts html
       # @raise [Wreq::DecodingError] if body cannot be decoded with the specified encoding
-      def text(default_encoding: "UTF-8")
+      def text(default_encoding = "UTF-8")
       end
 
       # Parse the response body as JSON.
