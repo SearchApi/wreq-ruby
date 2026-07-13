@@ -2,203 +2,293 @@
 
 unless defined?(Wreq)
   module Wreq
-    # HTTP headers collection.
+    # A mutable, case-insensitive collection of HTTP headers.
     #
-    # Provides efficient access to HTTP headers with case-insensitive lookups.
-    # Headers are created by the native extension and cannot be directly instantiated.
+    # Header names are normalized by the native header map and lookups are
+    # case-insensitive. Use the `orig_headers` request option when exact wire
+    # casing or header order is required. Duplicate values are stored as
+    # separate header occurrences.
     #
-    # All header names are case-insensitive. Multiple values for the same header
-    # are supported through the `get_all` method.
+    # @example Build and query headers
+    #   headers = Wreq::Headers.new(
+    #     "Accept" => ["application/json", "text/plain"],
+    #     content_type: "application/json"
+    #   )
+    #   headers["accept"]       # => ["application/json", "text/plain"]
+    #   headers[:content_type]  # => "application/json"
     #
-    # @example Accessing response headers
-    #   response = Wreq.get("https://example.com")
-    #   headers = response.headers
-    #   content_type = headers["Content-Type"]
-    #   content_type = headers.get("content-type")  # Same, case-insensitive
-    #
-    # @example Getting all values for a header
-    #   accept_values = headers.get_all("Accept")
-    #   # => ["application/json", "text/html"]
-    #
-    # @example Modifying headers
-    #   headers.set("X-Custom-Header", "value")
-    #   headers["Authorization"] = "Bearer token"
-    #   headers.append("Accept", "application/xml")
-    #
-    # @example Iterating headers
+    # @example Iterate over every occurrence
     #   headers.each do |name, value|
     #     puts "#{name}: #{value}"
     #   end
-    #
-    # @example Converting to hash
-    #   hash = headers.to_h
-    #   hash["content-type"]  # => "text/html"
     class Headers
-      # Create a new empty Headers collection.
+      include Enumerable
+
+      # Create an empty collection or copy header pairs from a source.
       #
-      # @return [Wreq::Headers] New headers instance
+      # @param source [Hash, Wreq::Headers, Enumerable] A hash, another
+      #   headers collection, or an enumerable that yields name-value pairs.
+      #   Omit this argument to create an empty collection.
+      # @return [Wreq::Headers]
+      # @raise [Wreq::BuilderError] if the source does not contain valid pairs
       # @example
-      #   headers = Wreq::Headers.new
-      #   headers.set("Content-Type", "application/json")
-      def self.new
+      #   Wreq::Headers.new
+      #   Wreq::Headers.new("Accept" => "application/json")
+      #   Wreq::Headers.new([[:content_type, "application/json"]])
+      def self.new(*args)
       end
 
-      # Get a header value by name (case-insensitive).
+      # Return the first value for a header.
       #
-      # Returns the first value if multiple values exist for the same header.
-      #
-      # @param name [String] Header name (case-insensitive)
-      # @return [String, nil] Header value, or nil if not found
+      # @param name [String, Symbol] Header name
+      # @return [String, nil] The first value, or nil when the name is missing
       # @example
-      #   headers.get("Content-Type")       # => "application/json"
-      #   headers.get("content-type")       # => "application/json" (same)
-      #   headers.get("X-Nonexistent")      # => nil
+      #   headers.get("content-type")  # => "application/json"
+      #   headers.get(:missing)        # => nil
       def get(name)
       end
 
-      # Get all values for a header name (case-insensitive).
+      # Return a header using collection-style value semantics.
       #
-      # Useful when a header can have multiple values (e.g., Accept, Set-Cookie).
+      # A missing name returns nil, one occurrence returns a String, and
+      # multiple occurrences return an Array<String>.
       #
-      # @param name [String] Header name (case-insensitive)
-      # @return [Array<String>] All values for this header (empty array if not found)
+      # @param name [String, Symbol] Header name
+      # @return [String, Array<String>, nil]
       # @example
-      #   headers.get_all("Accept")
-      #   # => ["application/json", "text/html", "application/xml"]
-      #   headers.get_all("X-Nonexistent")  # => []
+      #   headers["accept"]      # => "application/json"
+      #   headers["set-cookie"]  # => ["a=1", "b=2"]
+      def [](name)
+      end
+
+      # Return every value for a header.
+      #
+      # @param name [String, Symbol] Header name
+      # @return [Array<String>] Values in insertion order, or an empty array
+      # @example
+      #   headers.get_all("set-cookie")  # => ["a=1", "b=2"]
+      #   headers.get_all(:missing)       # => []
       def get_all(name)
       end
 
-      # Set a header value, replacing any existing values.
+      # Set one or more values, replacing every existing occurrence.
       #
-      # @param name [String] Header name
-      # @param value [String] Header value
+      # Array values are stored as separate occurrences and are not joined. An
+      # empty Array removes the header.
+      #
+      # @param name [String, Symbol] Header name
+      # @param value [String, Array<String>] Header value or values
       # @return [void]
-      # @raise [Wreq::BuilderError] if name or value contains invalid characters
+      # @raise [Wreq::BuilderError] if a name or value is invalid
       # @example
-      #   headers.set("Content-Type", "application/json")
-      #   headers.set("X-Custom-Header", "my-value")
+      #   headers.set("Accept", ["application/json", "text/plain"])
       def set(name, value)
       end
 
-      # Append a header value without replacing existing values.
+      # Set one or more values and return the assigned value.
       #
-      # Adds a new value for the header, preserving any existing values.
-      # Useful for headers that can have multiple values.
-      #
-      # @param name [String] Header name
-      # @param value [String] Header value to append
-      # @return [void]
-      # @raise [Wreq::BuilderError] if name or value contains invalid characters
+      # @param name [String, Symbol] Header name
+      # @param value [String, Array<String>] Header value or values
+      # @return [String, Array<String>] The assigned value
       # @example
-      #   headers.set("Accept", "application/json")
-      #   headers.append("Accept", "text/html")
-      #   headers.get_all("Accept")  # => ["application/json", "text/html"]
+      #   headers[:content_type] = "application/json"
+      def []=(name, value)
+      end
+
+      # Append one or more values without replacing existing occurrences.
+      #
+      # @param name [String, Symbol] Header name
+      # @param value [String, Array<String>] Header value or values
+      # @return [void]
+      # @raise [Wreq::BuilderError] if a name or value is invalid
+      # @example
+      #   headers.append("Set-Cookie", ["a=1", "b=2"])
       def append(name, value)
       end
 
-      # Remove all values for a header name.
+      # Return a header value, a fallback, or the result of a block.
       #
-      # @param name [String] Header name (case-insensitive)
-      # @return [String, nil] The removed value (first one if multiple), or nil
+      # @param name [String, Symbol] Header name
+      # @param default [Object] Optional fallback for a missing name
+      # @yieldparam name [String, Symbol] The missing name
+      # @return [String, Array<String>, Object]
+      # @raise [KeyError] if the name is missing and no fallback is provided
       # @example
-      #   headers.remove("Authorization")  # => "Bearer token"
-      #   headers.remove("X-Nonexistent")  # => nil
+      #   headers.fetch("accept", "*/*")
+      #   headers.fetch(:missing) { |name| "missing: #{name}" }
+      def fetch(name, default = nil)
+      end
+
+      # Remove every occurrence for a header.
+      #
+      # @param name [String, Symbol] Header name
+      # @return [String, nil] The first removed value, or nil when missing
+      # @example
+      #   headers.remove("authorization")  # => "Bearer token"
       def remove(name)
       end
 
-      # Check if a header exists (case-insensitive).
+      # Remove every occurrence for a header. Alias for {#remove}.
       #
-      # @param name [String] Header name
-      # @return [Boolean] true if the header exists
-      # @example
-      #   headers.contains?("Content-Type")  # => true
-      #   headers.contains?("X-Missing")     # => false
+      # @param name [String, Symbol] Header name
+      # @return [String, nil] The first removed value, or nil when missing
+      def delete(name)
+      end
+
+      # Check whether a header exists.
+      #
+      # @param name [String, Symbol] Header name
+      # @return [Boolean]
       def contains?(name)
       end
 
-      # Check if a header key exists (alias for {#contains?}).
+      # Check whether a header exists. Alias for {#contains?}.
       #
-      # @param name [String] Header name
-      # @return [Boolean] true if the header exists
-      # @example
-      #   headers.key?("Accept")  # => true
+      # @param name [String, Symbol] Header name
+      # @return [Boolean]
       def key?(name)
       end
 
-      # Get the number of headers.
+      # Return the number of header occurrences.
       #
-      # @return [Integer] Total number of unique header names
-      # @example
-      #   headers.length  # => 12
+      # This can be greater than `keys.length` when a name has multiple values.
+      #
+      # @return [Integer]
       def length
       end
 
-      # Check if there are no headers.
+      # Return the number of header occurrences. Alias for {#length}.
       #
-      # @return [Boolean] true if no headers exist
-      # @example
-      #   headers.empty?  # => false
+      # @return [Integer]
+      def size
+      end
+
+      # Check whether the collection has no header occurrences.
+      #
+      # @return [Boolean]
       def empty?
       end
 
-      # Remove all headers.
+      # Remove every header occurrence.
       #
-      # @return [void]
-      # @example
-      #   headers.clear
-      #   headers.empty?  # => true
+      # @return [Wreq::Headers] self
       def clear
       end
 
-      # Get all header names.
+      # Return each unique header name.
       #
-      # @return [Array<String>] Array of header names (lowercase)
-      # @example
-      #   headers.keys
-      #   # => ["content-type", "accept", "user-agent", "authorization"]
+      # @return [Array<String>]
       def keys
       end
 
-      # Get all header values.
+      # Return every header value.
       #
-      # Returns one value per header (the first if multiple values exist).
-      #
-      # @return [Array<String>] Array of header values
-      # @example
-      #   headers.values
-      #   # => ["application/json", "text/html", "Mozilla/5.0", "Bearer token"]
+      # @return [Array<String>]
       def values
       end
 
-      # Iterate over headers.
+      # Iterate over every header occurrence.
       #
-      # Yields each header name and value pair. If a header has multiple values,
-      # only the first is yielded.
-      #
-      # @yieldparam name [String] Header name (lowercase)
+      # @yieldparam name [String] Normalized lowercase header name
       # @yieldparam value [String] Header value
-      # @return [Enumerator, self] Returns enumerator if no block given, self otherwise
-      # @example With block
-      #   headers.each do |name, value|
-      #     puts "#{name}: #{value}"
-      #   end
-      # @example Without block
-      #   enum = headers.each
-      #   enum.to_a  # => [["content-type", "text/html"], ...]
+      # @return [Enumerator, Wreq::Headers] An Enumerator without a block,
+      #   otherwise self
+      # @example
+      #   headers.each.to_a
       def each
       end
 
+      # Convert every occurrence to name-value pairs.
+      #
+      # @return [Array<Array(String, String)>]
+      # @example
+      #   headers.to_a  # => [["accept", "application/json"], ...]
+      def to_a
+      end
+
+      # Convert unique names to a Hash.
+      #
+      # Hash values use the same nil, String, or Array shape as {#[]}.
+      #
+      # @return [Hash{String => String, Array<String>}]
+      # @example
+      #   headers.to_h  # => {"accept" => "application/json"}
+      def to_h
+      end
+
+      # Convert unique names to a Hash. Alias for {#to_h}.
+      #
+      # @return [Hash{String => String, Array<String>}]
+      def to_hash
+      end
+
       # Convert headers to a string representation.
+      #
       # @return [String] String representation of the headers
       def to_s
+      end
+
+      # Return a compact representation for debugging.
+      #
+      # @return [String]
+      # @example
+      #   headers.inspect  # => "#<Wreq::Headers [2 headers]>"
+      def inspect
       end
     end
   end
 end
 
+# ======================== Ruby API Extensions ========================
+
 module Wreq
   class Headers
+    FETCH_UNDEFINED = Object.new.freeze
+    private_constant :FETCH_UNDEFINED
+
+    alias delete remove
+    alias size length
+
+    # Return a header value, a fallback, or the result of a block.
+    #
+    # The block takes precedence when both a default and block are provided.
+    #
+    # @param name [String, Symbol] Header name
+    # @param default [Object] Optional fallback for a missing name
+    # @yieldparam name [String, Symbol] The missing name
+    # @return [String, Array<String>, Object]
+    # @raise [KeyError] if the name is missing and no fallback is provided
+    def fetch(name, default = FETCH_UNDEFINED)
+      value = self[name]
+      return value unless value.nil?
+      return yield(name) if block_given?
+      return default unless default.equal?(FETCH_UNDEFINED)
+
+      raise KeyError, "key not found: #{name.inspect}"
+    end
+
+    # Convert every header occurrence to a name-value pair.
+    #
+    # @return [Array<Array(String, String)>]
+    def to_a
+      each.to_a
+    end
+
+    # Convert unique normalized names to a Hash.
+    #
+    # A name with one occurrence maps to a String, while multiple occurrences
+    # map to an Array<String>.
+    #
+    # @return [Hash{String => String, Array<String>}]
+    def to_h
+      keys.to_h { |name| [name, self[name]] }
+    end
+
+    alias to_hash to_h
+
+    # Return a compact representation for debugging.
+    #
+    # @return [String]
     def inspect
       "#<Wreq::Headers [#{length} headers]>"
     end

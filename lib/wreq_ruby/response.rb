@@ -67,7 +67,9 @@ unless defined?(Wreq)
       # Get the response headers.
       #
       # Header names are case-insensitive. Use {Wreq::Headers#get_all} to get
-      # every value when a header appears more than once.
+      # every value when a header appears more than once. Each call returns a
+      # fresh, mutable snapshot. Changing that snapshot does not change the
+      # response or a later snapshot, and object identity is not guaranteed.
       #
       # @return [Wreq::Headers] Response headers
       # @example
