@@ -61,6 +61,36 @@ class JsonPrecisionTest < Minitest::Test
     end
   end
 
+  def test_request_json_accepts_symbols_and_preserves_object_order
+    payload = {second: 2**100, first: :value}
+
+    with_json_server do |url, requests|
+      response = Wreq.post(url, json: payload)
+      request = requests.pop
+      actual = response.json
+
+      assert_equal JSON.generate(payload), request.fetch(:body)
+      assert_equal ["second", "first"], actual.keys
+      assert_equal({"second" => 2**100, "first" => "value"}, actual)
+    end
+  end
+
+  def test_request_json_enforces_documented_nesting_limit
+    accepted = 0
+    100.times { accepted = [accepted] }
+
+    with_json_server do |url, requests|
+      Wreq.post(url, json: accepted)
+
+      assert_equal JSON.generate(accepted), requests.pop.fetch(:body)
+    end
+
+    error = assert_raises(Wreq::BuilderError) do
+      Wreq.post("http://127.0.0.1:1/", json: [accepted])
+    end
+    assert_match(/nesting exceeds 100 levels/, error.message)
+  end
+
   def test_unsupported_request_json_raises_before_socket_io
     server = TCPServer.new("127.0.0.1", 0)
     port = server.addr[1]

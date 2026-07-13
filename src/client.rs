@@ -132,7 +132,7 @@ impl Builder {
             return Ok(Default::default());
         };
 
-        let mut builder: Self = serde::deserialize(ruby, hash)?;
+        let mut builder: Self = serde::deserialize_ruby(ruby, hash)?;
 
         if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
             builder.emulation = Some((*Obj::<Emulation>::try_convert(v)?).clone());

@@ -29,14 +29,16 @@ SOFTWARE.
 //! The bridge also avoids the upstream `Ruby::get().unwrap()` error path,
 //! checks iterator and map state explicitly, and supports `i128` and `u128`
 //! when serializing Rust values to Ruby.
+#![allow(unsafe_code)]
 
 mod de;
 mod error;
 mod ser;
+#[cfg(test)]
+mod tests;
 
 use ::serde::{Deserialize, Serialize};
-use magnus::{IntoValue, Ruby, TryConvert, Value};
-use serde_json::Value as JsonValue;
+use magnus::{IntoValue, Ruby, TryConvert};
 
 pub(super) use error::Error;
 
@@ -50,11 +52,11 @@ pub(super) const JSON_NUMBER_TOKEN: &str = "$serde_json::private::Number";
 /// Maximum nesting accepted while converting a Ruby request value.
 pub(super) const MAX_JSON_NESTING: usize = 100;
 
-/// Deserialize a Ruby value into any Serde type.
+/// Deserialize a Ruby value using native Ruby data model semantics.
 ///
 /// This preserves the public conversion behavior provided by the upstream
 /// `serde_magnus::deserialize` function.
-pub(crate) fn deserialize<'de, Input, Output>(
+pub(crate) fn deserialize_ruby<'de, Input, Output>(
     ruby: &Ruby,
     input: Input,
 ) -> Result<Output, magnus::Error>
@@ -62,7 +64,7 @@ where
     Input: IntoValue,
     Output: Deserialize<'de>,
 {
-    de::deserialize(ruby, input.into_value_with(ruby)).map_err(|error| error.into_magnus(ruby))
+    de::deserialize_ruby(ruby, input.into_value_with(ruby)).map_err(|error| error.into_magnus(ruby))
 }
 
 /// Serialize any Serde value into a Ruby value.
@@ -78,7 +80,14 @@ where
     Output::try_convert(value)
 }
 
-/// Deserialize a Ruby value into a native JSON tree.
-pub(crate) fn from_ruby(ruby: &Ruby, value: Value) -> Result<JsonValue, Error> {
-    de::deserialize_json(ruby, value)
+/// Deserialize a Ruby value using JSON-specific conversion rules.
+pub(crate) fn deserialize_json<'de, Input, Output>(
+    ruby: &Ruby,
+    input: Input,
+) -> Result<Output, magnus::Error>
+where
+    Input: IntoValue,
+    Output: Deserialize<'de>,
+{
+    de::deserialize_json(ruby, input.into_value_with(ruby)).map_err(|error| error.into_magnus(ruby))
 }

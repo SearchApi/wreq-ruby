@@ -5,7 +5,7 @@ use http::header;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
 use wreq::{Client, Proxy};
 
-use super::body::{Body, Form, Json};
+use super::body::{Body, form::Form, json::Json};
 use crate::{
     client::{query::Query, resp::Response},
     cookie::Cookies,
@@ -107,7 +107,7 @@ impl Request {
     /// Create a new [`Request`] from Ruby keyword arguments.
     pub fn new(ruby: &magnus::Ruby, hash: RHash) -> Result<Self, magnus::Error> {
         let keyword = hash.as_value();
-        let mut builder: Self = serde::deserialize(ruby, keyword)?;
+        let mut builder: Self = serde::deserialize_ruby(ruby, keyword)?;
 
         if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
             let obj = Obj::<Emulation>::try_convert(v)?;

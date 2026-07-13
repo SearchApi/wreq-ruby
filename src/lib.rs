@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 #![allow(clippy::wrong_self_convention)]
 
 #[macro_use]
