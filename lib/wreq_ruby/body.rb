@@ -21,14 +21,17 @@ unless defined?(Wreq)
     #     after being consumed by a request, further push or reuse is not allowed.
     class BodySender
       # @param capacity [Integer] channel buffer size, default 8
+      # @return [Wreq::BodySender] A streaming request body sender
       def self.new(capacity = 8)
       end
 
       # @param data [String] binary chunk
+      # @return [void]
       def push(data)
       end
 
       # Close the sender, signaling end of data.
+      # @return [void]
       def close
       end
     end

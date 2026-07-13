@@ -224,7 +224,7 @@ unless defined?(Wreq)
 
       # Convert headers to a string representation.
       #
-      # @return [String]
+      # @return [String] String representation of the headers
       def to_s
       end
 
