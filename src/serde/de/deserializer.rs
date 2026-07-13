@@ -10,6 +10,24 @@ use super::{
     hash_deserializer::HashDeserializer, number_deserializer::NumberDeserializer,
 };
 
+/// Implement a typed Serde integer entry point without narrowing through `i64`.
+///
+/// Dynamic targets still use [`Deserializer::deserialize_any`], while typed
+/// targets use Magnus's matching checked conversion.
+macro_rules! deserialize_integer {
+    ($method:ident, $visit:ident, $convert:ident) => {
+        fn $method<Visitor>(self, visitor: Visitor) -> Result<Visitor::Value, Self::Error>
+        where
+            Visitor: ::serde::de::Visitor<'de>,
+        {
+            match Integer::from_value(self.value) {
+                Some(value) => visitor.$visit(value.$convert()?),
+                None => self.deserialize_any(visitor),
+            }
+        }
+    };
+}
+
 /// Data model applied to a Ruby value during deserialization.
 #[derive(Clone, Copy)]
 pub(super) enum Mode {
@@ -224,9 +242,19 @@ impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
         visitor.visit_unit()
     }
 
+    deserialize_integer!(deserialize_i8, visit_i8, to_i8);
+    deserialize_integer!(deserialize_i16, visit_i16, to_i16);
+    deserialize_integer!(deserialize_i32, visit_i32, to_i32);
+    deserialize_integer!(deserialize_i64, visit_i64, to_i64);
+    deserialize_integer!(deserialize_i128, visit_i128, to_i128);
+    deserialize_integer!(deserialize_u8, visit_u8, to_u8);
+    deserialize_integer!(deserialize_u16, visit_u16, to_u16);
+    deserialize_integer!(deserialize_u32, visit_u32, to_u32);
+    deserialize_integer!(deserialize_u64, visit_u64, to_u64);
+    deserialize_integer!(deserialize_u128, visit_u128, to_u128);
+
     forward_to_deserialize_any! {
         <Visitor: Visitor<'de>>
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        unit unit_struct seq tuple tuple_struct map struct identifier
+        bool f32 f64 char str string unit unit_struct seq tuple tuple_struct map struct identifier
     }
 }

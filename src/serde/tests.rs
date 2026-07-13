@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use ::serde::{Deserialize, Serialize};
 use magnus::{Value, value::ReprValue};
 
-use super::{deserialize_ruby, serialize};
+use super::{deserialize_json, deserialize_ruby, serialize};
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct Record {
@@ -55,10 +55,18 @@ fn retains_ruby_serde_conversion_surface() -> Result<(), magnus::Error> {
     let value: Value = serialize(&ruby, &i128::MIN)?;
     let decimal: String = value.funcall("to_s", ())?;
     assert_eq!(i128::MIN.to_string(), decimal);
+    assert_eq!(i128::MIN, deserialize_ruby::<_, i128>(&ruby, value)?);
+    assert_eq!(i128::MIN, deserialize_json::<_, i128>(&ruby, value)?);
 
     let value: Value = serialize(&ruby, &u128::MAX)?;
     let decimal: String = value.funcall("to_s", ())?;
     assert_eq!(u128::MAX.to_string(), decimal);
+    assert_eq!(u128::MAX, deserialize_ruby::<_, u128>(&ruby, value)?);
+    assert_eq!(u128::MAX, deserialize_json::<_, u128>(&ruby, value)?);
+
+    let value: Value = serialize(&ruby, &u64::MAX)?;
+    assert_eq!(u64::MAX, deserialize_ruby::<_, u64>(&ruby, value)?);
+    assert_eq!(u64::MAX, deserialize_json::<_, u64>(&ruby, value)?);
 
     Ok(())
 }

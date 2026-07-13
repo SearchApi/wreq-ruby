@@ -91,7 +91,7 @@ fn number_to_ruby(ruby: &Ruby, source: &str) -> Result<Value, Error> {
 }
 
 /// Convert a decimal integer token into an arbitrary-precision Ruby Integer.
-pub(super) fn integer_to_ruby(ruby: &Ruby, source: &str) -> Result<Value, Error> {
+fn integer_to_ruby(ruby: &Ruby, source: &str) -> Result<Value, Error> {
     let source = ruby.str_new(source);
     let value: Integer = ruby.module_kernel().funcall("Integer", (source, 10))?;
     Ok(value.as_value())

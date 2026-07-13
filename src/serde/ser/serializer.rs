@@ -3,11 +3,8 @@ use magnus::{IntoValue, Ruby, Value};
 
 use super::super::Error;
 use super::{
-    enums::nest,
-    map_serializer::MapSerializer,
-    seq_serializer::SeqSerializer,
-    struct_serializer::{self, StructSerializer},
-    struct_variant_serializer::StructVariantSerializer,
+    enums::nest, map_serializer::MapSerializer, seq_serializer::SeqSerializer,
+    struct_serializer::StructSerializer, struct_variant_serializer::StructVariantSerializer,
     tuple_variant_serializer::TupleVariantSerializer,
 };
 
@@ -56,7 +53,7 @@ impl<'ruby> ::serde::Serializer for Serializer<'ruby> {
     }
 
     fn serialize_i128(self, value: i128) -> Result<Self::Ok, Self::Error> {
-        struct_serializer::integer_to_ruby(self.ruby, &value.to_string())
+        Ok(value.into_value_with(self.ruby))
     }
 
     fn serialize_u8(self, value: u8) -> Result<Self::Ok, Self::Error> {
@@ -76,7 +73,7 @@ impl<'ruby> ::serde::Serializer for Serializer<'ruby> {
     }
 
     fn serialize_u128(self, value: u128) -> Result<Self::Ok, Self::Error> {
-        struct_serializer::integer_to_ruby(self.ruby, &value.to_string())
+        Ok(value.into_value_with(self.ruby))
     }
 
     fn serialize_f32(self, value: f32) -> Result<Self::Ok, Self::Error> {
