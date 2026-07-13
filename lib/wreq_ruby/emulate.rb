@@ -154,7 +154,7 @@ module Wreq
       Opera128 = nil
       Opera129 = nil
       Opera130 = nil
-      Opera131 = nils
+      Opera131 = nil
     end
 
     unless method_defined?(:to_s)
@@ -225,6 +225,7 @@ module Wreq
       # @param platform [Wreq::Platform, nil] Operating system platform to emulate
       # @param http2 [Boolean] Whether HTTP/2 support is enabled
       # @param headers [Boolean] Whether default emulation headers are enabled
+      # @return [Wreq::Emulation] Configured emulation settings
       def self.new(profile: nil, platform: nil, http2: true, headers: true)
       end
     end

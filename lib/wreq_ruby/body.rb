@@ -22,6 +22,7 @@ unless defined?(Wreq)
       #
       # @param capacity [Integer] positive number of chunks that may wait in the channel;
       #   defaults to 8 and must be greater than zero
+      # @return [Wreq::BodySender] A streaming request body sender
       # @raise [ArgumentError] if capacity is zero, negative, or too large
       # @raise [TypeError] if capacity is not an Integer
       def self.new(capacity = 8)

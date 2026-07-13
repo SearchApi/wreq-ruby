@@ -4,9 +4,9 @@ unless defined?(Wreq)
     #
     # Values follow the Rust enum exposed by the native extension.
     class SameSite
-      # Lax same-site policy.
-      Strict = nil
       # Strict same-site policy.
+      Strict = nil
+      # Lax same-site policy.
       Lax = nil
       # None same-site policy.
       None = nil
