@@ -4,6 +4,7 @@
 //! ABI boundaries, or OS APIs used by the Rust extension. Normal HTTP client
 //! behavior should stay in the client/runtime modules so platform workarounds
 //! do not leak into the rest of the binding.
+#![allow(unsafe_code)]
 
 /// Whether the native client exposes TCP user-timeout configuration.
 pub(crate) const SUPPORTS_TCP_USER_TIMEOUT: bool = cfg!(any(

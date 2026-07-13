@@ -1,3 +1,5 @@
+//! Streaming request and response body support.
+
 use std::{
     cell::{Ref, RefCell, RefMut},
     panic::catch_unwind,

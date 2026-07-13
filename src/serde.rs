@@ -30,15 +30,17 @@ SOFTWARE.
 //! checks iterator and map state explicitly, reports unknown option fields and
 //! conversion paths, and supports `i128` and `u128` when serializing Rust
 //! values to Ruby.
+#![allow(unsafe_code)]
 
 mod de;
 mod error;
 mod ser;
+#[cfg(test)]
+mod tests;
 
 use ::serde::{Deserialize, Serialize, de::DeserializeOwned};
 use indexmap::IndexSet;
 use magnus::{IntoValue, Ruby, TryConvert};
-use serde_json::Value as JsonValue;
 
 use crate::error::argument_error;
 
@@ -54,7 +56,7 @@ pub(super) const JSON_NUMBER_TOKEN: &str = "$serde_json::private::Number";
 /// Maximum nesting accepted while converting a Ruby request value.
 pub(super) const MAX_JSON_NESTING: usize = 100;
 
-/// Deserialize a Ruby value into any Serde type.
+/// Deserialize a Ruby value using native Ruby data model semantics.
 ///
 /// This preserves the public conversion behavior provided by the upstream
 /// `serde_magnus::deserialize` function. JSON callers should use
@@ -65,7 +67,7 @@ pub(super) const MAX_JSON_NESTING: usize = 100;
 /// Returns the Ruby exception produced when the input cannot be represented by
 /// `Output`.
 #[allow(dead_code)] // Retained as part of the upstream-compatible Serde surface.
-pub(crate) fn deserialize<'de, Input, Output>(
+pub(crate) fn deserialize_ruby<'de, Input, Output>(
     ruby: &Ruby,
     input: Input,
 ) -> Result<Output, magnus::Error>
@@ -73,7 +75,7 @@ where
     Input: IntoValue,
     Output: Deserialize<'de>,
 {
-    de::deserialize(ruby, input.into_value_with(ruby)).map_err(|error| error.into_magnus(ruby))
+    de::deserialize_ruby(ruby, input.into_value_with(ruby)).map_err(|error| error.into_magnus(ruby))
 }
 
 /// Serialize any Serde value into a Ruby value.
@@ -94,20 +96,24 @@ where
     Output::try_convert(value)
 }
 
-/// Deserialize a Ruby value into a validated native JSON tree.
+/// Deserialize a Ruby value using JSON-specific conversion rules.
 ///
-/// Unlike [`deserialize`], this uses JSON conversion mode to preserve
-/// arbitrary-size integers and reject non-finite floats, unsupported object
-/// keys, and excessive nesting.
+/// Unlike [`deserialize_ruby`], this preserves arbitrary-size integers and
+/// rejects non-finite floats, unsupported object keys, and excessive nesting.
 ///
 /// # Errors
 ///
-/// Returns a local bridge error for unsupported or invalid JSON values.
-pub(crate) fn deserialize_json<Input>(ruby: &Ruby, input: Input) -> Result<JsonValue, Error>
+/// Returns the Ruby exception produced when the input cannot be represented by
+/// `Output`.
+pub(crate) fn deserialize_json<'de, Input, Output>(
+    ruby: &Ruby,
+    input: Input,
+) -> Result<Output, magnus::Error>
 where
     Input: IntoValue,
+    Output: Deserialize<'de>,
 {
-    de::deserialize_json(ruby, input.into_value_with(ruby))
+    de::deserialize_json(ruby, input.into_value_with(ruby)).map_err(|error| error.into_magnus(ruby))
 }
 
 /// Validate Ruby option keys without inspecting their values.
@@ -162,7 +168,7 @@ where
     Output: DeserializeOwned,
 {
     let value = input.into_value_with(ruby);
-    serde_path_to_error::deserialize(de::Deserializer::new(ruby, value)).map_err(|error| {
+    serde_path_to_error::deserialize(de::Deserializer::new_ruby(ruby, value)).map_err(|error| {
         let path = error.path().to_string();
         let path = (path != ".").then_some(path.as_str());
         error.into_inner().into_option_magnus(ruby, path)

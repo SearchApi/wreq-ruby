@@ -5,7 +5,7 @@ use http::header;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
 use wreq::{Client, Proxy};
 
-use super::body::{Body, Form, Json};
+use super::body::{Body, form::Form, json::Json};
 use crate::{
     arch::SUPPORTS_INTERFACE,
     client::{query::Query, resp::Response},

@@ -9,7 +9,7 @@ use magnus::{Error, Module, RArray, RModule, Ruby, Value, scan_args::scan_args};
 use wreq::Uri;
 
 use crate::{
-    client::body::{BodyReceiver, json},
+    client::body::{json::Json, stream::BodyReceiver},
     cookie::Cookie,
     error::{memory_error, no_block_given_error, wreq_error},
     gvl,
@@ -187,7 +187,9 @@ impl Response {
 
     /// Get the response body as JSON.
     pub fn json(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
-        json::parse(ruby, Self::bytes(ruby, rb_self)?)
+        let response = rb_self.response(ruby, false)?;
+        let json = rt::try_block_on(ruby, response.json::<Json>(), wreq_error)?;
+        crate::serde::serialize(ruby, &json)
     }
 
     /// Yield response body chunks to the given Ruby block.
