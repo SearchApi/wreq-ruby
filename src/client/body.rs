@@ -1,6 +1,6 @@
 pub mod form;
 pub mod json;
-mod stream;
+pub mod stream;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
@@ -9,19 +9,13 @@ use magnus::{
     typed_data::Obj,
 };
 
-pub use self::{
-    form::Form,
-    json::Json,
-    stream::{BodyReceiver, BodySender, ReceiverStream},
-};
-
 /// Represents the body of an HTTP request.
 /// Supports text, bytes, and streaming bodies (Proc/Enumerator).
 pub enum Body {
     /// Static bytes body
     Bytes(Bytes),
     /// Streaming body
-    Stream(ReceiverStream<Bytes>),
+    Stream(stream::ReceiverStream<Bytes>),
 }
 
 impl TryConvert for Body {
@@ -30,8 +24,8 @@ impl TryConvert for Body {
             return Ok(Body::Bytes(s.to_bytes()));
         }
 
-        let obj = Obj::<BodySender>::try_convert(val)?;
-        let stream = ReceiverStream::try_from(&*obj)?;
+        let obj = Obj::<stream::BodySender>::try_convert(val)?;
+        let stream = stream::ReceiverStream::try_from(&*obj)?;
         Ok(Body::Stream(stream))
     }
 }
@@ -50,9 +44,9 @@ impl From<Body> for wreq::Body {
 
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     let sender_class = gem_module.define_class("BodySender", ruby.class_object())?;
-    sender_class.define_singleton_method("new", function!(BodySender::new, -1))?;
-    sender_class.define_method("push", method!(BodySender::push, 1))?;
-    sender_class.define_method("close", magnus::method!(BodySender::close, 0))?;
-    sender_class.define_method("closed?", magnus::method!(BodySender::is_closed, 0))?;
+    sender_class.define_singleton_method("new", function!(stream::BodySender::new, -1))?;
+    sender_class.define_method("push", method!(stream::BodySender::push, 1))?;
+    sender_class.define_method("close", magnus::method!(stream::BodySender::close, 0))?;
+    sender_class.define_method("closed?", magnus::method!(stream::BodySender::is_closed, 0))?;
     Ok(())
 }

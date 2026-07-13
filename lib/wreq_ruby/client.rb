@@ -260,10 +260,10 @@ unless defined?(Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-      # @param json [Object, nil] JSON body serialized by the native encoder; Integer values retain arbitrary precision
+      # @param json [Object, nil] JSON body; preserves arbitrary-precision Integer values
       # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
       # @return [Wreq::Response] HTTP response
-      # @raise [Wreq::BuilderError] if json contains unsupported values; raised before network I/O
+      # @raise [Wreq::BuilderError] if json cannot be serialized before network I/O
       def request(method, url, **options)
       end
 
@@ -292,10 +292,10 @@ unless defined?(Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-      # @param json [Object, nil] JSON body serialized by the native encoder; Integer values retain arbitrary precision
+      # @param json [Object, nil] JSON body; preserves arbitrary-precision Integer values
       # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
       # @return [Wreq::Response] HTTP response
-      # @raise [Wreq::BuilderError] if json contains unsupported values; raised before network I/O
+      # @raise [Wreq::BuilderError] if json cannot be serialized before network I/O
       def get(url, **options)
       end
 
@@ -324,10 +324,10 @@ unless defined?(Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-      # @param json [Object, nil] JSON body serialized by the native encoder; Integer values retain arbitrary precision
+      # @param json [Object, nil] JSON body; preserves arbitrary-precision Integer values
       # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
       # @return [Wreq::Response] HTTP response
-      # @raise [Wreq::BuilderError] if json contains unsupported values; raised before network I/O
+      # @raise [Wreq::BuilderError] if json cannot be serialized before network I/O
       def head(url, **options)
       end
 
@@ -356,10 +356,10 @@ unless defined?(Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-      # @param json [Object, nil] JSON body serialized by the native encoder; Integer values retain arbitrary precision
+      # @param json [Object, nil] JSON body; preserves arbitrary-precision Integer values
       # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
       # @return [Wreq::Response] HTTP response
-      # @raise [Wreq::BuilderError] if json contains unsupported values; raised before network I/O
+      # @raise [Wreq::BuilderError] if json cannot be serialized before network I/O
       def post(url, **options)
       end
 
@@ -388,10 +388,10 @@ unless defined?(Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-      # @param json [Object, nil] JSON body serialized by the native encoder; Integer values retain arbitrary precision
+      # @param json [Object, nil] JSON body; preserves arbitrary-precision Integer values
       # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
       # @return [Wreq::Response] HTTP response
-      # @raise [Wreq::BuilderError] if json contains unsupported values; raised before network I/O
+      # @raise [Wreq::BuilderError] if json cannot be serialized before network I/O
       def put(url, **options)
       end
 
@@ -420,10 +420,10 @@ unless defined?(Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-      # @param json [Object, nil] JSON body serialized by the native encoder; Integer values retain arbitrary precision
+      # @param json [Object, nil] JSON body; preserves arbitrary-precision Integer values
       # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
       # @return [Wreq::Response] HTTP response
-      # @raise [Wreq::BuilderError] if json contains unsupported values; raised before network I/O
+      # @raise [Wreq::BuilderError] if json cannot be serialized before network I/O
       def delete(url, **options)
       end
 
@@ -452,10 +452,10 @@ unless defined?(Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-      # @param json [Object, nil] JSON body serialized by the native encoder; Integer values retain arbitrary precision
+      # @param json [Object, nil] JSON body; preserves arbitrary-precision Integer values
       # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
       # @return [Wreq::Response] HTTP response
-      # @raise [Wreq::BuilderError] if json contains unsupported values; raised before network I/O
+      # @raise [Wreq::BuilderError] if json cannot be serialized before network I/O
       def options(url, **options)
       end
 
@@ -484,10 +484,10 @@ unless defined?(Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-      # @param json [Object, nil] JSON body serialized by the native encoder; Integer values retain arbitrary precision
+      # @param json [Object, nil] JSON body; preserves arbitrary-precision Integer values
       # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
       # @return [Wreq::Response] HTTP response
-      # @raise [Wreq::BuilderError] if json contains unsupported values; raised before network I/O
+      # @raise [Wreq::BuilderError] if json cannot be serialized before network I/O
       def trace(url, **options)
       end
 
@@ -516,10 +516,10 @@ unless defined?(Wreq)
       # @param emulation [Wreq::Emulation, nil] Device/OS emulation for this request
       # @param version [Wreq::Version, nil] HTTP version to use
       # @param form [Hash{String=>String}, nil] Form data (application/x-www-form-urlencoded)
-      # @param json [Object, nil] JSON body serialized by the native encoder; Integer values retain arbitrary precision
+      # @param json [Object, nil] JSON body; preserves arbitrary-precision Integer values
       # @param body [String, Wreq::BodySender, nil] Request body bytes or streaming body sender
       # @return [Wreq::Response] HTTP response
-      # @raise [Wreq::BuilderError] if json contains unsupported values; raised before network I/O
+      # @raise [Wreq::BuilderError] if json cannot be serialized before network I/O
       def patch(url, **options)
       end
     end
