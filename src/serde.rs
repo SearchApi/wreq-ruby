@@ -28,8 +28,8 @@ SOFTWARE.
 //! validation, insertion-order preservation, and bounded container nesting.
 //! The bridge also avoids the upstream `Ruby::get().unwrap()` error path,
 //! checks iterator and map state explicitly, reports unknown option fields and
-//! conversion paths, and supports `i128` and `u128` when serializing Rust
-//! values to Ruby.
+//! conversion paths, and supports `i128` and `u128` in both directions for
+//! typed Rust values.
 #![allow(unsafe_code)]
 
 mod de;

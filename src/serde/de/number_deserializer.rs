@@ -1,4 +1,7 @@
-use ::serde::de::{DeserializeSeed, MapAccess, value::StringDeserializer};
+use ::serde::de::{
+    DeserializeSeed, MapAccess,
+    value::{BorrowedStrDeserializer, StringDeserializer},
+};
 
 use super::super::{Error, JSON_NUMBER_TOKEN};
 
@@ -27,10 +30,8 @@ impl<'de> MapAccess<'de> for NumberDeserializer {
             return Ok(None);
         }
 
-        seed.deserialize(StringDeserializer::<Error>::new(
-            JSON_NUMBER_TOKEN.to_owned(),
-        ))
-        .map(Some)
+        seed.deserialize(BorrowedStrDeserializer::<Error>::new(JSON_NUMBER_TOKEN))
+            .map(Some)
     }
 
     fn next_value_seed<Seed>(&mut self, seed: Seed) -> Result<Seed::Value, Self::Error>
