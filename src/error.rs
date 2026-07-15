@@ -1,3 +1,5 @@
+use std::cell::{BorrowError, BorrowMutError};
+
 use magnus::{
     Error as MagnusError, RModule, Ruby, exception::ExceptionClass, prelude::*, value::Lazy,
 };
@@ -90,11 +92,32 @@ pub fn no_block_given_error() -> MagnusError {
     )
 }
 
-/// Map [`tokio::sync::mpsc::error::SendError`] to corresponding [`magnus::Error`]
-pub fn mpsc_send_error_to_magnus<T>(err: SendError<T>) -> MagnusError {
+/// Build an `IOError` for writes to a closed request-body sender.
+pub fn closed_body_sender_error() -> MagnusError {
+    MagnusError::new(ruby!().exception_io_error(), "closed body sender")
+}
+
+/// Map a failed body-channel send to `IOError`.
+pub fn body_sender_send_error_to_magnus<T>(err: SendError<T>) -> MagnusError {
+    MagnusError::new(
+        ruby!().exception_io_error(),
+        format!("closed body sender: {err}"),
+    )
+}
+
+/// Map an immutable sender-state borrow failure to `Wreq::BodyError`.
+pub fn body_sender_borrow_error_to_magnus(err: BorrowError) -> MagnusError {
     MagnusError::new(
         ruby!().get_inner(&BODY_ERROR),
-        format!("failed to send body chunk: {}", err),
+        format!("body sender state is unavailable: {err}"),
+    )
+}
+
+/// Map a mutable sender-state borrow failure to `Wreq::BodyError`.
+pub fn body_sender_borrow_mut_error_to_magnus(err: BorrowMutError) -> MagnusError {
+    MagnusError::new(
+        ruby!().get_inner(&BODY_ERROR),
+        format!("body sender state is unavailable: {err}"),
     )
 }
 

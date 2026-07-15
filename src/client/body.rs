@@ -47,5 +47,6 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     sender_class.define_singleton_method("new", function!(stream::BodySender::new, -1))?;
     sender_class.define_method("push", method!(stream::BodySender::push, 1))?;
     sender_class.define_method("close", magnus::method!(stream::BodySender::close, 0))?;
+    sender_class.define_method("closed?", magnus::method!(stream::BodySender::is_closed, 0))?;
     Ok(())
 }
