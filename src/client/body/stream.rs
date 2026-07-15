@@ -1,3 +1,5 @@
+//! Streaming request and response body support.
+
 use std::{
     pin::Pin,
     sync::RwLock,

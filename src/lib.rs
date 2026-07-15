@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 #![allow(clippy::wrong_self_convention)]
 
 #[macro_use]
@@ -12,6 +13,7 @@ mod gvl;
 mod header;
 mod http;
 mod rt;
+mod serde;
 
 use magnus::{Error, Module, Ruby, Value};
 
