@@ -8,6 +8,9 @@ unless defined?(Wreq)
     # access to HTTP response data including status codes, headers, body
     # content, and streaming capabilities.
     #
+    # Reading or streaming the body raises Wreq::ForkError in a child process
+    # forked after wreq-ruby was loaded.
+    #
     # @example Basic response handling
     #   response = client.get("https://api.example.com")
     #   puts response.status.as_int  # => 200

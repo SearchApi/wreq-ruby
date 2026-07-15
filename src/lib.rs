@@ -85,6 +85,7 @@ pub fn patch(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
 fn init(ruby: &Ruby) -> Result<(), Error> {
     let gem_module = ruby.define_module(RUBY_MODULE_NAME)?;
     gem_module.const_set("VERSION", VERSION)?;
+    error::include(ruby, &gem_module)?;
     gem_module.define_module_function("request", magnus::function!(request, -1))?;
     gem_module.define_module_function("get", magnus::function!(get, -1))?;
     gem_module.define_module_function("post", magnus::function!(post, -1))?;
@@ -99,6 +100,7 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     cookie::include(ruby, &gem_module)?;
     client::include(ruby, &gem_module)?;
     emulate::include(ruby, &gem_module)?;
-    error::include(ruby, &gem_module)?;
+    #[cfg(unix)]
+    rt::initialize(ruby)?;
     Ok(())
 }

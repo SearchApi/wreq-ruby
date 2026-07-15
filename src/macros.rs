@@ -134,6 +134,7 @@ macro_rules! extract_request {
         let args = magnus::scan_args::scan_args::<$required, (), (), (), magnus::RHash, ()>($args)?;
         let required = args.required;
         let ruby = magnus::Ruby::get_with(args.keywords);
+        crate::rt::ensure_current(&ruby)?;
         let request = crate::client::req::Request::new(&ruby, args.keywords)?;
         (required, request)
     }};

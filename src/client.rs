@@ -21,6 +21,7 @@ use crate::{
     header::{Headers, OrigHeaders, UserAgent},
     http::Method,
     options::{NativeOption, Options},
+    rt,
 };
 
 /// A builder for `Client`.
@@ -214,8 +215,12 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Maps native build failures only after the GVL has been reacquired.
+    /// Returns `Wreq::ForkError` before touching native client state when the
+    /// extension was inherited from a parent process. Maps native build
+    /// failures only after the GVL has been reacquired.
     fn build(ruby: &Ruby, mut params: Builder) -> Result<Self, magnus::Error> {
+        rt::ensure_current(ruby)?;
+
         let result = gvl::nogvl(|| {
             let mut builder = wreq::Client::builder();
 

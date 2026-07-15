@@ -56,6 +56,7 @@ macro_rules! map_wreq_error {
 
 // System-level and runtime errors
 define_exception!(MEMORY, "MemoryError", exception_runtime_error);
+define_exception!(FORK_ERROR, "ForkError", exception_runtime_error);
 
 // Network connection errors
 define_exception!(CONNECTION_ERROR, "ConnectionError", exception_runtime_error);
@@ -92,6 +93,26 @@ pub fn memory_error(ruby: &Ruby) -> MagnusError {
 /// Create Ruby's standard thread interruption error.
 pub fn interrupt_error(ruby: &Ruby) -> MagnusError {
     MagnusError::new(ruby.exception_interrupt(), "request interrupted")
+}
+
+/// Build `Wreq::ForkError` without touching inherited native state.
+#[cfg(unix)]
+pub fn fork_error(ruby: &Ruby, owner_pid: u32, current_pid: u32) -> MagnusError {
+    MagnusError::new(
+        ruby.get_inner(&FORK_ERROR),
+        format!(
+            "wreq loaded in process {owner_pid} cannot be used after fork in process {current_pid}"
+        ),
+    )
+}
+
+/// Map a failed process-fork handler registration to `Wreq::ForkError`.
+#[cfg(unix)]
+pub fn fork_handler_error(ruby: &Ruby, err: &std::io::Error) -> MagnusError {
+    MagnusError::new(
+        ruby.get_inner(&FORK_ERROR),
+        format!("failed to initialize process fork tracking: {err}"),
+    )
 }
 
 /// Map a Tokio runtime initialization failure to `Wreq::BuilderError`.
@@ -233,6 +254,13 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), MagnusError> {
         gem_module,
         MEMORY,
         "MemoryError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        FORK_ERROR,
+        "ForkError",
         exception_runtime_error
     );
     initialize_exception!(

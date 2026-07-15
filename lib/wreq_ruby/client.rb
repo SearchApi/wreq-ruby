@@ -17,6 +17,10 @@ unless defined?(Wreq)
     # native conversion, such as TypeError or Wreq::BuilderError. Request
     # validation finishes before network I/O.
     #
+    # Clients cannot be created or used in a child process forked after wreq-ruby
+    # was loaded. These operations raise Wreq::ForkError. Load wreq-ruby inside
+    # each worker after it has been forked.
+    #
     # @example Basic usage
     #   client = Wreq::Client.new
     #   # Use client for HTTP requests
@@ -165,6 +169,7 @@ unless defined?(Wreq)
       #   value cannot be converted or validated.
       # @raise [Wreq::BuilderError, Wreq::TlsError] if the native client cannot
       #   be initialized.
+      # @raise [Wreq::ForkError] if the process inherited wreq-ruby through fork.
       #
       # @example Minimal client
       #   client = Wreq::Client.new

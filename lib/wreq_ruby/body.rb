@@ -17,6 +17,8 @@ unless defined?(Wreq)
     #
     # A sender can be attached to one request. Closing it prevents further writes but
     # retains queued chunks so a request attached afterward can still drain them.
+    # Calling {#push} raises Wreq::ForkError in a child process forked after
+    # wreq-ruby was loaded.
     class BodySender
       # Create a bounded request-body sender.
       #
@@ -33,6 +35,7 @@ unless defined?(Wreq)
       # @param data [String] binary chunk
       # @return [nil]
       # @raise [IOError] if the sender or receiving side is closed
+      # @raise [Wreq::ForkError] if the process inherited wreq-ruby through fork
       def push(data)
       end
 

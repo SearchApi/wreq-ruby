@@ -27,6 +27,56 @@ pub(crate) const SUPPORTS_INTERFACE: bool = cfg!(any(
     target_os = "watchos",
 ));
 
+#[cfg(unix)]
+mod unix {
+    use std::{
+        ffi::c_int,
+        io, process,
+        sync::atomic::{AtomicBool, AtomicU32, Ordering},
+    };
+
+    static FORKED: AtomicBool = AtomicBool::new(false);
+    static OWNER_PID: AtomicU32 = AtomicU32::new(0);
+
+    unsafe extern "C" {
+        fn pthread_atfork(
+            prepare: Option<unsafe extern "C" fn()>,
+            parent: Option<unsafe extern "C" fn()>,
+            child: Option<unsafe extern "C" fn()>,
+        ) -> c_int;
+    }
+
+    /// Mark the copied extension state as unusable in the forked child.
+    unsafe extern "C" fn mark_forked() {
+        FORKED.store(true, Ordering::Relaxed);
+    }
+
+    /// Register process fork tracking before the extension exposes its API.
+    pub(crate) fn initialize_fork_tracking() -> io::Result<()> {
+        OWNER_PID.store(process::id(), Ordering::Relaxed);
+
+        // POSIX runs the child handler before fork returns. The callback has a
+        // static lifetime and only stores an atomic flag.
+        // https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_atfork.html
+        let status = unsafe { pthread_atfork(None, None, Some(mark_forked)) };
+        if status == 0 {
+            Ok(())
+        } else {
+            Err(io::Error::from_raw_os_error(status))
+        }
+    }
+
+    /// Return process IDs only when this process inherited the extension.
+    pub(crate) fn forked_process_ids() -> Option<(u32, u32)> {
+        FORKED
+            .load(Ordering::Relaxed)
+            .then(|| (OWNER_PID.load(Ordering::Relaxed), process::id()))
+    }
+}
+
+#[cfg(unix)]
+pub(crate) use unix::{forked_process_ids, initialize_fork_tracking};
+
 #[cfg(all(target_os = "windows", target_env = "gnu"))]
 mod windows_gnu {
     //! Windows GNU support.

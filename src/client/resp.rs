@@ -65,6 +65,8 @@ impl Response {
 
     /// Internal method to get the wreq::Response, optionally streaming the body.
     fn response(&self, ruby: &Ruby, stream: bool) -> Result<wreq::Response, Error> {
+        rt::ensure_current(ruby)?;
+
         let build_response = |body: wreq::Body| -> wreq::Response {
             let mut response = HttpResponse::new(body);
             *response.version_mut() = self.version.into_ffi();

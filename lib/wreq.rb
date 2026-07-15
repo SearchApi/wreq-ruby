@@ -27,6 +27,10 @@ unless defined?(Wreq)
     # raise ArgumentError. Known values retain the error class from their Ruby
     # or native conversion, such as TypeError or Wreq::BuilderError. Validation
     # finishes before network I/O.
+    #
+    # Requests made in a child process forked after wreq-ruby was loaded raise
+    # Wreq::ForkError. Load wreq-ruby inside each worker after it has been
+    # forked.
 
     # Send an HTTP request.
     #
