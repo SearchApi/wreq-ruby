@@ -28,18 +28,22 @@ unless defined?(Wreq)
       # @param options [Hash] Optional keyword arguments
       # @option options [String] :domain Domain attribute
       # @option options [String] :path Path attribute
-      # @option options [Integer] :max_age Max-Age in seconds
-      # @option options [Float] :expires Unix timestamp (seconds, float)
+      # @option options [Integer] :max_age Signed Max-Age in seconds; zero or negative expires immediately
+      # @option options [Time, Numeric] :expires Expiration time or finite Unix timestamp
       # @option options [Boolean] :http_only HttpOnly flag
       # @option options [Boolean] :secure Secure flag
       # @option options [Wreq::SameSite] :same_site SameSite attribute
       # @return [Wreq::Cookie]
+      # @raise [ArgumentError] if an option is unknown, duplicated, or otherwise invalid
+      # @raise [RangeError] if Max-Age or the expiration is outside the supported range
+      # @raise [TypeError] if an option has an incompatible value type
       # @example
       #   c = Wreq::Cookie.new(
       #     "sid", "abc",
       #     domain: "example.com",
       #     path: "/",
       #     max_age: 3600,
+      #     expires: Time.utc(2030, 1, 1),
       #     http_only: true,
       #     secure: true,
       #     same_site: Wreq::SameSite::Lax
@@ -93,11 +97,21 @@ unless defined?(Wreq)
       def domain
       end
 
-      # @return [Integer, nil] Max-Age in seconds
+      # Returns the signed Max-Age in seconds.
+      #
+      # Zero and negative values indicate immediate expiration.
+      # @return [Integer, nil]
       def max_age
       end
 
-      # @return [Float, nil] Expires as Unix timestamp (seconds)
+      # Returns the expiration as a UTC Ruby Time.
+      # @return [Time, nil]
+      def expires_at
+      end
+
+      # Returns the expiration as fractional Unix seconds.
+      # @deprecated Use {#expires_at} for a Ruby-native time value.
+      # @return [Float, nil]
       def expires
       end
     end

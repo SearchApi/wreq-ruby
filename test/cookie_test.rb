@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "open3"
+require "rbconfig"
 
 class CookieTest < Minitest::Test
   def setup
@@ -84,7 +86,9 @@ class CookieTest < Minitest::Test
     @jar.add("exp=1; Expires=#{t.gmtime.strftime("%a, %d %b %Y %H:%M:%S GMT")}; Path=/", @base_url)
     c2 = @jar.get_all.find { |c| c.name == "exp" }
     assert c2
-    # expires returns Float (unix seconds) or nil
+    # expires_at returns Time and expires retains the numeric compatibility API
+    assert_kind_of Time, c2.expires_at
+    assert_predicate c2.expires_at, :utc?
     if (e = c2.expires)
       assert_kind_of Float, e
       assert_operator e, :>, Time.now.to_f - 1_000_000 # sanity bound
@@ -104,6 +108,7 @@ class CookieTest < Minitest::Test
     assert_nil c.domain
     assert_nil c.max_age
     assert_nil c.expires
+    assert_nil c.expires_at
 
     assert_equal false, (c.http_only || c.http_only?)
     assert_equal false, (c.secure || c.secure?)
@@ -112,7 +117,7 @@ class CookieTest < Minitest::Test
   end
 
   def test_cookie_new_full_attributes
-    exp = Time.now.to_f + 7200.0
+    exp = Time.utc(2030, 1, 1, 0, 0, Rational(123_456_789, 1_000_000_000))
     c = Wreq::Cookie.new("sess", "v",
       domain: "example.com",
       path: "/",
@@ -130,16 +135,169 @@ class CookieTest < Minitest::Test
     # Max-Age returns seconds as Integer
     assert_equal 3600, c.max_age
 
-    # Expires returns Float seconds-since-epoch (with small tolerance)
-    assert c.expires
-    assert_kind_of Float, c.expires
-    assert_in_delta exp, c.expires, 2.0
+    assert_equal exp, c.expires_at
+    assert_predicate c.expires_at, :utc?
+    assert_in_delta exp.to_f, c.expires, 1e-6
 
     assert_equal true, (c.http_only || c.http_only?)
     assert_equal true, (c.secure || c.secure?)
-    # constructor currently sets SameSite to none
     assert_equal true, c.same_site_lax?
     assert_equal false, c.same_site_strict?
+  end
+
+  def test_cookie_new_uses_shared_keyword_validation
+    cookie = Wreq::Cookie.new("sid", "abc", **{"path" => "/"})
+    assert_equal "/", cookie.path
+
+    secret = "must-not-appear"
+    unknown_error = assert_raises(ArgumentError) do
+      Wreq::Cookie.new("sid", "abc", domian: secret)
+    end
+    assert_includes unknown_error.message, ":domian"
+    refute_includes unknown_error.message, secret
+
+    duplicate_options = {path: "/one"}
+    duplicate_options["path"] = "/two"
+    duplicate_error = assert_raises(ArgumentError) do
+      Wreq::Cookie.new("sid", "abc", **duplicate_options)
+    end
+    assert_includes duplicate_error.message, "duplicate option: :path"
+  end
+
+  def test_expires_accepts_past_time
+    expiration = Time.at(Rational(-5, 4)).utc
+    cookie = Wreq::Cookie.new("past", "value", expires: expiration)
+
+    assert_equal expiration, cookie.expires_at
+    assert_in_delta(-1.25, cookie.expires, 1e-9)
+  end
+
+  def test_expires_accepts_integer_and_fractional_timestamps
+    [1_893_456_000, 1_893_456_000.125, -1.25].each do |timestamp|
+      cookie = Wreq::Cookie.new("timestamp", "value", expires: timestamp)
+
+      assert_kind_of Time, cookie.expires_at
+      assert_predicate cookie.expires_at, :utc?
+      assert_in_delta timestamp, cookie.expires_at.to_f, 1e-6
+      assert_in_delta timestamp, cookie.expires, 1e-6
+    end
+  end
+
+  def test_expires_rejects_non_finite_timestamps
+    [Float::NAN, Float::INFINITY, -Float::INFINITY].each do |timestamp|
+      error = assert_raises(ArgumentError) do
+        Wreq::Cookie.new("invalid", "value", expires: timestamp)
+      end
+
+      assert_match(/expires.*finite/, error.message)
+    end
+  end
+
+  def test_expires_rejects_unrepresentable_times
+    expirations = [
+      -(2**63),
+      2**63 - 1,
+      -Float::MAX,
+      Float::MAX,
+      Time.utc(10_000, 1, 1)
+    ]
+
+    expirations.each do |expiration|
+      error = assert_raises(RangeError) do
+        Wreq::Cookie.new("invalid", "value", expires: expiration)
+      end
+
+      assert_match(/expires.*supported range/, error.message)
+    end
+  end
+
+  def test_max_age_accepts_signed_boundaries_without_wrapping
+    [-(2**63), -1, 0, 2**63 - 1].each do |max_age|
+      cookie = Wreq::Cookie.new("max-age", "value", max_age: max_age)
+
+      assert_equal max_age, cookie.max_age
+    end
+
+    [-(2**63) - 1, 2**63].each do |max_age|
+      assert_raises(RangeError) do
+        Wreq::Cookie.new("max-age", "value", max_age: max_age)
+      end
+    end
+  end
+
+  def test_non_positive_max_age_removes_cookie_from_jar
+    [-1, 0].each do |max_age|
+      jar = Wreq::Jar.new
+      jar.add("session=old; Path=/", @base_url)
+      deletion = Wreq::Cookie.new("session", "gone", path: "/", max_age: max_age)
+
+      jar.add(deletion, @base_url)
+
+      assert_equal max_age, deletion.max_age
+      assert_empty jar.get_all
+    end
+  end
+
+  def test_past_expiration_removes_cookie_from_jar
+    @jar.add("session=old; Path=/", @base_url)
+    deletion = Wreq::Cookie.new(
+      "session",
+      "gone",
+      path: "/",
+      expires: Time.at(-1).utc
+    )
+
+    @jar.add(deletion, @base_url)
+
+    assert_empty @jar.get_all
+  end
+
+  def test_expiration_regressions_exit_subprocess_normally
+    lib_dir = File.expand_path("../lib", __dir__)
+    script = <<~RUBY
+      require "wreq"
+
+      past = Wreq::Cookie.new("past", "value", expires: -1.0)
+      abort "past timestamp was not retained" unless past.expires_at == Time.at(-1).utc
+
+      [Float::NAN, Float::INFINITY, -Float::INFINITY].each do |timestamp|
+        begin
+          Wreq::Cookie.new("invalid", "value", expires: timestamp)
+        rescue ArgumentError
+          next
+        end
+
+        abort "non-finite timestamp did not raise ArgumentError"
+      end
+
+      [Float::MAX, -Float::MAX].each do |timestamp|
+        begin
+          Wreq::Cookie.new("invalid", "value", expires: timestamp)
+        rescue RangeError
+          next
+        end
+
+        abort "unrepresentable finite timestamp did not raise RangeError"
+      end
+
+      [-(2**63) - 1, 2**63].each do |max_age|
+        begin
+          Wreq::Cookie.new("invalid", "value", max_age: max_age)
+        rescue RangeError
+          next
+        end
+
+        abort "out-of-range Max-Age did not raise RangeError"
+      end
+
+      puts "ok"
+    RUBY
+
+    stdout, stderr, status = Open3.capture3(RbConfig.ruby, "-I", lib_dir, "-e", script)
+
+    assert status.success?, "subprocess failed with #{status.inspect}: #{stderr}"
+    assert_equal "ok\n", stdout
+    refute_match(/panicked|fatal|access violation|cannot convert float seconds to Duration/i, stderr)
   end
 
   def test_same_site_flags_from_parsed_header
