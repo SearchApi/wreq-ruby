@@ -6,7 +6,7 @@ homepage = "https://github.com/SearchApi/wreq-ruby"
 repository = "https://github.com/SearchApi/wreq-ruby"
 edition = "2024"
 rust-version = "1.85"
-version = "1.2.4"
+version = "1.2.5"
 
 [lib]
 crate-type = ["cdylib"]
