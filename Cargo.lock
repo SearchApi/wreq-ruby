@@ -113,8 +113,7 @@ dependencies = [
 [[package]]
 name = "btls"
 version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c5e60b8c8d282c86360cab651ded04ab0335a7b5390c8d34145cbeab8cacf5f"
+source = "git+https://github.com/0x676e67/btls?branch=demo%2Fmerge-upstream-boring-20260616#397dfae69044c0c19ba3028e8b25f8481fbc0f00"
 dependencies = [
  "bitflags",
  "btls-sys",
@@ -126,8 +125,7 @@ dependencies = [
 [[package]]
 name = "btls-sys"
 version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b1b8638a2e1c38a5ae4efa90ae57e643baec35a30d03fc5b399b893adc4954b"
+source = "git+https://github.com/0x676e67/btls?branch=demo%2Fmerge-upstream-boring-20260616#397dfae69044c0c19ba3028e8b25f8481fbc0f00"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1559,8 +1557,6 @@ dependencies = [
 [[package]]
 name = "wreq-util"
 version = "3.0.0-rc.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d8d73c75be86fbde675988dbe5cb15f02567025c13f6ffab910361ad1ba6c89"
 dependencies = [
  "brotli",
  "flate2",
