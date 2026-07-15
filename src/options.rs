@@ -159,7 +159,7 @@ impl<'ruby> Options<'ruby> {
             .filter(|value| !value.is_nil())
             .map(T::try_convert)
             .transpose()
-            .map_err(|error| option_value_error(self.ruby, name, error))
+            .map_err(|error| option_value_error(name, error))
     }
 
     /// Convert a present option including `nil`, which may be meaningful to `T`.
@@ -174,7 +174,7 @@ impl<'ruby> Options<'ruby> {
         get(self.ruby, self.hash, name)
             .map(T::try_convert)
             .transpose()
-            .map_err(|error| option_value_error(self.ruby, name, error))
+            .map_err(|error| option_value_error(name, error))
     }
 }
 
@@ -230,15 +230,18 @@ impl<'options, 'ruby> Validator<'options, 'ruby> {
                 return Ok(());
             }
 
-            let names = options
-                .iter()
-                .filter_map(|(name, present)| present.then_some(format!(":{name}")))
-                .collect::<Vec<_>>()
-                .join(", ");
-            Err(argument_error(
-                state.ruby,
-                format!("mutually exclusive options: {names}"),
-            ))
+            let mut message = String::from("mutually exclusive options: ");
+            let mut separator = "";
+            for (name, present) in options {
+                if present {
+                    message.push_str(separator);
+                    message.push(':');
+                    message.push_str(name);
+                    separator = ", ";
+                }
+            }
+
+            Err(argument_error(state.ruby, message))
         })
     }
 

@@ -1,6 +1,9 @@
 use std::fmt;
 
 use magnus::error::ErrorType;
+use serde_path_to_error::Path;
+
+use crate::error::contextualize_magnus_error;
 
 /// Error produced by the local Ruby and Serde bridge.
 #[derive(Debug)]
@@ -39,17 +42,16 @@ impl Error {
     pub(super) fn into_option_magnus(
         self,
         ruby: &magnus::Ruby,
-        path: Option<&str>,
+        path: Option<&Path>,
     ) -> magnus::Error {
-        let context = path.map(|path| format!("invalid value for :{path}"));
         match self {
             Self::Runtime(message) => magnus::Error::new(
                 ruby.exception_arg_error(),
-                contextualize_message(context.as_deref(), message),
+                contextualize_message(path, message),
             ),
             Self::Type(message) => magnus::Error::new(
                 ruby.exception_type_error(),
-                contextualize_message(context.as_deref(), message),
+                contextualize_message(path, message),
             ),
             Self::DuplicateField(field) => magnus::Error::new(
                 ruby.exception_arg_error(),
@@ -58,11 +60,13 @@ impl Error {
             Self::Ruby(error) if error.is_kind_of(ruby.exception_range_error()) => {
                 magnus::Error::new(
                     ruby.exception_arg_error(),
-                    contextualize_message(context.as_deref(), magnus_error_message(&error)),
+                    magnus_error_message(&error, path),
                 )
             }
-            Self::Ruby(error) => match context {
-                Some(context) => contextualize_magnus_error(error, &context),
+            Self::Ruby(error) => match path {
+                Some(path) => {
+                    contextualize_magnus_error(error, format_args!("invalid value for :{path}"))
+                }
                 None => error,
             },
         }
@@ -70,32 +74,25 @@ impl Error {
 }
 
 /// Prefix an error message when Serde identified the failing option path.
-fn contextualize_message(context: Option<&str>, message: String) -> String {
-    match context {
-        Some(context) => format!("{context}: {message}"),
+fn contextualize_message(path: Option<&Path>, message: String) -> String {
+    match path {
+        Some(path) => format!("invalid value for :{path}: {message}"),
         None => message,
     }
 }
 
-/// Prefix a captured Ruby exception while retaining its original class.
-fn contextualize_magnus_error(error: magnus::Error, context: &str) -> magnus::Error {
-    match error.error_type() {
-        ErrorType::Error(class, message) => {
-            magnus::Error::new(*class, format!("{context}: {message}"))
+/// Build the final Ruby error message without an intermediate context String.
+fn magnus_error_message(error: &magnus::Error, path: Option<&Path>) -> String {
+    match (path, error.error_type()) {
+        (Some(path), ErrorType::Error(_, message)) => {
+            format!("invalid value for :{path}: {message}")
         }
-        ErrorType::Exception(exception) => magnus::Error::new(
-            exception.exception_class(),
-            format!("{context}: {exception}"),
-        ),
-        ErrorType::Jump(_) => error,
-    }
-}
-
-/// Extract the human-readable message without adding the exception class name.
-fn magnus_error_message(error: &magnus::Error) -> String {
-    match error.error_type() {
-        ErrorType::Error(_, message) => message.as_ref().to_owned(),
-        _ => error.to_string(),
+        (Some(path), ErrorType::Exception(exception)) => {
+            format!("invalid value for :{path}: {exception}")
+        }
+        (Some(path), ErrorType::Jump(_)) => format!("invalid value for :{path}: {error}"),
+        (None, ErrorType::Error(_, message)) => message.as_ref().to_owned(),
+        (None, _) => error.to_string(),
     }
 }
 

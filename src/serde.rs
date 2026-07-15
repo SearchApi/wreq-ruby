@@ -41,6 +41,8 @@ mod tests;
 use ::serde::{Deserialize, Serialize, de::DeserializeOwned};
 use indexmap::IndexSet;
 use magnus::{IntoValue, Ruby, TryConvert};
+use serde_ignored::Path;
+use serde_path_to_error::{Deserializer as PathDeserializer, Track};
 
 use crate::error::argument_error;
 
@@ -134,11 +136,13 @@ where
     Input: IntoValue,
     Output: DeserializeOwned,
 {
-    let value = input.into_value_with(ruby);
+    let value: magnus::Value = input.into_value_with(ruby);
     let mut unknown = IndexSet::new();
     {
-        let mut callback = |path: serde_ignored::Path<'_>| {
-            unknown.insert(path.to_string());
+        let mut callback = |path: Path<'_>| {
+            if let Path::Map { key, .. } = path {
+                unknown.insert(key);
+            }
         };
         serde_ignored::deserialize::<_, _, Output>(
             de::Deserializer::new_option_keys(ruby, value),
@@ -148,10 +152,26 @@ where
     }
 
     if unknown.is_empty() {
-        Ok(())
-    } else {
-        Err(unknown_options_error(ruby, &unknown))
+        return Ok(());
     }
+
+    let label = if unknown.len() == 1 {
+        "unknown option"
+    } else {
+        "unknown options"
+    };
+    let mut message = String::from(label);
+    message.push(':');
+    for (index, name) in unknown.into_iter().enumerate() {
+        if index > 0 {
+            message.push(',');
+        }
+        message.push(' ');
+        message.push(':');
+        message.push_str(&name);
+    }
+
+    Err(argument_error(ruby, message))
 }
 
 /// Deserialize validated Ruby options and retain the failing field path.
@@ -168,24 +188,15 @@ where
     Output: DeserializeOwned,
 {
     let value = input.into_value_with(ruby);
-    serde_path_to_error::deserialize(de::Deserializer::new_ruby(ruby, value)).map_err(|error| {
-        let path = error.path().to_string();
-        let path = (path != ".").then_some(path.as_str());
-        error.into_inner().into_option_magnus(ruby, path)
-    })
-}
+    let mut track = Track::new();
+    let result = Output::deserialize(PathDeserializer::new(
+        de::Deserializer::new_ruby(ruby, value),
+        &mut track,
+    ));
 
-/// Build an `ArgumentError` containing every unknown option name.
-fn unknown_options_error(ruby: &Ruby, names: &IndexSet<String>) -> magnus::Error {
-    let label = if names.len() == 1 {
-        "unknown option"
-    } else {
-        "unknown options"
-    };
-    let names = names
-        .iter()
-        .map(|name| format!(":{name}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    argument_error(ruby, format!("{label}: {names}"))
+    result.map_err(|error| {
+        let path = track.path();
+        let path = path.iter().next().is_some().then_some(&path);
+        error.into_option_magnus(ruby, path)
+    })
 }

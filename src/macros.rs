@@ -34,11 +34,6 @@ macro_rules! apply_option {
             $builder = $builder.$method();
         }
     };
-    (set_if_true_with, $builder:expr, $option:expr, $method:ident, $default:expr, $value:expr) => {
-        if $option.unwrap_or($default) {
-            $builder = $builder.$method($value);
-        }
-    };
 }
 
 /// Convert a Ruby-native option whose field name is also its keyword name.

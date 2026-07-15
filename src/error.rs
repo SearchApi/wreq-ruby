@@ -1,4 +1,7 @@
-use std::cell::{BorrowError, BorrowMutError};
+use std::{
+    cell::{BorrowError, BorrowMutError},
+    fmt,
+};
 
 use magnus::{
     Error as MagnusError, RModule, Ruby, error::ErrorType, exception::ExceptionClass, prelude::*,
@@ -162,22 +165,26 @@ pub fn json_serialization_error(ruby: &Ruby, err: MagnusError) -> MagnusError {
     )
 }
 
-/// Add an option name while preserving common Ruby configuration error classes.
-pub fn option_value_error(ruby: &Ruby, option: &str, err: MagnusError) -> MagnusError {
-    let class = if err.is_kind_of(ruby.exception_type_error()) {
-        ruby.exception_type_error()
-    } else if err.is_kind_of(ruby.exception_arg_error()) {
-        ruby.exception_arg_error()
-    } else if err.is_kind_of(ruby.get_inner(&BUILDER_ERROR)) {
-        ruby.get_inner(&BUILDER_ERROR)
-    } else {
-        return err;
-    };
-    let message = match err.error_type() {
-        ErrorType::Error(_, message) => message.as_ref().to_owned(),
-        _ => err.to_string(),
-    };
-    MagnusError::new(class, format!("invalid value for :{option}: {message}"))
+/// Prefix a Magnus error while preserving its original Ruby exception class.
+pub(crate) fn contextualize_magnus_error(
+    err: MagnusError,
+    context: fmt::Arguments<'_>,
+) -> MagnusError {
+    match err.error_type() {
+        ErrorType::Error(class, message) => {
+            MagnusError::new(*class, format!("{context}: {message}"))
+        }
+        ErrorType::Exception(exception) => MagnusError::new(
+            exception.exception_class(),
+            format!("{context}: {exception}"),
+        ),
+        ErrorType::Jump(_) => err,
+    }
+}
+
+/// Add an option name while preserving the original Ruby exception class.
+pub fn option_value_error(option: &str, err: MagnusError) -> MagnusError {
+    contextualize_magnus_error(err, format_args!("invalid value for :{option}"))
 }
 
 /// Build an `ArgumentError` from a validation message.

@@ -1,10 +1,7 @@
-use magnus::{RArray, RHash, RString, Ruby, TryConvert, r_hash::ForEach, value::ReprValue};
-use wreq::{
-    Proxy,
-    header::{HeaderMap, HeaderName, HeaderValue, OrigHeaderMap},
-};
+use magnus::{RHash, RString, Ruby, TryConvert, value::ReprValue};
+use wreq::Proxy;
 
-use crate::error::{header_name_error, header_value_error, option_value_error, wreq_error};
+use crate::error::{option_value_error, wreq_error};
 use crate::options;
 
 /// A trait that defines the parameter name for extraction.
@@ -31,65 +28,6 @@ where
     }
 }
 
-// ===== impl Extractor<HeaderMap> =====
-
-impl ExtractorName for HeaderMap {
-    const NAME: &str = "headers";
-}
-
-impl TryConvert for Extractor<HeaderMap> {
-    fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
-        let ruby = Ruby::get_with(value);
-        let keyword = RHash::try_convert(value)?;
-        let mut headers = HeaderMap::new();
-
-        if let Some(hash) = keyword
-            .get(ruby.to_symbol(HeaderMap::NAME))
-            .and_then(RHash::from_value)
-        {
-            hash.foreach(|name: RString, value: RString| {
-                let name = HeaderName::from_bytes(&name.to_bytes())
-                    .map_err(|err| header_name_error(&ruby, err))?;
-                let value = HeaderValue::from_maybe_shared(value.to_bytes())
-                    .map_err(|err| header_value_error(&ruby, err))?;
-                headers.insert(name, value);
-
-                Ok(ForEach::Continue)
-            })?;
-
-            return Ok(Extractor(Some(headers)));
-        }
-
-        Ok(Extractor(None))
-    }
-}
-
-// ===== impl Extractor<OrigHeaderMap> =====
-
-impl ExtractorName for OrigHeaderMap {
-    const NAME: &str = "orig_headers";
-}
-
-impl TryConvert for Extractor<OrigHeaderMap> {
-    fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
-        let ruby = Ruby::get_with(value);
-        let keyword = RHash::try_convert(value)?;
-
-        if let Some(orig_headers) = keyword
-            .get(ruby.to_symbol(OrigHeaderMap::NAME))
-            .and_then(RArray::from_value)
-        {
-            let mut map = OrigHeaderMap::new();
-            for value in orig_headers.into_iter().flat_map(RString::from_value) {
-                map.insert(value.to_bytes());
-            }
-            return Ok(Extractor(Some(map)));
-        }
-
-        Ok(Extractor(None))
-    }
-}
-
 // ===== impl Extractor<Proxy> =====
 
 impl ExtractorName for Proxy {
@@ -108,11 +46,11 @@ impl TryConvert for Extractor<Proxy> {
             return Ok(Extractor(None));
         }
 
-        let proxy = RString::try_convert(value)
-            .map_err(|error| option_value_error(&ruby, Proxy::NAME, error))?;
+        let proxy =
+            RString::try_convert(value).map_err(|error| option_value_error(Proxy::NAME, error))?;
         let proxy = Proxy::all(proxy.to_bytes().as_ref())
             .map_err(|err| wreq_error(&ruby, err))
-            .map_err(|error| option_value_error(&ruby, Proxy::NAME, error))?;
+            .map_err(|error| option_value_error(Proxy::NAME, error))?;
 
         Ok(Extractor(Some(proxy)))
     }

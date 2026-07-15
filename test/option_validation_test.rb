@@ -106,6 +106,33 @@ class OptionValidationTest < Minitest::Test
     assert_includes orig_headers_error.message, ":orig_headers"
   end
 
+  def test_consumed_body_sender_error_preserves_class_and_names_option
+    sender = Wreq::BodySender.new(1)
+
+    assert_raises(Wreq::BuilderError) do
+      Wreq.post(INVALID_URL, body: sender)
+    end
+    error = assert_raises(Wreq::MemoryError) do
+      Wreq.post(INVALID_URL, body: sender)
+    end
+
+    assert_includes error.message, ":body"
+  ensure
+    sender&.close
+  end
+
+  def test_option_conversion_preserves_raised_exception_class
+    source = Object.new
+    source.define_singleton_method(:to_a) { raise IOError, "boom" }
+
+    error = assert_raises(IOError) do
+      Wreq::Client.new(headers: source)
+    end
+
+    assert_includes error.message, ":headers"
+    assert_includes error.message, "boom"
+  end
+
   def test_out_of_range_integer_names_the_option
     error = assert_raises(ArgumentError) do
       Wreq::Client.new(timeout: 2**256)
