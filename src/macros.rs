@@ -80,6 +80,24 @@ macro_rules! define_ruby_enum {
                 $(class.const_set(stringify!($rust_variant), <$enum_type>::$rust_variant)?;)*
                 Ok(())
             }
+
+            pub fn equals(&self, other: magnus::Value) -> bool {
+                use magnus::TryConvert;
+                <&$enum_type>::try_convert(other)
+                    .map(|other| *self == *other)
+                    .unwrap_or(false)
+            }
+
+            pub fn is_eql(&self, other: magnus::Value) -> bool {
+                self.equals(other)
+            }
+
+            pub fn hash_value(&self) -> u64 {
+                use std::hash::{Hash, Hasher};
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                self.hash(&mut hasher);
+                hasher.finish()
+            }
         }
     };
 
@@ -112,6 +130,24 @@ macro_rules! define_ruby_enum {
             pub fn define_constants(class: magnus::RClass) -> Result<(), magnus::Error> {
                 $(class.const_set(stringify!($rust_variant), <$enum_type>::$rust_variant)?;)*
                 Ok(())
+            }
+
+            pub fn equals(&self, other: magnus::Value) -> bool {
+                use magnus::TryConvert;
+                <&$enum_type>::try_convert(other)
+                    .map(|other| *self == *other)
+                    .unwrap_or(false)
+            }
+
+            pub fn is_eql(&self, other: magnus::Value) -> bool {
+                self.equals(other)
+            }
+
+            pub fn hash_value(&self) -> u64 {
+                use std::hash::{Hash, Hasher};
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                self.hash(&mut hasher);
+                hasher.finish()
             }
         }
     };

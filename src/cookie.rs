@@ -21,6 +21,27 @@ define_ruby_enum!(
     None,
 );
 
+impl SameSite {
+    /// SameSite attribute as a string.
+    pub fn to_s(&self) -> &'static str {
+        match self {
+            SameSite::Strict => "Strict",
+            SameSite::Lax => "Lax",
+            SameSite::None => "None",
+        }
+    }
+
+    /// SameSite attribute as a lowercase Ruby symbol.
+    pub fn to_sym(&self) -> magnus::Symbol {
+        let name = match self {
+            SameSite::Strict => "strict",
+            SameSite::Lax => "lax",
+            SameSite::None => "none",
+        };
+        ruby!().to_symbol(name)
+    }
+}
+
 /// A single HTTP cookie.
 #[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Cookie", free_immediately, size)]
@@ -281,6 +302,11 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     // SameSite enum
     let same_site_class = gem_module.define_class("SameSite", ruby.class_object())?;
     SameSite::define_constants(same_site_class)?;
+    same_site_class.define_method("to_s", method!(SameSite::to_s, 0))?;
+    same_site_class.define_method("to_sym", method!(SameSite::to_sym, 0))?;
+    same_site_class.define_method("==", method!(SameSite::equals, 1))?;
+    same_site_class.define_method("eql?", method!(SameSite::is_eql, 1))?;
+    same_site_class.define_method("hash", method!(SameSite::hash_value, 0))?;
 
     // Cookie class
     let cookie_class = gem_module.define_class("Cookie", ruby.class_object())?;
