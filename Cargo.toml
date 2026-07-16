@@ -48,6 +48,9 @@ http = "1.4.1"
 http-body-util = "0.1.3"
 futures-util = { version = "0.3.32", default-features = false }
 
+[target.'cfg(unix)'.dependencies]
+forkguard = { version = "0.1.3", features = ["atfork"] }
+
 [dev-dependencies]
 magnus = { version = "0.8.2", features = ["embed"] }
 
