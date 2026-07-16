@@ -39,11 +39,11 @@ pub struct Request {
     #[allow(dead_code)]
     interface: Option<String>,
 
-    /// The timeout to use for the request.
+    /// Overall timeout for this request, overriding the client default.
     #[serde(default)]
     timeout: NativeOption<Duration>,
 
-    /// The read timeout to use for the request.
+    /// Maximum idle duration between body reads, overriding the client default.
     #[serde(default)]
     read_timeout: NativeOption<Duration>,
 

@@ -55,26 +55,26 @@ struct Builder {
     cookie_provider: NativeOption<Jar>,
 
     // ========= Timeout options =========
-    /// The timeout to use for the client, in seconds.
+    /// Overall timeout for a request, including connection and response body.
     #[serde(default)]
     timeout: NativeOption<Duration>,
-    /// The connect timeout to use for the client, in seconds.
+    /// Maximum duration allowed to establish a connection.
     #[serde(default)]
     connect_timeout: NativeOption<Duration>,
-    /// The read timeout to use for the client, in seconds.
+    /// Maximum idle duration between response body reads.
     #[serde(default)]
     read_timeout: NativeOption<Duration>,
 
     // ========= TCP options =========
-    /// Set `SO_KEEPALIVE` with the supplied duration, in seconds.
+    /// Idle duration before TCP keepalive probes begin.
     #[serde(default)]
     tcp_keepalive: NativeOption<Duration>,
-    /// Set the interval between TCP keepalive probes, in seconds.
+    /// Interval between TCP keepalive probes.
     #[serde(default)]
     tcp_keepalive_interval: NativeOption<Duration>,
     /// Set the number of retries for TCP keepalive.
     tcp_keepalive_retries: Option<u32>,
-    /// Set an optional user timeout for TCP sockets, in seconds.
+    /// Maximum duration for which transmitted data may remain unacknowledged.
     #[serde(default)]
     #[allow(dead_code)]
     tcp_user_timeout: NativeOption<Duration>,
@@ -84,7 +84,7 @@ struct Builder {
     tcp_reuse_address: Option<bool>,
 
     // ========= Connection pool options =========
-    /// Set an optional timeout for idle pooled sockets, in seconds.
+    /// Maximum idle duration before a pooled connection is evicted.
     #[serde(default)]
     pool_idle_timeout: NativeOption<Duration>,
     /// Sets the maximum idle connection per host allowed in the pool.
