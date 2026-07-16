@@ -60,8 +60,8 @@ pub fn ensure_current(ruby: &Ruby) -> Result<(), magnus::Error> {
 /// # Errors
 ///
 /// Returns `Wreq::ForkError` if the extension belongs to a parent process,
-/// `Wreq::BuilderError` if the Tokio runtime cannot be initialized, Ruby's
-/// standard `Interrupt` if Ruby interrupts the request, or the error produced
+/// `Wreq::BuilderError` if the Tokio runtime cannot be initialized,
+/// `Wreq::InterruptError` if Ruby interrupts the request, or the error produced
 /// by `map_err` if the future fails.
 pub fn try_block_on<F, T, E, M>(ruby: &Ruby, future: F, map_err: M) -> Result<T, magnus::Error>
 where

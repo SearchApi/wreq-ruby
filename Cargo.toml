@@ -14,6 +14,7 @@ doc = false
 name = "wreq_ruby"
 
 [dependencies]
+bitflags = "2.13.0"
 magnus = { version = "0.8.2", features = ["bytes"] }
 rb-sys = { version = "0.9.128", default-features = false }
 tokio = { version = "1.52.3", features = ["full"] }

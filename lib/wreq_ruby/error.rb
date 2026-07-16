@@ -2,10 +2,86 @@
 
 unless defined?(Wreq)
   module Wreq
+    # Base class for regular errors raised by wreq-ruby.
+    #
+    # This remains a RuntimeError so existing broad rescue handlers continue
+    # to work. Predicate methods describe a captured native wreq::Error rather
+    # than the Ruby exception class, and more than one predicate may be true.
+    # Errors created entirely by the binding return false for every predicate.
+    class Error < RuntimeError
+      # The URI associated with the native error.
+      #
+      # This explicit accessor may contain credentials or sensitive query
+      # parameters. Error messages and inspection output omit it, so avoid
+      # logging this value without redacting it first.
+      #
+      # @return [String, nil] frozen URI string, if one was recorded
+      attr_reader :uri
+
+      # The response status associated with the error.
+      #
+      # @return [Integer, nil] HTTP status code, if one was recorded
+      attr_reader :status
+
+      # @return [Boolean] whether the native error came from a builder
+      def is_builder
+      end
+
+      # @return [Boolean] whether the native error came from redirect handling
+      def is_redirect
+      end
+
+      # @return [Boolean] whether the native error represents an HTTP status
+      def is_status
+      end
+
+      # @return [Boolean] whether the native error is related to a timeout
+      def is_timeout
+      end
+
+      # @return [Boolean] whether the native error is related to a request
+      def is_request
+      end
+
+      # @return [Boolean] whether the native error is related to connecting
+      def is_connect
+      end
+
+      # @return [Boolean] whether the native error is related to proxy connection
+      def is_proxy_connect
+      end
+
+      # @return [Boolean] whether the native error is a connection reset
+      def is_connection_reset
+      end
+
+      # @return [Boolean] whether the native error is related to a body
+      def is_body
+      end
+
+      # @return [Boolean] whether the native error is related to TLS
+      def is_tls
+      end
+
+      # @return [Boolean] whether the native error is related to decoding
+      def is_decode
+      end
+
+      # @return [Boolean] whether the native error is related to an upgrade
+      def is_upgrade
+      end
+    end
+
+    # Raised when a native request wait is interrupted.
+    #
+    # InterruptError stays outside StandardError so broad application rescues
+    # do not swallow Ruby interrupts.
+    class InterruptError < Interrupt; end
+
     # System-level and runtime errors
 
     # Memory allocation failed.
-    class MemoryError < StandardError; end
+    class MemoryError < Error; end
 
     # The native extension was inherited from a parent process.
     #
@@ -17,7 +93,7 @@ unless defined?(Wreq)
     #   Process.fork do
     #     Wreq::Client.new # Raises when the parent loaded wreq-ruby.
     #   end
-    class ForkError < RuntimeError; end
+    class ForkError < Error; end
 
     # Network connection errors
 
@@ -32,7 +108,7 @@ unless defined?(Wreq)
     #     puts "Connection failed: #{e.message}"
     #     retry_with_backoff
     #   end
-    class ConnectionError < StandardError; end
+    class ConnectionError < Error; end
 
     # Proxy Connection to the server failed.
     #
@@ -44,7 +120,7 @@ unless defined?(Wreq)
     #     puts "Proxy connection failed: #{e.message}"
     #     retry_with_different_proxy
     #   end
-    class ProxyConnectionError < StandardError; end
+    class ProxyConnectionError < Error; end
 
     # Connection was reset by the server.
     #
@@ -54,7 +130,7 @@ unless defined?(Wreq)
     #   rescue Wreq::ConnectionResetError => e
     #     puts "Connection reset: #{e.message}"
     #   end
-    class ConnectionResetError < StandardError; end
+    class ConnectionResetError < Error; end
 
     # TLS/SSL error occurred.
     #
@@ -67,7 +143,7 @@ unless defined?(Wreq)
     #   rescue Wreq::TlsError => e
     #     puts "TLS error: #{e.message}"
     #   end
-    class TlsError < StandardError; end
+    class TlsError < Error; end
 
     # HTTP protocol and request/response errors
 
@@ -79,20 +155,21 @@ unless defined?(Wreq)
     #   rescue Wreq::RequestError => e
     #     puts "Request failed: #{e.message}"
     #   end
-    class RequestError < StandardError; end
+    class RequestError < Error; end
 
     # HTTP status code indicates an error.
     #
-    # Raised when the server returns an error status code (4xx or 5xx).
+    # Raised by Response#raise_for_status! for a 4xx or 5xx response. Requests
+    # continue to return these responses normally until that method is called.
     #
     # @example
     #   begin
     #     response = client.get("https://httpbin.io/status/404")
+    #     response.raise_for_status!
     #   rescue Wreq::StatusError => e
-    #     puts "HTTP error: #{e.message}"
-    #     # e.response contains the full response
+    #     puts "HTTP #{e.status}: #{e.message}"
     #   end
-    class StatusError < StandardError; end
+    class StatusError < Error; end
 
     # Redirect handling failed.
     #
@@ -105,7 +182,7 @@ unless defined?(Wreq)
     #   rescue Wreq::RedirectError => e
     #     puts "Too many redirects: #{e.message}"
     #   end
-    class RedirectError < StandardError; end
+    class RedirectError < Error; end
 
     # Request timed out.
     #
@@ -119,7 +196,7 @@ unless defined?(Wreq)
     #     puts "Request timed out: #{e.message}"
     #     retry_with_longer_timeout
     #   end
-    class TimeoutError < StandardError; end
+    class TimeoutError < Error; end
 
     # Data processing and encoding errors
 
@@ -131,7 +208,7 @@ unless defined?(Wreq)
     #   rescue Wreq::BodyError => e
     #     puts "Body error: #{e.message}"
     #   end
-    class BodyError < StandardError; end
+    class BodyError < Error; end
 
     # Decoding response failed.
     #
@@ -147,7 +224,7 @@ unless defined?(Wreq)
     #     # Fall back to binary data
     #     data = response.body
     #   end
-    class DecodingError < StandardError; end
+    class DecodingError < Error; end
 
     # Configuration and builder errors
 
@@ -162,6 +239,6 @@ unless defined?(Wreq)
     #   rescue Wreq::BuilderError => e
     #     puts "Invalid configuration: #{e.message}"
     #   end
-    class BuilderError < StandardError; end
+    class BuilderError < Error; end
   end
 end

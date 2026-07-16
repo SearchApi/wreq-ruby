@@ -43,6 +43,18 @@ unless defined?(Wreq)
       def status
       end
 
+      # Raise for a client or server error status.
+      #
+      # This check is opt-in and does not consume the response body.
+      #
+      # @return [Wreq::Response] This response for non-error statuses
+      # @raise [Wreq::StatusError] for a 4xx or 5xx status
+      # @example
+      #   response = client.get("https://example.com/missing")
+      #   response.raise_for_status!
+      def raise_for_status!
+      end
+
       # Get the HTTP protocol version used.
       #
       # @return [Wreq::Version] HTTP version (HTTP/1.1, HTTP/2, etc.)

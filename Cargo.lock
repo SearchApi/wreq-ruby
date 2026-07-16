@@ -1545,6 +1545,7 @@ name = "wreq-ruby"
 version = "1.2.4"
 dependencies = [
  "arc-swap",
+ "bitflags",
  "bytes",
  "cookie",
  "futures-util",
