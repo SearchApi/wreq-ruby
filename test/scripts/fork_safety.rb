@@ -9,18 +9,24 @@ $stderr.sync = true
 
 def expect_fork_error(label)
   child_pid = fork do
-    begin
-      Timeout.timeout(5) { yield }
-    rescue Wreq::ForkError => error
-      warn "#{label}=#{error.class}: #{error.message}"
-      exit! 0
-    rescue => error
-      warn "#{label}=unexpected #{error.class}: #{error.message}"
-      exit! 2
+    2.times do |attempt|
+      attempt_label = attempt.zero? ? label : "#{label}_retry"
+
+      begin
+        Timeout.timeout(5) { yield }
+      rescue Wreq::ForkError => error
+        warn "#{attempt_label}=#{error.class}: #{error.message}"
+        next
+      rescue => error
+        warn "#{attempt_label}=unexpected #{error.class}: #{error.message}"
+        exit! 2
+      end
+
+      warn "#{attempt_label}=missing Wreq::ForkError"
+      exit! 3
     end
 
-    warn "#{label}=missing Wreq::ForkError"
-    exit! 3
+    exit! 0
   end
 
   _, status = Process.wait2(child_pid)

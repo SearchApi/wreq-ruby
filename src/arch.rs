@@ -29,48 +29,56 @@ pub(crate) const SUPPORTS_INTERFACE: bool = cfg!(any(
 
 #[cfg(unix)]
 mod unix {
-    use std::{
-        ffi::c_int,
-        io, process,
-        sync::atomic::{AtomicBool, AtomicU32, Ordering},
-    };
+    use std::{io, process, sync::OnceLock};
 
-    static FORKED: AtomicBool = AtomicBool::new(false);
-    static OWNER_PID: AtomicU32 = AtomicU32::new(0);
-
-    unsafe extern "C" {
-        fn pthread_atfork(
-            prepare: Option<unsafe extern "C" fn()>,
-            parent: Option<unsafe extern "C" fn()>,
-            child: Option<unsafe extern "C" fn()>,
-        ) -> c_int;
+    /// Process state captured when the extension initializes.
+    ///
+    /// The atfork guard uses a POSIX child handler to advance an atomic fork
+    /// generation without running Ruby code.
+    /// https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_atfork.html
+    struct ForkGuard {
+        detector: forkguard::Guard,
+        owner_pid: u32,
     }
 
-    /// Mark the copied extension state as unusable in the forked child.
-    unsafe extern "C" fn mark_forked() {
-        FORKED.store(true, Ordering::Relaxed);
+    impl ForkGuard {
+        /// Create a guard and register fork detection with the process.
+        fn new() -> io::Result<Self> {
+            forkguard::Guard::try_new()
+                .map(|detector| Self {
+                    detector,
+                    owner_pid: process::id(),
+                })
+                .map_err(|error| io::Error::from_raw_os_error(error.code().get()))
+        }
+
+        /// Return process IDs when this guard was inherited through a fork.
+        fn forked_process_ids(&self) -> Option<(u32, u32)> {
+            // Keep the stored generation unchanged so every runtime access in
+            // the child remains rejected. Cloning the detector copies one usize.
+            let mut detector = self.detector.clone();
+            detector
+                .detected_fork()
+                .then(|| (self.owner_pid, process::id()))
+        }
     }
+
+    static FORK_GUARD: OnceLock<ForkGuard> = OnceLock::new();
 
     /// Register process fork tracking before the extension exposes its API.
     pub(crate) fn initialize_fork_tracking() -> io::Result<()> {
-        OWNER_PID.store(process::id(), Ordering::Relaxed);
-
-        // POSIX runs the child handler before fork returns. The callback has a
-        // static lifetime and only stores an atomic flag.
-        // https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_atfork.html
-        let status = unsafe { pthread_atfork(None, None, Some(mark_forked)) };
-        if status == 0 {
-            Ok(())
-        } else {
-            Err(io::Error::from_raw_os_error(status))
+        if FORK_GUARD.get().is_some() {
+            return Ok(());
         }
+
+        let guard = ForkGuard::new()?;
+        let _ = FORK_GUARD.set(guard);
+        Ok(())
     }
 
     /// Return process IDs only when this process inherited the extension.
     pub(crate) fn forked_process_ids() -> Option<(u32, u32)> {
-        FORKED
-            .load(Ordering::Relaxed)
-            .then(|| (OWNER_PID.load(Ordering::Relaxed), process::id()))
+        FORK_GUARD.get().and_then(ForkGuard::forked_process_ids)
     }
 }
 

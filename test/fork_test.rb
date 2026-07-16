@@ -22,9 +22,10 @@ class ForkTest < Minitest::Test
 
     assert status.success?, "subprocess failed with #{status.inspect}: #{stderr}"
     assert_equal "ok\n", stdout
-    assert_match(/before_runtime=Wreq::ForkError:.*cannot be used after fork/, stderr)
-    assert_match(/fresh_client=Wreq::ForkError:.*cannot be used after fork/, stderr)
-    assert_match(/inherited_client=Wreq::ForkError:.*cannot be used after fork/, stderr)
+    %w[before_runtime fresh_client inherited_client].each do |label|
+      assert_match(/#{label}=Wreq::ForkError:.*cannot be used after fork/, stderr)
+      assert_match(/#{label}_retry=Wreq::ForkError:.*cannot be used after fork/, stderr)
+    end
     refute_match(/\[BUG\]|segmentation fault|panicked/i, stderr)
   rescue Timeout::Error
     flunk "fork safety subprocess timed out"
