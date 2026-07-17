@@ -1,7 +1,45 @@
+use ::serde::Deserialize;
 use magnus::{
-    Error, Module, Object, RHash, RModule, Ruby, TryConvert, Value, function, method,
+    Error, Module, Object, RModule, Ruby, Value, function, method,
     typed_data::{Inspect, Obj},
 };
+
+use crate::options::{NativeOption, Options};
+
+/// Keyword arguments accepted by `Wreq::Emulation.new`.
+#[derive(Default, Deserialize)]
+struct Builder {
+    /// The browser profile to emulate.
+    #[serde(default)]
+    profile: NativeOption<Obj<Profile>>,
+
+    /// The operating-system profile to emulate.
+    #[serde(default)]
+    platform: NativeOption<Obj<Platform>>,
+
+    /// Whether HTTP/2 settings are emulated.
+    http2: Option<bool>,
+
+    /// Whether browser headers are emulated.
+    headers: Option<bool>,
+}
+
+// ===== impl Builder =====
+
+impl Builder {
+    /// Deserialize and convert one validated emulation options Hash.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ArgumentError` for unknown or duplicate options and `TypeError`
+    /// for invalid option values.
+    fn from_options(options: Options<'_>) -> Result<Self, Error> {
+        let mut builder = options.validate_keys::<Self>()?.deserialize::<Self>()?;
+        extract_native_option!(options, builder, profile);
+        extract_native_option!(options, builder, platform);
+        Ok(builder)
+    }
+}
 
 define_ruby_enum!(
     /// An emulation profile.
@@ -186,32 +224,38 @@ impl Platform {
 // ===== impl Emulation =====
 
 impl Emulation {
+    /// Create emulation settings from one optional Hash.
+    ///
+    /// Unknown keys, non-Hash arguments, and extra positional arguments are
+    /// rejected before the native emulation value is built.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ArgumentError` for unknown keys or argument count and
+    /// `TypeError` for invalid option values.
     fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
-        let mut profile = None;
-        let mut platform = None;
-        let mut http2 = None;
-        let mut headers = None;
-
-        if let Some(hash) = args.first().and_then(|v| RHash::from_value(*v)) {
-            if let Some(v) = hash.get(ruby.to_symbol(stringify!(profile))) {
-                profile = Some(Obj::<Profile>::try_convert(v)?);
-            }
-            if let Some(v) = hash.get(ruby.to_symbol(stringify!(platform))) {
-                platform = Some(Obj::<Platform>::try_convert(v)?);
-            }
-            if let Some(v) = hash.get(ruby.to_symbol(stringify!(http2))) {
-                http2 = Some(bool::try_convert(v)?);
-            }
-            if let Some(v) = hash.get(ruby.to_symbol(stringify!(headers))) {
-                headers = Some(bool::try_convert(v)?);
-            }
-        }
+        let mut params = Options::from_args(ruby, args, "emulation")?
+            .map(Builder::from_options)
+            .transpose()?
+            .unwrap_or_default();
 
         let emulation = wreq_util::Emulation::builder()
-            .profile(profile.map(|obj| obj.into_ffi()).unwrap_or_default())
-            .platform(platform.map(|os| os.into_ffi()).unwrap_or_default())
-            .http2(http2.unwrap_or(true))
-            .headers(headers.unwrap_or(true))
+            .profile(
+                params
+                    .profile
+                    .take()
+                    .map(|obj| obj.into_ffi())
+                    .unwrap_or_default(),
+            )
+            .platform(
+                params
+                    .platform
+                    .take()
+                    .map(|os| os.into_ffi())
+                    .unwrap_or_default(),
+            )
+            .http2(params.http2.unwrap_or(true))
+            .headers(params.headers.unwrap_or(true))
             .build();
 
         Ok(Self(emulation))

@@ -11,7 +11,8 @@ use magnus::{Ruby, Value};
 
 use super::Error;
 use array_deserializer::ArrayDeserializer;
-use deserializer::{Deserializer, Mode};
+pub(super) use deserializer::Deserializer;
+use deserializer::Mode;
 use hash_deserializer::HashDeserializer;
 use variant_deserializer::VariantDeserializer;
 

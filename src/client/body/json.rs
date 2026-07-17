@@ -31,7 +31,7 @@ impl TryConvert for Json {
         let ruby = Ruby::get_with(value);
         deserialize_json(&ruby, value)
             .map(Self)
-            .map_err(json_serialization_error)
+            .map_err(|error| json_serialization_error(&ruby, error))
     }
 }
 

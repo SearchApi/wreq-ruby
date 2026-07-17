@@ -20,12 +20,13 @@ pub enum Body {
 
 impl TryConvert for Body {
     fn try_convert(val: Value) -> Result<Self, Error> {
+        let ruby = Ruby::get_with(val);
         if let Ok(s) = RString::try_convert(val) {
             return Ok(Body::Bytes(s.to_bytes()));
         }
 
         let obj = Obj::<stream::BodySender>::try_convert(val)?;
-        let stream = stream::ReceiverStream::try_from(&*obj)?;
+        let stream = obj.take_receiver(&ruby)?;
         Ok(Body::Stream(stream))
     }
 }

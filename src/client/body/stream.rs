@@ -9,14 +9,13 @@ use std::{
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt};
-use magnus::{Error, Integer, RString, Ruby, Value};
+use magnus::{Error, Integer, RString, Ruby, Value, scan_args::scan_args};
 use tokio::sync::{Mutex, Semaphore, mpsc};
 
 use crate::{
     error::{
-        body_sender_borrow_error_to_magnus, body_sender_borrow_mut_error_to_magnus,
-        body_sender_send_error_to_magnus, closed_body_sender_error, memory_error,
-        wreq_error_to_magnus,
+        argument_error, body_sender_borrow_error, body_sender_borrow_mut_error,
+        body_sender_send_error, closed_body_sender_error, memory_error, type_error, wreq_error,
     },
     rt,
 };
@@ -64,8 +63,9 @@ impl BodyReceiver {
     }
 
     /// Read the next body chunk, converting stream errors into Ruby errors.
-    pub fn next(&self) -> Result<Option<Bytes>, Error> {
+    pub fn next(&self, ruby: &Ruby) -> Result<Option<Bytes>, Error> {
         rt::try_block_on(
+            ruby,
             async {
                 match self.0.lock().await.as_mut().next().await {
                     Some(Ok(data)) => Ok(Some(data)),
@@ -73,7 +73,7 @@ impl BodyReceiver {
                     None => Ok(None),
                 }
             },
-            wreq_error_to_magnus,
+            wreq_error,
         )
     }
 }
@@ -113,16 +113,16 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `IOError` after either channel side has closed. An interrupted
-    /// wait retains the existing `Wreq::InterruptError` behavior.
-    pub fn push(rb_self: &Self, data: RString) -> Result<(), Error> {
+    /// wait raises Ruby's standard `Interrupt` exception.
+    pub fn push(ruby: &Ruby, rb_self: &Self, data: RString) -> Result<(), Error> {
         // Clone during the shared borrow, then release it before waiting
         // for capacity. Request attachment needs a mutable borrow.
-        let tx = match &rb_self.read_inner()?.tx {
+        let tx = match &rb_self.read_inner(ruby)?.tx {
             Some(tx) if !tx.is_closed() => tx.clone(),
-            _ => return Err(closed_body_sender_error()),
+            _ => return Err(closed_body_sender_error(ruby)),
         };
 
-        rt::try_block_on(tx.send(data.to_bytes()), body_sender_send_error_to_magnus)
+        rt::try_block_on(ruby, tx.send(data.to_bytes()), body_sender_send_error)
     }
 
     /// Close the producing side while retaining the receiver and queued chunks.
@@ -132,8 +132,8 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `Wreq::BodyError` if the internal state is already borrowed.
-    pub fn close(&self) -> Result<(), Error> {
-        let mut inner = self.write_inner()?;
+    pub fn close(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
+        let mut inner = rb_self.write_inner(ruby)?;
         inner.tx.take();
         Ok(())
     }
@@ -143,22 +143,36 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `Wreq::BodyError` if the internal state is already borrowed.
-    pub fn is_closed(&self) -> Result<bool, Error> {
-        self.read_inner().map(|r| r.is_closed())
+    pub fn is_closed(ruby: &Ruby, rb_self: &Self) -> Result<bool, Error> {
+        rb_self.read_inner(ruby).map(|r| r.is_closed())
     }
 
     /// Borrow the channel state without panicking on accidental re-entry.
-    fn read_inner(&self) -> Result<Ref<'_, InnerBodySender>, Error> {
+    fn read_inner(&self, ruby: &Ruby) -> Result<Ref<'_, InnerBodySender>, Error> {
         self.0
             .try_borrow()
-            .map_err(body_sender_borrow_error_to_magnus)
+            .map_err(|err| body_sender_borrow_error(ruby, err))
     }
 
     /// Mutably borrow the channel state without panicking on accidental re-entry.
-    fn write_inner(&self) -> Result<RefMut<'_, InnerBodySender>, Error> {
+    fn write_inner(&self, ruby: &Ruby) -> Result<RefMut<'_, InnerBodySender>, Error> {
         self.0
             .try_borrow_mut()
-            .map_err(body_sender_borrow_mut_error_to_magnus)
+            .map_err(|err| body_sender_borrow_mut_error(ruby, err))
+    }
+
+    /// Move the receiving side into one request body.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::MemoryError` if the receiver was already consumed, or
+    /// `Wreq::BodyError` if Ruby re-enters while the state is borrowed.
+    pub(super) fn take_receiver(&self, ruby: &Ruby) -> Result<ReceiverStream<Bytes>, Error> {
+        self.write_inner(ruby)?
+            .rx
+            .take()
+            .map(ReceiverStream::new)
+            .ok_or_else(|| memory_error(ruby))
     }
 }
 
@@ -167,22 +181,15 @@ impl BodySender {
 /// [`mpsc::channel`] panics for zero or values above
 /// [`Semaphore::MAX_PERMITS`], so validation must finish before channel creation.
 fn parse_capacity(ruby: &Ruby, args: &[Value]) -> Result<usize, Error> {
-    let value = match args {
-        [] => return Ok(DEFAULT_CHANNEL_CAPACITY),
-        [value] => *value,
-        _ => {
-            return Err(Error::new(
-                ruby.exception_arg_error(),
-                format!(
-                    "wrong number of arguments (given {}, expected 0..1)",
-                    args.len()
-                ),
-            ));
-        }
+    let Some(value) = scan_args::<(), (Option<Value>,), (), (), (), ()>(args)?
+        .optional
+        .0
+    else {
+        return Ok(DEFAULT_CHANNEL_CAPACITY);
     };
 
     let integer = Integer::from_value(value)
-        .ok_or_else(|| Error::new(ruby.exception_type_error(), "capacity must be an Integer"))?;
+        .ok_or_else(|| type_error(ruby, "capacity must be an Integer"))?;
     let capacity = integer
         .to_i64()
         .ok()
@@ -195,27 +202,10 @@ fn parse_capacity(ruby: &Ruby, args: &[Value]) -> Result<usize, Error> {
 
 /// Build the synchronous Ruby error used for an invalid channel capacity.
 fn invalid_capacity_error(ruby: &Ruby) -> Error {
-    Error::new(
-        ruby.exception_arg_error(),
+    argument_error(
+        ruby,
         format!("capacity must be between 1 and {}", Semaphore::MAX_PERMITS),
     )
-}
-
-/// Move the receiving side into one request body.
-///
-/// The sender remains available for concurrent producers until it is closed or
-/// the returned stream is dropped. A second attachment returns `Wreq::MemoryError`.
-impl TryFrom<&BodySender> for ReceiverStream<Bytes> {
-    type Error = magnus::Error;
-
-    fn try_from(sender: &BodySender) -> Result<Self, Self::Error> {
-        sender
-            .write_inner()?
-            .rx
-            .take()
-            .map(ReceiverStream::new)
-            .ok_or_else(memory_error)
-    }
 }
 
 /// A wrapper around [`tokio::sync::mpsc::Receiver`] that implements [`Stream`].

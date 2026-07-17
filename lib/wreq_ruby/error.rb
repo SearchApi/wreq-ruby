@@ -88,7 +88,7 @@ unless defined?(Wreq)
     #
     # @example
     #   begin
-    #     client = Wreq::Client.new(max_redirects: 3)
+    #     client = Wreq::Client.new(allow_redirects: true, max_redirects: 3)
     #     client.get("https://httpbin.io/redirect/10")
     #   rescue Wreq::RedirectError => e
     #     puts "Too many redirects: #{e.message}"
@@ -139,16 +139,14 @@ unless defined?(Wreq)
 
     # Configuration and builder errors
 
-    # Client configuration is invalid.
+    # A native client or request configuration could not be built.
     #
-    # Raised when the client is configured with invalid options.
+    # Raised when validated Ruby options cannot be represented by the native
+    # builder or request body.
     #
     # @example
     #   begin
-    #     client = Wreq::Client.new(
-    #       proxy: "invalid://proxy",
-    #       timeout: -1
-    #     )
+    #     client = Wreq::Client.new(proxy: "invalid://")
     #   rescue Wreq::BuilderError => e
     #     puts "Invalid configuration: #{e.message}"
     #   end

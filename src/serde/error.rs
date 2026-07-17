@@ -1,10 +1,16 @@
 use std::fmt;
 
+use magnus::error::ErrorType;
+use serde_path_to_error::Path;
+
+use crate::error::contextualize_magnus_error;
+
 /// Error produced by the local Ruby and Serde bridge.
 #[derive(Debug)]
 pub(crate) enum Error {
     Runtime(String),
     Type(String),
+    DuplicateField(&'static str),
     Ruby(magnus::Error),
 }
 
@@ -24,8 +30,69 @@ impl Error {
         match self {
             Self::Runtime(message) => magnus::Error::new(ruby.exception_runtime_error(), message),
             Self::Type(message) => magnus::Error::new(ruby.exception_type_error(), message),
+            Self::DuplicateField(field) => magnus::Error::new(
+                ruby.exception_runtime_error(),
+                format!("duplicate field `{field}`"),
+            ),
             Self::Ruby(error) => error,
         }
+    }
+
+    /// Convert an option value error into Ruby's normal argument categories.
+    pub(super) fn into_option_magnus(
+        self,
+        ruby: &magnus::Ruby,
+        path: Option<&Path>,
+    ) -> magnus::Error {
+        match self {
+            Self::Runtime(message) => magnus::Error::new(
+                ruby.exception_arg_error(),
+                contextualize_message(path, message),
+            ),
+            Self::Type(message) => magnus::Error::new(
+                ruby.exception_type_error(),
+                contextualize_message(path, message),
+            ),
+            Self::DuplicateField(field) => magnus::Error::new(
+                ruby.exception_arg_error(),
+                format!("duplicate option: :{field}"),
+            ),
+            Self::Ruby(error) if error.is_kind_of(ruby.exception_range_error()) => {
+                magnus::Error::new(
+                    ruby.exception_arg_error(),
+                    magnus_error_message(&error, path),
+                )
+            }
+            Self::Ruby(error) => match path {
+                Some(path) => {
+                    contextualize_magnus_error(error, format_args!("invalid value for :{path}"))
+                }
+                None => error,
+            },
+        }
+    }
+}
+
+/// Prefix an error message when Serde identified the failing option path.
+fn contextualize_message(path: Option<&Path>, message: String) -> String {
+    match path {
+        Some(path) => format!("invalid value for :{path}: {message}"),
+        None => message,
+    }
+}
+
+/// Build the final Ruby error message without an intermediate context String.
+fn magnus_error_message(error: &magnus::Error, path: Option<&Path>) -> String {
+    match (path, error.error_type()) {
+        (Some(path), ErrorType::Error(_, message)) => {
+            format!("invalid value for :{path}: {message}")
+        }
+        (Some(path), ErrorType::Exception(exception)) => {
+            format!("invalid value for :{path}: {exception}")
+        }
+        (Some(path), ErrorType::Jump(_)) => format!("invalid value for :{path}: {error}"),
+        (None, ErrorType::Error(_, message)) => message.as_ref().to_owned(),
+        (None, _) => error.to_string(),
     }
 }
 
@@ -33,6 +100,7 @@ impl fmt::Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Runtime(message) | Self::Type(message) => formatter.write_str(message),
+            Self::DuplicateField(field) => write!(formatter, "duplicate field `{field}`"),
             Self::Ruby(error) => error.fmt(formatter),
         }
     }
@@ -64,6 +132,10 @@ impl ::serde::de::Error for Error {
         Self::type_error(format!(
             "invalid type: expected {expected}, got {unexpected}"
         ))
+    }
+
+    fn duplicate_field(field: &'static str) -> Self {
+        Self::DuplicateField(field)
     }
 }
 

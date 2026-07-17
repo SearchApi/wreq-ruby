@@ -6,6 +6,27 @@
 //! do not leak into the rest of the binding.
 #![allow(unsafe_code)]
 
+/// Whether the native client exposes TCP user-timeout configuration.
+pub(crate) const SUPPORTS_TCP_USER_TIMEOUT: bool = cfg!(any(
+    target_os = "android",
+    target_os = "fuchsia",
+    target_os = "linux"
+));
+
+/// Whether the native client exposes network-interface binding.
+pub(crate) const SUPPORTS_INTERFACE: bool = cfg!(any(
+    target_os = "android",
+    target_os = "fuchsia",
+    target_os = "illumos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "solaris",
+    target_os = "tvos",
+    target_os = "visionos",
+    target_os = "watchos",
+));
+
 #[cfg(all(target_os = "windows", target_env = "gnu"))]
 mod windows_gnu {
     //! Windows GNU support.

@@ -8,7 +8,10 @@ use magnus::{
 };
 use wreq::header::{self, HeaderMap, HeaderValue};
 
-use crate::{error::header_value_error_to_magnus, gvl};
+use crate::{
+    error::{header_value_error, type_error},
+    gvl,
+};
 
 define_ruby_enum!(
     /// The Cookie SameSite attribute.
@@ -206,13 +209,14 @@ impl fmt::Display for Cookie {
 
 impl TryConvert for Cookies {
     fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
+        let ruby = Ruby::get_with(value);
         // try extract uncompressed cookies
         if let Some(rhash) = RHash::from_value(value) {
             let mut cookies = Vec::new();
             rhash.foreach(|name: RString, value: RString| {
                 let cookie = format!("{name}={value}");
                 let header_value = HeaderValue::from_maybe_shared(Bytes::from(cookie))
-                    .map_err(header_value_error_to_magnus)?;
+                    .map_err(|err| header_value_error(&ruby, err))?;
                 cookies.push(header_value);
                 Ok(ForEach::Continue)
             })?;
@@ -224,11 +228,11 @@ impl TryConvert for Cookies {
         if let Some(cookies) = RString::from_value(value) {
             return Ok(Self(vec![
                 HeaderValue::from_maybe_shared(cookies.to_bytes())
-                    .map_err(header_value_error_to_magnus)?,
+                    .map_err(|err| header_value_error(&ruby, err))?,
             ]));
         }
 
-        Ok(Self::default())
+        Err(type_error(&ruby, "cookies must be a Hash or String"))
     }
 }
 
