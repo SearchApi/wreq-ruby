@@ -163,6 +163,29 @@ module Wreq
       def to_s
       end
     end
+
+    unless method_defined?(:==)
+      # Value-based equality.
+      # @param other [Object]
+      # @return [Boolean]
+      def ==(other)
+      end
+    end
+
+    unless method_defined?(:eql?)
+      # Strict equality for Hash key and Set member semantics.
+      # @param other [Object]
+      # @return [Boolean]
+      def eql?(other)
+      end
+    end
+
+    unless method_defined?(:hash)
+      # Hash value consistent with {#eql?} for use as Hash keys.
+      # @return [Integer]
+      def hash
+      end
+    end
   end
 
   # Operating system platform enumeration backed by Rust.
@@ -192,6 +215,36 @@ module Wreq
       # Returns the platform name.
       # @return [String] Platform name as a string
       def to_s
+      end
+    end
+
+    unless method_defined?(:to_sym)
+      # Returns the platform as a lowercase symbol (e.g. :windows, :linux).
+      # @return [Symbol]
+      def to_sym
+      end
+    end
+
+    unless method_defined?(:==)
+      # Value-based equality.
+      # @param other [Object]
+      # @return [Boolean]
+      def ==(other)
+      end
+    end
+
+    unless method_defined?(:eql?)
+      # Strict equality for Hash key and Set member semantics.
+      # @param other [Object]
+      # @return [Boolean]
+      def eql?(other)
+      end
+    end
+
+    unless method_defined?(:hash)
+      # Hash value consistent with {#eql?} for use as Hash keys.
+      # @return [Integer]
+      def hash
       end
     end
   end

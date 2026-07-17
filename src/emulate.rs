@@ -219,6 +219,17 @@ impl Platform {
     pub fn to_s(&self) -> String {
         self.into_ffi().inspect()
     }
+
+    pub fn to_sym(&self) -> magnus::Symbol {
+        let name = match self {
+            Platform::Windows => "windows",
+            Platform::MacOS => "macos",
+            Platform::Linux => "linux",
+            Platform::Android => "android",
+            Platform::IOS => "ios",
+        };
+        ruby!().to_symbol(name)
+    }
 }
 
 // ===== impl Emulation =====
@@ -266,11 +277,18 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     // Profile enum binding
     let profile = gem_module.define_class("Profile", ruby.class_object())?;
     profile.define_method("to_s", method!(Profile::to_s, 0))?;
+    profile.define_method("==", method!(Profile::equals, 1))?;
+    profile.define_method("eql?", method!(Profile::is_eql, 1))?;
+    profile.define_method("hash", method!(Profile::hash_value, 0))?;
     Profile::define_constants(profile)?;
 
     // Platform enum binding
     let platform = gem_module.define_class("Platform", ruby.class_object())?;
     platform.define_method("to_s", method!(Platform::to_s, 0))?;
+    platform.define_method("to_sym", method!(Platform::to_sym, 0))?;
+    platform.define_method("==", method!(Platform::equals, 1))?;
+    platform.define_method("eql?", method!(Platform::is_eql, 1))?;
+    platform.define_method("hash", method!(Platform::hash_value, 0))?;
     Platform::define_constants(platform)?;
 
     // Emulation class binding

@@ -28,6 +28,39 @@ define_ruby_enum!(
     PATCH,
 );
 
+impl Method {
+    /// HTTP method token as a string.
+    #[inline]
+    pub fn to_s(&self) -> &'static str {
+        match self {
+            Method::GET => "GET",
+            Method::HEAD => "HEAD",
+            Method::POST => "POST",
+            Method::PUT => "PUT",
+            Method::DELETE => "DELETE",
+            Method::OPTIONS => "OPTIONS",
+            Method::TRACE => "TRACE",
+            Method::PATCH => "PATCH",
+        }
+    }
+
+    /// HTTP method as a lowercase Ruby symbol.
+    #[inline]
+    pub fn to_sym(&self) -> magnus::Symbol {
+        let name = match self {
+            Method::GET => "get",
+            Method::HEAD => "head",
+            Method::POST => "post",
+            Method::PUT => "put",
+            Method::DELETE => "delete",
+            Method::OPTIONS => "options",
+            Method::TRACE => "trace",
+            Method::PATCH => "patch",
+        };
+        ruby!().to_symbol(name)
+    }
+}
+
 /// HTTP status code.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[magnus::wrap(class = "Wreq::StatusCode", free_immediately, size)]
@@ -40,14 +73,6 @@ impl Version {
     #[inline]
     pub fn to_s(&self) -> String {
         self.into_ffi().inspect()
-    }
-
-    /// Value-based equality for Ruby (`==`).
-    #[inline]
-    pub fn equals(&self, other: Value) -> bool {
-        <&Version>::try_convert(other)
-            .map(|other| *self == *other)
-            .unwrap_or(false)
     }
 }
 
@@ -101,6 +126,35 @@ impl StatusCode {
     pub fn to_s(&self) -> String {
         self.0.to_string()
     }
+
+    /// Value-based equality for Ruby (`==`).
+    #[inline]
+    pub fn equals(&self, other: Value) -> bool {
+        <&StatusCode>::try_convert(other)
+            .map(|other| *self == *other)
+            .unwrap_or(false)
+    }
+
+    /// Strict equality for Ruby (`eql?`).
+    #[inline]
+    pub fn is_eql(&self, other: Value) -> bool {
+        self.equals(other)
+    }
+
+    /// Hash value for Ruby (`hash`).
+    #[inline]
+    pub fn hash_value(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.0.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    /// Return the status code as an integer (Ruby `to_i`).
+    #[inline]
+    pub const fn to_i(&self) -> u16 {
+        self.0.as_u16()
+    }
 }
 
 impl From<wreq::StatusCode> for StatusCode {
@@ -112,11 +166,18 @@ impl From<wreq::StatusCode> for StatusCode {
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     let method_class = gem_module.define_class("Method", ruby.class_object())?;
     Method::define_constants(method_class)?;
+    method_class.define_method("to_s", method!(Method::to_s, 0))?;
+    method_class.define_method("to_sym", method!(Method::to_sym, 0))?;
+    method_class.define_method("==", method!(Method::equals, 1))?;
+    method_class.define_method("eql?", method!(Method::is_eql, 1))?;
+    method_class.define_method("hash", method!(Method::hash_value, 0))?;
 
     let version_class = gem_module.define_class("Version", ruby.class_object())?;
     Version::define_constants(version_class)?;
     version_class.define_method("to_s", method!(Version::to_s, 0))?;
     version_class.define_method("==", method!(Version::equals, 1))?;
+    version_class.define_method("eql?", method!(Version::is_eql, 1))?;
+    version_class.define_method("hash", method!(Version::hash_value, 0))?;
 
     let status_code_class = gem_module.define_class("StatusCode", ruby.class_object())?;
     status_code_class.define_method("as_int", method!(StatusCode::as_int, 0))?;
@@ -126,6 +187,10 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     status_code_class.define_method("client_error?", method!(StatusCode::is_client_error, 0))?;
     status_code_class.define_method("server_error?", method!(StatusCode::is_server_error, 0))?;
     status_code_class.define_method("to_s", method!(StatusCode::to_s, 0))?;
+    status_code_class.define_method("==", method!(StatusCode::equals, 1))?;
+    status_code_class.define_method("eql?", method!(StatusCode::is_eql, 1))?;
+    status_code_class.define_method("hash", method!(StatusCode::hash_value, 0))?;
+    status_code_class.define_method("to_i", method!(StatusCode::to_i, 0))?;
 
     Ok(())
 }
