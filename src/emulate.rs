@@ -228,7 +228,7 @@ impl Platform {
             Platform::Android => "android",
             Platform::IOS => "ios",
         };
-        ruby!().to_symbol(name)
+        Ruby::get().unwrap().to_symbol(name)
     }
 }
 

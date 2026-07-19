@@ -57,7 +57,7 @@ impl Method {
             Method::TRACE => "trace",
             Method::PATCH => "patch",
         };
-        ruby!().to_symbol(name)
+        Ruby::get().unwrap().to_symbol(name)
     }
 }
 
