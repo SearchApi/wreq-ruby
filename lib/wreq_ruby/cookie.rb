@@ -56,7 +56,7 @@ unless defined?(Wreq)
       # @option options [String] :domain Domain attribute
       # @option options [String] :path Path attribute
       # @option options [Integer] :max_age Signed Max-Age in seconds; zero or negative expires immediately
-      # @option options [Time, Numeric] :expires Expiration time or finite Unix timestamp
+      # @option options [Time, Numeric] :expires Expiration time or finite Unix timestamp in seconds
       # @option options [Boolean] :http_only HttpOnly flag
       # @option options [Boolean] :secure Secure flag
       # @option options [Wreq::SameSite] :same_site SameSite attribute
@@ -137,6 +137,7 @@ unless defined?(Wreq)
       end
 
       # Returns the expiration as fractional Unix seconds.
+      # Large timestamps may lose precision when represented as a Float.
       # @deprecated Use {#expires_at} for a Ruby-native time value.
       # @return [Float, nil]
       def expires
