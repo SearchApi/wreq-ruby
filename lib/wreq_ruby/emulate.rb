@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+# Profile and platform constants mirror the native enum variant names.
+# standard:disable Naming/ConstantName
+
 module Wreq
   # Browser and client fingerprint profile enumeration backed by Rust.
   #
@@ -279,7 +282,7 @@ module Wreq
   class Emulation
     # Native fields and methods are set by the extension.
     # This stub is for documentation only.
-    unless method_defined?(:new)
+    unless singleton_methods(false).include?(:new)
       # @param profile [Wreq::Profile, nil] Fingerprint profile to emulate
       # @param platform [Wreq::Platform, nil] Operating system platform to emulate
       # @param http2 [Boolean, nil] Whether HTTP/2 emulation is enabled; defaults
@@ -294,3 +297,5 @@ module Wreq
     end
   end
 end
+
+# standard:enable Naming/ConstantName

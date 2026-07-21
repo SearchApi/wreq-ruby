@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "set"
 
 class ValueSemanticsTest < Minitest::Test
   # ---- StatusCode ----
@@ -42,7 +41,7 @@ class ValueSemanticsTest < Minitest::Test
 
   def test_status_code_as_hash_key
     status = @response.status
-    h = { status => "created" }
+    h = {status => "created"}
     assert_equal "created", h[@response.status]
   end
 
@@ -73,6 +72,11 @@ class ValueSemanticsTest < Minitest::Test
 
   def test_version_equality
     assert_equal Wreq::Version::HTTP_11, Wreq::Version::HTTP_11
+    assert_equal "HTTP/0.9", Wreq::Version::HTTP_09.to_s
+    assert_equal "HTTP/1.0", Wreq::Version::HTTP_10.to_s
+    assert_equal "HTTP/1.1", Wreq::Version::HTTP_11.to_s
+    assert_equal "HTTP/2.0", Wreq::Version::HTTP_2.to_s
+    assert_equal "HTTP/3.0", Wreq::Version::HTTP_3.to_s
   end
 
   def test_version_eql
@@ -92,7 +96,7 @@ class ValueSemanticsTest < Minitest::Test
 
   def test_version_as_hash_key
     v = Wreq::Version::HTTP_11
-    h = { v => "http1.1" }
+    h = {v => "http1.1"}
     assert_equal "http1.1", h[Wreq::Version::HTTP_11]
   end
 
@@ -143,7 +147,7 @@ class ValueSemanticsTest < Minitest::Test
   end
 
   def test_method_as_hash_key
-    h = { Wreq::Method::GET => "get it" }
+    h = {Wreq::Method::GET => "get it"}
     assert_equal "get it", h[Wreq::Method::GET]
     assert_nil h[Wreq::Method::POST]
   end
@@ -177,6 +181,9 @@ class ValueSemanticsTest < Minitest::Test
   def test_profile_equality
     assert_equal Wreq::Profile::Chrome134, Wreq::Profile::Chrome134
     refute_equal Wreq::Profile::Chrome134, Wreq::Profile::Chrome135
+    assert_equal "Chrome134", Wreq::Profile::Chrome134.to_s
+    assert_equal "SafariIos17_4_1", Wreq::Profile::SafariIos17_4_1.to_s
+    assert_equal "OkHttp4_12", Wreq::Profile::OkHttp4_12.to_s
   end
 
   def test_profile_eql_and_hash
@@ -185,7 +192,7 @@ class ValueSemanticsTest < Minitest::Test
   end
 
   def test_profile_as_hash_key
-    h = { Wreq::Profile::Chrome134 => "chrome" }
+    h = {Wreq::Profile::Chrome134 => "chrome"}
     assert_equal "chrome", h[Wreq::Profile::Chrome134]
     assert_nil h[Wreq::Profile::Chrome135]
   end
@@ -203,6 +210,12 @@ class ValueSemanticsTest < Minitest::Test
   end
 
   def test_platform_to_sym
+    assert_equal "Windows", Wreq::Platform::Windows.to_s
+    assert_equal "MacOS", Wreq::Platform::MacOS.to_s
+    assert_equal "Linux", Wreq::Platform::Linux.to_s
+    assert_equal "Android", Wreq::Platform::Android.to_s
+    assert_equal "IOS", Wreq::Platform::IOS.to_s
+
     assert_equal :windows, Wreq::Platform::Windows.to_sym
     assert_equal :macos, Wreq::Platform::MacOS.to_sym
     assert_equal :linux, Wreq::Platform::Linux.to_sym
