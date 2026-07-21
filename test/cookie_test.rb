@@ -44,6 +44,14 @@ class CookieTest < Minitest::Test
     assert_equal true, (c.secure || c.secure?)
   end
 
+  def test_add_rejects_invalid_cookie_type
+    error = assert_raises(TypeError) do
+      @jar.add(Object.new, @base_url)
+    end
+
+    assert_equal "cookie must be a Wreq::Cookie or String", error.message
+  end
+
   def test_add_multiple_and_remove
     @jar.add("a=1; Path=/", @base_url)
     @jar.add("b=2; Path=/", @base_url)
@@ -115,6 +123,8 @@ class CookieTest < Minitest::Test
     assert_equal false, (c.secure || c.secure?)
     assert_equal false, c.same_site_lax?
     assert_equal false, c.same_site_strict?
+    assert_nil c.same_site
+    assert_equal "sid=abc", c.to_s
   end
 
   def test_cookie_new_full_attributes
@@ -144,6 +154,15 @@ class CookieTest < Minitest::Test
     assert_equal true, (c.secure || c.secure?)
     assert_equal true, c.same_site_lax?
     assert_equal false, c.same_site_strict?
+    assert_equal Wreq::SameSite::Lax, c.same_site
+  end
+
+  def test_same_site_reader_distinguishes_none_from_unset
+    cookie = Wreq::Cookie.new("same-site", "value", same_site: Wreq::SameSite::None)
+
+    assert_equal Wreq::SameSite::None, cookie.same_site
+    refute cookie.same_site_lax?
+    refute cookie.same_site_strict?
   end
 
   def test_cookie_new_uses_shared_keyword_validation
@@ -328,10 +347,12 @@ class CookieTest < Minitest::Test
     @jar.add("s2=1; Path=/; SameSite=Lax", @base_url)
 
     cookies = @jar.get_all
-    h = cookies.to_h { |ck| [ck.name, [ck.same_site_strict?, ck.same_site_lax?]] }
+    h = cookies.to_h do |cookie|
+      [cookie.name, [cookie.same_site, cookie.same_site_strict?, cookie.same_site_lax?]]
+    end
 
-    assert_equal [true, false], h["s1"]
-    assert_equal [false, true], h["s2"]
+    assert_equal [Wreq::SameSite::Strict, true, false], h["s1"]
+    assert_equal [Wreq::SameSite::Lax, false, true], h["s2"]
   end
 
   def test_request_uncompressed_cookies
