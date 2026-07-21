@@ -1,8 +1,5 @@
 use ::serde::Deserialize;
-use magnus::{
-    Error, Module, Object, RModule, Ruby, Value, function, method,
-    typed_data::{Inspect, Obj},
-};
+use magnus::{Error, Module, Object, RModule, Ruby, Value, function, method, typed_data::Obj};
 
 use crate::options::{NativeOption, Options};
 
@@ -41,9 +38,10 @@ impl Builder {
     }
 }
 
+// Defines constant registration, `into_ffi`/`from_ffi`, and handlers for
+// Ruby's `to_s`, `==`, `eql?`, and `hash` methods.
 define_ruby_enum!(
     /// An emulation profile.
-    const,
     Profile,
     "Wreq::Profile",
     wreq_util::Profile,
@@ -187,50 +185,25 @@ define_ruby_enum!(
     Opera131,
 );
 
+// Defines constant registration, `into_ffi`/`from_ffi`, and handlers for
+// Ruby's `to_s`, `to_sym`, `==`, `eql?`, and `hash` methods.
 define_ruby_enum!(
     /// An emulation profile for OS.
-    const,
     Platform,
     "Wreq::Platform",
     wreq_util::Platform,
-    Windows,
-    MacOS,
-    Linux,
-    Android,
-    IOS,
+    symbols:
+    Windows => "windows",
+    MacOS => "macos",
+    Linux => "linux",
+    Android => "android",
+    IOS => "ios",
 );
 
 /// A struct to represent the `EmulationOption` class.
 #[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Emulation", free_immediately, size)]
 pub struct Emulation(pub wreq_util::Emulation);
-
-// ===== impl Profile =====
-
-impl Profile {
-    pub fn to_s(&self) -> String {
-        self.into_ffi().inspect()
-    }
-}
-
-// ===== impl Platform =====
-
-impl Platform {
-    pub fn to_s(&self) -> String {
-        self.into_ffi().inspect()
-    }
-
-    pub fn to_sym(ruby: &Ruby, rb_self: &Self) -> magnus::Symbol {
-        let name = match *rb_self {
-            Platform::Windows => "windows",
-            Platform::MacOS => "macos",
-            Platform::Linux => "linux",
-            Platform::Android => "android",
-            Platform::IOS => "ios",
-        };
-        ruby.to_symbol(name)
-    }
-}
 
 // ===== impl Emulation =====
 

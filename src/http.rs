@@ -1,80 +1,44 @@
-use magnus::{Error, Module, RModule, Ruby, TryConvert, Value, method, typed_data::Inspect};
+use magnus::{Error, Module, RModule, Ruby, TryConvert, Value, method};
 
+// Defines constant registration, `into_ffi`/`from_ffi`, and handlers for
+// Ruby's `to_s`, `==`, `eql?`, and `hash` methods.
+// `wreq::Version` only exposes protocol strings through `Debug`, so static
+// labels avoid allocating an intermediate `String`.
 define_ruby_enum!(
     /// An HTTP version.
-    const,
     Version,
     "Wreq::Version",
     wreq::Version,
-    HTTP_09,
-    HTTP_10,
-    HTTP_11,
-    HTTP_2,
-    HTTP_3,
+    strings:
+    HTTP_09 => "HTTP/0.9",
+    HTTP_10 => "HTTP/1.0",
+    HTTP_11 => "HTTP/1.1",
+    HTTP_2 => "HTTP/2.0",
+    HTTP_3 => "HTTP/3.0",
 );
 
+// Defines constant registration, `into_ffi`/`from_ffi`, and handlers for
+// Ruby's `to_s`, `to_sym`, `==`, `eql?`, and `hash` methods.
 define_ruby_enum!(
     /// An HTTP method.
     Method,
     "Wreq::Method",
     wreq::Method,
-    GET,
-    HEAD,
-    POST,
-    PUT,
-    DELETE,
-    OPTIONS,
-    TRACE,
-    PATCH,
+    symbols:
+    GET => "get",
+    HEAD => "head",
+    POST => "post",
+    PUT => "put",
+    DELETE => "delete",
+    OPTIONS => "options",
+    TRACE => "trace",
+    PATCH => "patch",
 );
-
-impl Method {
-    /// HTTP method token as a string.
-    #[inline]
-    pub fn to_s(&self) -> &'static str {
-        match self {
-            Method::GET => "GET",
-            Method::HEAD => "HEAD",
-            Method::POST => "POST",
-            Method::PUT => "PUT",
-            Method::DELETE => "DELETE",
-            Method::OPTIONS => "OPTIONS",
-            Method::TRACE => "TRACE",
-            Method::PATCH => "PATCH",
-        }
-    }
-
-    /// HTTP method as a lowercase Ruby symbol.
-    #[inline]
-    pub fn to_sym(ruby: &Ruby, rb_self: &Self) -> magnus::Symbol {
-        let name = match *rb_self {
-            Method::GET => "get",
-            Method::HEAD => "head",
-            Method::POST => "post",
-            Method::PUT => "put",
-            Method::DELETE => "delete",
-            Method::OPTIONS => "options",
-            Method::TRACE => "trace",
-            Method::PATCH => "patch",
-        };
-        ruby.to_symbol(name)
-    }
-}
 
 /// HTTP status code.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[magnus::wrap(class = "Wreq::StatusCode", free_immediately, size)]
 pub struct StatusCode(pub wreq::StatusCode);
-
-// ===== impl Version =====
-
-impl Version {
-    /// Convert version to string.
-    #[inline]
-    pub fn to_s(&self) -> String {
-        self.into_ffi().inspect()
-    }
-}
 
 impl TryConvert for Version {
     fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {

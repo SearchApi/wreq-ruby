@@ -13,37 +13,18 @@ use crate::{
     gvl,
 };
 
+// Defines constant registration, `into_ffi`/`from_ffi`, and handlers for
+// Ruby's `to_s`, `to_sym`, `==`, `eql?`, and `hash` methods.
 define_ruby_enum!(
     /// The Cookie SameSite attribute.
-    const,
     SameSite,
     "Wreq::SameSite",
     cookie::SameSite,
-    Strict,
-    Lax,
-    None,
+    symbols:
+    Strict => "strict",
+    Lax => "lax",
+    None => "none",
 );
-
-impl SameSite {
-    /// SameSite attribute as a string.
-    pub fn to_s(&self) -> &'static str {
-        match self {
-            SameSite::Strict => "Strict",
-            SameSite::Lax => "Lax",
-            SameSite::None => "None",
-        }
-    }
-
-    /// SameSite attribute as a lowercase Ruby symbol.
-    pub fn to_sym(ruby: &Ruby, rb_self: &Self) -> magnus::Symbol {
-        let name = match *rb_self {
-            SameSite::Strict => "strict",
-            SameSite::Lax => "lax",
-            SameSite::None => "none",
-        };
-        ruby.to_symbol(name)
-    }
-}
 
 /// A single HTTP cookie.
 #[derive(Clone)]
