@@ -220,15 +220,15 @@ impl Platform {
         self.into_ffi().inspect()
     }
 
-    pub fn to_sym(&self) -> magnus::Symbol {
-        let name = match self {
+    pub fn to_sym(ruby: &Ruby, rb_self: &Self) -> magnus::Symbol {
+        let name = match *rb_self {
             Platform::Windows => "windows",
             Platform::MacOS => "macos",
             Platform::Linux => "linux",
             Platform::Android => "android",
             Platform::IOS => "ios",
         };
-        ruby!().to_symbol(name)
+        ruby.to_symbol(name)
     }
 }
 
