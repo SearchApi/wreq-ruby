@@ -9,6 +9,7 @@ end
 
 # Load type hint definitions
 require_relative "wreq_ruby/http"
+require_relative "wreq_ruby/emulate"
 require_relative "wreq_ruby/client"
 require_relative "wreq_ruby/response"
 require_relative "wreq_ruby/body"
