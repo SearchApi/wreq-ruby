@@ -25,15 +25,17 @@ use crate::{
 
 use self::helper::{CookieExpiration, to_ruby_time, to_unix_timestamp};
 
+// Defines constant registration, `into_ffi`/`from_ffi`, and handlers for
+// Ruby's `to_s`, `to_sym`, `==`, `eql?`, and `hash` methods.
 define_ruby_enum!(
     /// The Cookie SameSite attribute.
-    const,
     SameSite,
     "Wreq::SameSite",
     cookie::SameSite,
-    Strict,
-    Lax,
-    None,
+    symbols:
+    Strict => "strict",
+    Lax => "lax",
+    None => "none",
 );
 
 /// A single HTTP cookie.
@@ -447,6 +449,11 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     // SameSite enum
     let same_site_class = gem_module.define_class("SameSite", ruby.class_object())?;
     SameSite::define_constants(same_site_class)?;
+    same_site_class.define_method("to_s", method!(SameSite::to_s, 0))?;
+    same_site_class.define_method("to_sym", method!(SameSite::to_sym, 0))?;
+    same_site_class.define_method("==", method!(SameSite::equals, 1))?;
+    same_site_class.define_method("eql?", method!(SameSite::is_eql, 1))?;
+    same_site_class.define_method("hash", method!(SameSite::hash_value, 0))?;
 
     // Cookie class
     let cookie_class = gem_module.define_class("Cookie", ruby.class_object())?;

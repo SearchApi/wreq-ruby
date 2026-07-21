@@ -10,6 +10,33 @@ unless defined?(Wreq)
       Lax = nil
       # None same-site policy.
       None = nil
+
+      # Returns the SameSite attribute name (e.g. "Strict", "Lax", "None").
+      # @return [String]
+      def to_s
+      end
+
+      # Returns the SameSite attribute as a lowercase symbol (e.g. :strict, :lax, :none).
+      # @return [Symbol]
+      def to_sym
+      end
+
+      # Value-based equality.
+      # @param other [Object]
+      # @return [Boolean]
+      def ==(other)
+      end
+
+      # Strict equality for Hash key and Set member semantics.
+      # @param other [Object]
+      # @return [Boolean]
+      def eql?(other)
+      end
+
+      # Hash value consistent with {#eql?} for use as Hash keys.
+      # @return [Integer]
+      def hash
+      end
     end
 
     # A single HTTP cookie.
