@@ -46,8 +46,8 @@ impl Method {
 
     /// HTTP method as a lowercase Ruby symbol.
     #[inline]
-    pub fn to_sym(&self) -> magnus::Symbol {
-        let name = match self {
+    pub fn to_sym(ruby: &Ruby, rb_self: &Self) -> magnus::Symbol {
+        let name = match *rb_self {
             Method::GET => "get",
             Method::HEAD => "head",
             Method::POST => "post",
@@ -57,7 +57,7 @@ impl Method {
             Method::TRACE => "trace",
             Method::PATCH => "patch",
         };
-        Ruby::get().unwrap().to_symbol(name)
+        ruby.to_symbol(name)
     }
 }
 

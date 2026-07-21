@@ -35,13 +35,13 @@ impl SameSite {
     }
 
     /// SameSite attribute as a lowercase Ruby symbol.
-    pub fn to_sym(&self) -> magnus::Symbol {
-        let name = match self {
+    pub fn to_sym(ruby: &Ruby, rb_self: &Self) -> magnus::Symbol {
+        let name = match *rb_self {
             SameSite::Strict => "strict",
             SameSite::Lax => "lax",
             SameSite::None => "none",
         };
-        Ruby::get().unwrap().to_symbol(name)
+        ruby.to_symbol(name)
     }
 }
 
