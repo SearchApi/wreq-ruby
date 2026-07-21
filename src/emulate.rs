@@ -1,8 +1,5 @@
 use ::serde::Deserialize;
-use magnus::{
-    Error, Module, Object, RModule, Ruby, Value, function, method,
-    typed_data::{Inspect, Obj},
-};
+use magnus::{Error, Module, Object, RModule, Ruby, Value, function, method, typed_data::Obj};
 
 use crate::options::{NativeOption, Options};
 
@@ -41,9 +38,10 @@ impl Builder {
     }
 }
 
+// Defines constant registration, `into_ffi`/`from_ffi`, and handlers for
+// Ruby's `to_s`, `==`, `eql?`, and `hash` methods.
 define_ruby_enum!(
     /// An emulation profile.
-    const,
     Profile,
     "Wreq::Profile",
     wreq_util::Profile,
@@ -187,39 +185,25 @@ define_ruby_enum!(
     Opera131,
 );
 
+// Defines constant registration, `into_ffi`/`from_ffi`, and handlers for
+// Ruby's `to_s`, `to_sym`, `==`, `eql?`, and `hash` methods.
 define_ruby_enum!(
     /// An emulation profile for OS.
-    const,
     Platform,
     "Wreq::Platform",
     wreq_util::Platform,
-    Windows,
-    MacOS,
-    Linux,
-    Android,
-    IOS,
+    symbols:
+    Windows => "windows",
+    MacOS => "macos",
+    Linux => "linux",
+    Android => "android",
+    IOS => "ios",
 );
 
 /// A struct to represent the `EmulationOption` class.
 #[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Emulation", free_immediately, size)]
 pub struct Emulation(pub wreq_util::Emulation);
-
-// ===== impl Profile =====
-
-impl Profile {
-    pub fn to_s(&self) -> String {
-        self.into_ffi().inspect()
-    }
-}
-
-// ===== impl Platform =====
-
-impl Platform {
-    pub fn to_s(&self) -> String {
-        self.into_ffi().inspect()
-    }
-}
 
 // ===== impl Emulation =====
 
@@ -266,11 +250,18 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     // Profile enum binding
     let profile = gem_module.define_class("Profile", ruby.class_object())?;
     profile.define_method("to_s", method!(Profile::to_s, 0))?;
+    profile.define_method("==", method!(Profile::equals, 1))?;
+    profile.define_method("eql?", method!(Profile::is_eql, 1))?;
+    profile.define_method("hash", method!(Profile::hash_value, 0))?;
     Profile::define_constants(profile)?;
 
     // Platform enum binding
     let platform = gem_module.define_class("Platform", ruby.class_object())?;
     platform.define_method("to_s", method!(Platform::to_s, 0))?;
+    platform.define_method("to_sym", method!(Platform::to_sym, 0))?;
+    platform.define_method("==", method!(Platform::equals, 1))?;
+    platform.define_method("eql?", method!(Platform::is_eql, 1))?;
+    platform.define_method("hash", method!(Platform::hash_value, 0))?;
     Platform::define_constants(platform)?;
 
     // Emulation class binding

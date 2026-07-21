@@ -54,77 +54,95 @@ macro_rules! extract_native_option {
 }
 
 macro_rules! define_ruby_enum {
+    ($(#[$meta:meta])* $enum_type:ident, $ruby_class:expr, $ffi_type:ty, strings: $($variant:ident => $display:expr),* $(,)?) => {
+        define_ruby_enum!(@impl $(#[$meta])* $enum_type, $ruby_class, $ffi_type, [$(($variant, $display)),*], []);
+    };
+
+    ($(#[$meta:meta])* $enum_type:ident, $ruby_class:expr, $ffi_type:ty, symbols: $($variant:ident => $symbol:expr),* $(,)?) => {
+        define_ruby_enum!(@impl $(#[$meta])* $enum_type, $ruby_class, $ffi_type, [$(($variant, stringify!($variant))),*], [$($variant => $symbol),*]);
+    };
+
     ($(#[$meta:meta])* $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $($variant:ident),* $(,)?) => {
-        define_ruby_enum!($(#[$meta])* $enum_type, $ruby_class, $ffi_type, $( ($variant, $variant) ),*);
+        define_ruby_enum!(@impl $(#[$meta])* $enum_type, $ruby_class, $ffi_type, [$(($variant, stringify!($variant))),*], []);
     };
 
-    ($(#[$meta:meta])* const, $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $($variant:ident),* $(,)?) => {
-        define_ruby_enum!($(#[$meta])* const, $enum_type, $ruby_class, $ffi_type, $( ($variant, $variant) ),*);
-    };
-
-    ($(#[$meta:meta])* $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $(($rust_variant:ident, $ffi_variant:ident)),* $(,)?) => {
+    (@impl $(#[$meta:meta])* $enum_type:ident, $ruby_class:expr, $ffi_type:ty, [$(($variant:ident, $display:expr)),*], [$($symbol_variant:ident => $symbol:expr),*]) => {
         $(#[$meta])*
         #[magnus::wrap(class = $ruby_class, free_immediately, size)]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::upper_case_acronyms)]
         pub enum $enum_type {
-            $($rust_variant),*
+            $($variant),*
         }
 
         impl $enum_type {
-            pub fn into_ffi(self) -> $ffi_type {
+            /// Return the static text exposed through Ruby's `to_s`.
+            #[inline]
+            pub const fn to_s(&self) -> &'static str {
                 match self {
-                    $(<$enum_type>::$rust_variant => <$ffi_type>::$ffi_variant,)*
+                    $(<$enum_type>::$variant => $display,)*
                 }
             }
 
+            define_ruby_enum!(@to_sym $enum_type, [$($symbol_variant => $symbol),*]);
+
+            /// Convert this Ruby wrapper into its native enum value.
+            pub fn into_ffi(self) -> $ffi_type {
+                match self {
+                    $(<$enum_type>::$variant => <$ffi_type>::$variant,)*
+                }
+            }
+
+            /// Convert a known native enum value into its Ruby wrapper.
             #[allow(dead_code)]
             pub fn from_ffi(ffi: $ffi_type) -> Self {
                 #[allow(unreachable_patterns)]
                 match ffi {
-                    $(<$ffi_type>::$ffi_variant => <$enum_type>::$rust_variant,)*
+                    $(<$ffi_type>::$variant => <$enum_type>::$variant,)*
                     _ => unreachable!(),
                 }
             }
 
+            /// Register every enum variant as a constant on the Ruby class.
             pub fn define_constants(class: magnus::RClass) -> Result<(), magnus::Error> {
-                $(class.const_set(stringify!($rust_variant), <$enum_type>::$rust_variant)?;)*
+                $(class.const_set(stringify!($variant), <$enum_type>::$variant)?;)*
                 Ok(())
+            }
+
+            /// Compare two wrapped enum values for Ruby's `==`.
+            pub fn equals(&self, other: magnus::Value) -> bool {
+                use magnus::TryConvert;
+                <&$enum_type>::try_convert(other)
+                    .map(|other| *self == *other)
+                    .unwrap_or(false)
+            }
+
+            /// Compare two wrapped enum values for Ruby's `eql?`.
+            pub fn is_eql(&self, other: magnus::Value) -> bool {
+                self.equals(other)
+            }
+
+            /// Return a hash consistent with Ruby's `eql?` contract.
+            pub fn hash_value(&self) -> u64 {
+                use std::hash::{Hash, Hasher};
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                self.hash(&mut hasher);
+                hasher.finish()
             }
         }
     };
 
-    ($(#[$meta:meta])* const, $enum_type:ident, $ruby_class:expr, $ffi_type:ty, $(($rust_variant:ident, $ffi_variant:ident)),* $(,)?) => {
-        $(#[$meta])*
-        #[magnus::wrap(class = $ruby_class, free_immediately, size)]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        #[allow(non_camel_case_types)]
-        #[allow(clippy::upper_case_acronyms)]
-        pub enum $enum_type {
-            $($rust_variant),*
-        }
+    (@to_sym $enum_type:ident, []) => {};
 
-        impl $enum_type {
-            pub const fn into_ffi(self) -> $ffi_type {
-                match self {
-                    $(<$enum_type>::$rust_variant => <$ffi_type>::$ffi_variant,)*
-                }
-            }
-
-            #[allow(dead_code)]
-            pub const fn from_ffi(ffi: $ffi_type) -> Self {
-                #[allow(unreachable_patterns)]
-                match ffi {
-                    $(<$ffi_type>::$ffi_variant => <$enum_type>::$rust_variant,)*
-                    _ => unreachable!(),
-                }
-            }
-
-            pub fn define_constants(class: magnus::RClass) -> Result<(), magnus::Error> {
-                $(class.const_set(stringify!($rust_variant), <$enum_type>::$rust_variant)?;)*
-                Ok(())
-            }
+    (@to_sym $enum_type:ident, [$($variant:ident => $symbol:expr),+]) => {
+        /// Return the configured Ruby symbol for this enum value.
+        #[inline]
+        pub fn to_sym(ruby: &magnus::Ruby, rb_self: &Self) -> magnus::Symbol {
+            let name = match *rb_self {
+                $(<$enum_type>::$variant => $symbol,)+
+            };
+            ruby.to_symbol(name)
         }
     };
 }
