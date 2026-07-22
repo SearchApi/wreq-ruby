@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "bigdecimal"
 require "open3"
 require "rbconfig"
 
@@ -41,6 +42,14 @@ class CookieTest < Minitest::Test
     # predicate-ish flags
     assert_equal true, (c.http_only || c.http_only?)
     assert_equal true, (c.secure || c.secure?)
+  end
+
+  def test_add_rejects_invalid_cookie_type
+    error = assert_raises(TypeError) do
+      @jar.add(Object.new, @base_url)
+    end
+
+    assert_equal "cookie must be a Wreq::Cookie or String", error.message
   end
 
   def test_add_multiple_and_remove
@@ -114,6 +123,8 @@ class CookieTest < Minitest::Test
     assert_equal false, (c.secure || c.secure?)
     assert_equal false, c.same_site_lax?
     assert_equal false, c.same_site_strict?
+    assert_nil c.same_site
+    assert_equal "sid=abc", c.to_s
   end
 
   def test_cookie_new_full_attributes
@@ -143,6 +154,15 @@ class CookieTest < Minitest::Test
     assert_equal true, (c.secure || c.secure?)
     assert_equal true, c.same_site_lax?
     assert_equal false, c.same_site_strict?
+    assert_equal Wreq::SameSite::Lax, c.same_site
+  end
+
+  def test_same_site_reader_distinguishes_none_from_unset
+    cookie = Wreq::Cookie.new("same-site", "value", same_site: Wreq::SameSite::None)
+
+    assert_equal Wreq::SameSite::None, cookie.same_site
+    refute cookie.same_site_lax?
+    refute cookie.same_site_strict?
   end
 
   def test_cookie_new_uses_shared_keyword_validation
@@ -173,14 +193,35 @@ class CookieTest < Minitest::Test
   end
 
   def test_expires_accepts_integer_and_fractional_timestamps
-    [1_893_456_000, 1_893_456_000.125, -1.25].each do |timestamp|
+    [
+      1_893_456_000,
+      1_893_456_000.125,
+      Rational(-5, 4),
+      BigDecimal("1893456000.125")
+    ].each do |timestamp|
       cookie = Wreq::Cookie.new("timestamp", "value", expires: timestamp)
 
       assert_kind_of Time, cookie.expires_at
       assert_predicate cookie.expires_at, :utc?
-      assert_in_delta timestamp, cookie.expires_at.to_f, 1e-6
-      assert_in_delta timestamp, cookie.expires, 1e-6
+      assert_in_delta timestamp.to_f, cookie.expires_at.to_f, 1e-6
+      assert_in_delta timestamp.to_f, cookie.expires, 1e-6
     end
+  end
+
+  def test_expires_normalizes_time_to_utc_without_losing_precision
+    expiration = Time.new(
+      2030,
+      1,
+      1,
+      12,
+      34,
+      Rational(123_456_789, 1_000_000_000),
+      "+09:00"
+    )
+    actual = Wreq::Cookie.new("offset", "value", expires: expiration).expires_at
+
+    assert_predicate actual, :utc?
+    assert_equal expiration.to_r, actual.to_r
   end
 
   def test_expires_rejects_non_finite_timestamps
@@ -306,10 +347,12 @@ class CookieTest < Minitest::Test
     @jar.add("s2=1; Path=/; SameSite=Lax", @base_url)
 
     cookies = @jar.get_all
-    h = cookies.to_h { |ck| [ck.name, [ck.same_site_strict?, ck.same_site_lax?]] }
+    h = cookies.to_h do |cookie|
+      [cookie.name, [cookie.same_site, cookie.same_site_strict?, cookie.same_site_lax?]]
+    end
 
-    assert_equal [true, false], h["s1"]
-    assert_equal [false, true], h["s2"]
+    assert_equal [Wreq::SameSite::Strict, true, false], h["s1"]
+    assert_equal [Wreq::SameSite::Lax, false, true], h["s2"]
   end
 
   def test_request_uncompressed_cookies
