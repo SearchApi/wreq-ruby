@@ -184,6 +184,12 @@ impl Cookie {
         self.0.same_site() == Some(cookie::SameSite::Strict)
     }
 
+    /// Return the SameSite directive, if set.
+    #[inline]
+    pub fn same_site(&self) -> Option<SameSite> {
+        self.0.same_site().map(SameSite::from_ffi)
+    }
+
     /// Returns the path directive of the cookie, if set.
     #[inline]
     pub fn path(&self) -> Option<&str> {
@@ -215,6 +221,12 @@ impl Cookie {
     #[inline]
     pub fn expires(&self) -> Option<f64> {
         self.0.expires_datetime().map(to_unix_timestamp)
+    }
+
+    /// Serialize the cookie as a Set-Cookie string.
+    #[inline]
+    pub fn to_s(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -318,14 +330,21 @@ impl Jar {
     }
 
     /// Add a cookie to this jar.
-    pub fn add(&self, cookie: Value, url: String) {
+    ///
+    /// # Errors
+    ///
+    /// Returns `TypeError` when `cookie` is neither a [`Cookie`] nor a String.
+    pub fn add(&self, cookie: Value, url: String) -> Result<(), Error> {
         if let Ok(cookie) = Obj::<Cookie>::try_convert(cookie) {
-            return gvl::nogvl(|| self.0.add(cookie.clone_for_jar(), &url));
+            gvl::nogvl(|| self.0.add(cookie.clone_for_jar(), &url));
+            return Ok(());
         }
 
-        if let Ok(cookie_str) = String::try_convert(cookie) {
-            gvl::nogvl(|| self.0.add(cookie_str.as_ref(), &url))
-        }
+        let ruby = Ruby::get_with(cookie);
+        let cookie = String::try_convert(cookie)
+            .map_err(|_| type_error(&ruby, "cookie must be a Wreq::Cookie or String"))?;
+        gvl::nogvl(|| self.0.add(cookie.as_ref(), &url));
+        Ok(())
     }
 
     /// Remove a cookie from this jar by name and URL.
@@ -466,11 +485,13 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     cookie_class.define_method("secure?", method!(Cookie::secure, 0))?;
     cookie_class.define_method("same_site_lax?", method!(Cookie::same_site_lax, 0))?;
     cookie_class.define_method("same_site_strict?", method!(Cookie::same_site_strict, 0))?;
+    cookie_class.define_method("same_site", method!(Cookie::same_site, 0))?;
     cookie_class.define_method("path", method!(Cookie::path, 0))?;
     cookie_class.define_method("domain", method!(Cookie::domain, 0))?;
     cookie_class.define_method("max_age", method!(Cookie::max_age, 0))?;
     cookie_class.define_method("expires_at", method!(Cookie::expires_at, 0))?;
     cookie_class.define_method("expires", method!(Cookie::expires, 0))?;
+    cookie_class.define_method("to_s", method!(Cookie::to_s, 0))?;
 
     // Jar class
     let jar_class = gem_module.define_class("Jar", ruby.class_object())?;

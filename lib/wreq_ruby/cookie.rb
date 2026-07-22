@@ -3,6 +3,8 @@ unless defined?(Wreq)
     # Cookie SameSite attribute.
     #
     # Values follow the Rust enum exposed by the native extension.
+    # Constant names mirror the native SameSite variants.
+    # standard:disable Naming/ConstantName
     class SameSite
       # Strict same-site policy.
       Strict = nil
@@ -38,6 +40,7 @@ unless defined?(Wreq)
       def hash
       end
     end
+    # standard:enable Naming/ConstantName
 
     # A single HTTP cookie.
     #
@@ -56,7 +59,7 @@ unless defined?(Wreq)
       # @option options [String] :domain Domain attribute
       # @option options [String] :path Path attribute
       # @option options [Integer] :max_age Signed Max-Age in seconds; zero or negative expires immediately
-      # @option options [Time, Numeric] :expires Expiration time or finite Unix timestamp
+      # @option options [Time, Numeric] :expires Expiration time or finite Unix timestamp in seconds
       # @option options [Boolean] :http_only HttpOnly flag
       # @option options [Boolean] :secure Secure flag
       # @option options [Wreq::SameSite] :same_site SameSite attribute
@@ -116,6 +119,11 @@ unless defined?(Wreq)
       def same_site_strict?
       end
 
+      # Returns the SameSite directive, or nil when it is not set.
+      # @return [Wreq::SameSite, nil]
+      def same_site
+      end
+
       # @return [String, nil] Path attribute
       def path
       end
@@ -137,9 +145,15 @@ unless defined?(Wreq)
       end
 
       # Returns the expiration as fractional Unix seconds.
+      # Large timestamps may lose precision when represented as a Float.
       # @deprecated Use {#expires_at} for a Ruby-native time value.
       # @return [Float, nil]
       def expires
+      end
+
+      # Serializes the cookie as a Set-Cookie string.
+      # @return [String]
+      def to_s
       end
     end
 
@@ -155,10 +169,11 @@ unless defined?(Wreq)
       def get_all
       end
 
-      # Add a cookie from a Set-Cookie string for the given URL.
-      # @param cookie [String, Wreq::Cookie] A Set-Cookie string
+      # Add a Cookie object or Set-Cookie string for the given URL.
+      # @param cookie [String, Wreq::Cookie] A Set-Cookie string or Cookie object
       # @param url [String]
       # @return [void]
+      # @raise [TypeError] if cookie is neither a String nor Wreq::Cookie
       def add(cookie, url)
       end
 
@@ -179,6 +194,8 @@ end
 
 module Wreq
   class Cookie
+    # Returns a compact representation for debugging.
+    # @return [String]
     def inspect
       parts = ["#<Wreq::Cookie", name]
       parts << "domain=#{domain}" if domain
@@ -190,6 +207,8 @@ module Wreq
   end
 
   class Jar
+    # Returns a compact representation including the cookie count.
+    # @return [String]
     def inspect
       "#<Wreq::Jar [#{get_all.length} cookies]>"
     end
