@@ -192,7 +192,7 @@ pub fn argument_error(ruby: &Ruby, message: impl Into<String>) -> MagnusError {
     MagnusError::new(ruby.exception_arg_error(), message.into())
 }
 
-/// Build a `RangeError` from a validation message.
+/// Builds a Ruby `RangeError` from a validation message.
 pub fn range_error(ruby: &Ruby, message: impl Into<String>) -> MagnusError {
     MagnusError::new(ruby.exception_range_error(), message.into())
 }

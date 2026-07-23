@@ -1,8 +1,8 @@
 //! Ruby bindings for HTTP cookies and the shared cookie jar.
 //!
-//! Cookie expiration follows [RFC 6265]: Ruby `Time` values and finite Unix
-//! timestamps are converted into signed native date-times, while non-positive
-//! Max-Age values represent immediate expiration.
+//! Expiration follows [RFC 6265]. The binding accepts Ruby `Time` values and
+//! finite Unix timestamps without converting them through unsigned
+//! `SystemTime`. A non-positive Max-Age expires the cookie immediately.
 //!
 //! [RFC 6265]: https://www.rfc-editor.org/rfc/rfc6265.html
 
@@ -47,7 +47,7 @@ pub struct Cookie(RawCookie<'static>);
 #[derive(Default)]
 pub struct Cookies(pub Vec<HeaderValue>);
 
-/// Keyword attributes used to build a [`Cookie`].
+/// Keyword options accepted by `Wreq::Cookie.new`.
 #[derive(Deserialize)]
 struct Builder {
     /// The Domain attribute.
@@ -56,11 +56,11 @@ struct Builder {
     /// The Path attribute.
     path: Option<String>,
 
-    /// The signed Max-Age in seconds.
+    /// The signed Max-Age lifetime in seconds.
     #[serde(default)]
     max_age: NativeOption<i64>,
 
-    /// The absolute expiration accepted through Magnus conversion.
+    /// The expiration converted from a Ruby `Time` or Numeric value.
     #[serde(default)]
     expires: NativeOption<CookieExpiration>,
 
@@ -75,11 +75,9 @@ struct Builder {
     same_site: NativeOption<Obj<SameSite>>,
 }
 
-/// A good default `CookieStore` implementation.
+/// A cookie jar that can be shared with a Ruby `Wreq::Client`.
 ///
-/// This is the implementation used when simply calling `cookie_store(true)`.
-/// This type is exposed to allow creating one and filling it with some
-/// existing cookies more easily, before creating a `Client`.
+/// Pass a populated jar as the client's `cookie_provider` option.
 #[derive(Clone, Default)]
 #[magnus::wrap(class = "Wreq::Jar", free_immediately, size)]
 pub struct Jar(pub Arc<wreq::cookie::Jar>);
@@ -87,12 +85,12 @@ pub struct Jar(pub Arc<wreq::cookie::Jar>);
 // ===== impl Builder =====
 
 impl Builder {
-    /// Deserialize and convert one validated Cookie attribute Hash.
+    /// Validates and deserializes a Ruby keyword options hash.
     ///
     /// # Errors
     ///
-    /// Returns `ArgumentError` for unknown or duplicate attributes and retains
-    /// the Ruby conversion error for invalid values.
+    /// Returns `ArgumentError` for unknown or duplicate keys. Invalid values
+    /// return the Ruby conversion error with the option name attached.
     fn from_options(options: Options<'_>) -> Result<Self, Error> {
         let mut builder = options.validate_keys::<Self>()?.deserialize::<Self>()?;
         extract_native_option!(options, builder, max_age);
@@ -101,7 +99,7 @@ impl Builder {
         Ok(builder)
     }
 
-    /// Build a native Cookie from its required identity and optional attributes.
+    /// Builds a native cookie from its name, value, and optional attributes.
     fn build(mut self, name: String, value: String) -> Cookie {
         let mut cookie = RawCookie::new(name, value);
 
@@ -135,12 +133,12 @@ impl Builder {
 // ===== Ruby Cookie API =====
 
 impl Cookie {
-    /// Create a new [`Cookie`] from a name, value, and keyword attributes.
+    /// Creates a [`Cookie`] from its name, value, and keyword options.
     ///
     /// # Errors
     ///
-    /// Returns `ArgumentError` for unknown or duplicate attributes and retains
-    /// the Ruby conversion error for invalid values.
+    /// Returns `ArgumentError` for unknown or duplicate keys. Invalid values
+    /// return the Ruby conversion error with the option name attached.
     pub fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
         let args = magnus::scan_args::scan_args::<(String, String), (), (), (), RHash, ()>(args)?;
         let (name, value) = args.required;
@@ -172,19 +170,19 @@ impl Cookie {
         self.0.secure().unwrap_or(false)
     }
 
-    /// Return whether the SameSite directive is Lax.
+    /// Returns true when the SameSite setting is Lax.
     #[inline]
     pub fn same_site_lax(&self) -> bool {
         self.0.same_site() == Some(cookie::SameSite::Lax)
     }
 
-    /// Return whether the SameSite directive is Strict.
+    /// Returns true when the SameSite setting is Strict.
     #[inline]
     pub fn same_site_strict(&self) -> bool {
         self.0.same_site() == Some(cookie::SameSite::Strict)
     }
 
-    /// Return the SameSite directive, if set.
+    /// Returns the SameSite setting, if present.
     #[inline]
     pub fn same_site(&self) -> Option<SameSite> {
         self.0.same_site().map(SameSite::from_ffi)
@@ -202,13 +200,13 @@ impl Cookie {
         self.0.domain()
     }
 
-    /// Return the signed Max-Age in seconds.
+    /// Returns the signed Max-Age lifetime in seconds.
     #[inline]
     pub fn max_age(&self) -> Option<i64> {
         self.0.max_age().map(|d| d.whole_seconds())
     }
 
-    /// Return the cookie expiration as a UTC Ruby `Time`.
+    /// Returns the cookie expiration as a UTC Ruby `Time`.
     pub fn expires_at(ruby: &Ruby, rb_self: &Self) -> Result<Option<Time>, Error> {
         rb_self
             .0
@@ -217,13 +215,13 @@ impl Cookie {
             .transpose()
     }
 
-    /// Return the cookie expiration as legacy fractional Unix seconds.
+    /// Returns the cookie expiration as fractional Unix seconds.
     #[inline]
     pub fn expires(&self) -> Option<f64> {
         self.0.expires_datetime().map(to_unix_timestamp)
     }
 
-    /// Serialize the cookie as a Set-Cookie string.
+    /// Formats the cookie as a Set-Cookie value.
     #[inline]
     pub fn to_s(&self) -> String {
         self.to_string()
@@ -235,10 +233,10 @@ impl Cookie {
 impl Cookie {
     /// Clone this cookie for insertion into the native jar.
     ///
-    /// [RFC 6265 section 5.2.2] treats a non-positive Max-Age as immediate
-    /// expiration. The native jar currently recognizes zero, so a negative
-    /// value is normalized only in this insertion clone; the Ruby cookie keeps
-    /// its original signed value.
+    /// [RFC 6265 section 5.2.2] says that zero or a negative Max-Age expires a
+    /// cookie immediately. The native jar recognizes zero for deletion, so
+    /// this clone maps negative values to zero before insertion. The Ruby
+    /// object keeps its original signed value.
     ///
     /// [RFC 6265 section 5.2.2]: https://www.rfc-editor.org/rfc/rfc6265.html#section-5.2.2
     fn clone_for_jar(&self) -> RawCookie<'static> {
@@ -359,7 +357,7 @@ impl Jar {
 }
 
 mod helper {
-    //! Ruby time conversion helpers for `Wreq::Cookie`.
+    //! Converts between Ruby time values and native cookie timestamps.
 
     use cookie::time::{Duration, OffsetDateTime, error::ComponentRange};
     use magnus::{
@@ -369,15 +367,15 @@ mod helper {
 
     use crate::error::{argument_error, range_error};
 
-    /// A validated cookie expiration accepted from Ruby.
+    /// A validated cookie expiration converted from Ruby.
     ///
-    /// Ruby `Time` values retain nanosecond resolution. Integer timestamps avoid a
-    /// floating-point conversion, while other Numeric values are accepted as
-    /// finite fractional Unix timestamps.
+    /// Ruby `Time` values keep nanosecond precision. Integer timestamps are
+    /// converted directly; other Numeric values use finite fractional Unix
+    /// seconds.
     pub(super) struct CookieExpiration(OffsetDateTime);
 
     impl CookieExpiration {
-        /// Return the validated UTC expiration used by the native cookie.
+        /// Unwraps the validated UTC expiration.
         pub(super) fn into_inner(self) -> OffsetDateTime {
             self.0
         }
@@ -390,7 +388,7 @@ mod helper {
         }
     }
 
-    /// Convert a native cookie expiration into a UTC Ruby `Time`.
+    /// Converts a native cookie expiration into a UTC Ruby `Time`.
     pub(super) fn to_ruby_time(ruby: &Ruby, value: OffsetDateTime) -> Result<Time, Error> {
         ruby.time_timespec_new(
             Timespec {
@@ -401,12 +399,12 @@ mod helper {
         )
     }
 
-    /// Convert a native cookie expiration into legacy fractional Unix seconds.
+    /// Converts a native cookie expiration into fractional Unix seconds.
     pub(super) fn to_unix_timestamp(value: OffsetDateTime) -> f64 {
         value.unix_timestamp() as f64 + f64::from(value.nanosecond()) / 1_000_000_000.0
     }
 
-    /// Convert a supported Ruby expiration value into a native UTC date-time.
+    /// Converts a Ruby `Time` or Numeric value into a native UTC timestamp.
     fn expiration_from_value(ruby: &Ruby, value: Value) -> Result<OffsetDateTime, Error> {
         if let Some(time) = Time::from_value(value) {
             return expiration_from_time(ruby, time);
@@ -421,7 +419,7 @@ mod helper {
         expiration_from_float(ruby, f64::try_convert(value)?)
     }
 
-    /// Convert a Ruby `Time` without passing through unsigned `SystemTime` math.
+    /// Converts a Ruby `Time` from its signed timespec without using `SystemTime`.
     fn expiration_from_time(ruby: &Ruby, value: Time) -> Result<OffsetDateTime, Error> {
         let timespec = value.timespec()?;
         let nanosecond = u32::try_from(timespec.tv_nsec)
@@ -436,13 +434,13 @@ mod helper {
             .map_err(|error| expiration_range_error(ruby, error))
     }
 
-    /// Convert exact signed Unix seconds into the native cookie time range.
+    /// Converts signed Unix seconds into the native cookie time range.
     fn expiration_from_seconds(ruby: &Ruby, seconds: i64) -> Result<OffsetDateTime, Error> {
         OffsetDateTime::from_unix_timestamp(seconds)
             .map_err(|error| expiration_range_error(ruby, error))
     }
 
-    /// Convert a finite fractional Unix timestamp without using a panicking API.
+    /// Converts a finite fractional Unix timestamp with checked arithmetic.
     fn expiration_from_float(ruby: &Ruby, seconds: f64) -> Result<OffsetDateTime, Error> {
         if !seconds.is_finite() {
             return Err(argument_error(ruby, "timestamp must be finite"));
@@ -455,7 +453,7 @@ mod helper {
             .ok_or_else(|| range_error(ruby, "timestamp is outside the supported range"))
     }
 
-    /// Map the native date-time range error to Ruby's `RangeError`.
+    /// Maps a native timestamp range error to Ruby's `RangeError`.
     fn expiration_range_error(ruby: &Ruby, error: ComponentRange) -> Error {
         range_error(
             ruby,
