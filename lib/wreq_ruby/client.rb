@@ -133,6 +133,11 @@ unless defined?(Wreq)
       #   verification. When false, the client will accept any certificate,
       #   including self-signed or expired ones. Should only be disabled
       #   for testing purposes.
+      # 
+      # @param tls_info [Boolean, nil] Enable collection of TLS certificate
+      #   information on responses. When true, {Response#tls_info} will return
+      #   a {Wreq::TlsInfo} object for HTTPS responses. Collection is opt-in
+      #   because retaining certificate-chain bytes has a cost. Defaults to false.
       #
       # @param no_proxy [Boolean, nil] Disable use of any configured proxy
       #   for this client, even if proxy settings are detected from the

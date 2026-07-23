@@ -95,6 +95,8 @@ struct Builder {
     // ========= TLS options =========
     /// Whether to verify TLS certificates.
     verify: Option<bool>,
+    /// Whether to collect TLS information on responses.
+    tls_info: Option<bool>,
 
     // ========= Network options =========
     /// Whether to disable the proxy for the client.
@@ -358,6 +360,7 @@ impl Client {
 
             // TLS options.
             apply_option!(set_if_some, builder, params.verify, tls_cert_verification);
+            apply_option!(set_if_some, builder, params.tls_info, tls_info);
 
             // Network options.
             apply_option!(set_if_some, builder, params.proxy, proxy);
