@@ -95,7 +95,7 @@ class CookieTest < Minitest::Test
     @jar.add("exp=1; Expires=#{t.gmtime.strftime("%a, %d %b %Y %H:%M:%S GMT")}; Path=/", @base_url)
     c2 = @jar.get_all.find { |c| c.name == "exp" }
     assert c2
-    # expires_at returns Time and expires retains the numeric compatibility API
+    # expires_at returns Time. expires remains available for numeric callers.
     assert_kind_of Time, c2.expires_at
     assert_predicate c2.expires_at, :utc?
     if (e = c2.expires)

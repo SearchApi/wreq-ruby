@@ -312,7 +312,7 @@ pub fn argument_error(ruby: &Ruby, message: impl Into<Cow<'static, str>>) -> Mag
     MagnusError::new(ruby.exception_arg_error(), message)
 }
 
-/// Build a `RangeError` from a validation message.
+/// Builds a Ruby `RangeError` from a validation message.
 pub fn range_error(ruby: &Ruby, message: impl Into<Cow<'static, str>>) -> MagnusError {
     MagnusError::new(ruby.exception_range_error(), message)
 }
