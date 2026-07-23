@@ -5,10 +5,10 @@ use bytes::Bytes;
 use futures_util::TryFutureExt;
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
+use magnus::value::ReprValue;
 use magnus::{Error, Module, RArray, RModule, RString, Ruby, Value, scan_args::scan_args};
 use wreq::Uri;
 use wreq::tls::TlsInfo as WreqTlsInfo;
-use magnus::value::ReprValue;
 
 use crate::{
     arch::ProcessLocal,
@@ -58,9 +58,10 @@ struct TlsInfo {
 impl TlsInfo {
     /// Get the DER-encoded leaf certificate of the peer as a binary Ruby String.
     fn peer_certificate(ruby: &Ruby, rb_self: &Self) -> Option<RString> {
-        rb_self.peer_certificate.as_ref().map(|der| {
-            ruby.str_from_slice(der)
-        })
+        rb_self
+            .peer_certificate
+            .as_ref()
+            .map(|der| ruby.str_from_slice(der))
     }
     /// Get the full certificate chain as a frozen Array of binary Ruby Strings.
     fn peer_certificate_chain(ruby: &Ruby, rb_self: &Self) -> Option<RArray> {
@@ -223,13 +224,11 @@ impl Response {
 
     /// Get TLS certificate information, if available.
     fn tls_info(&self) -> Option<TlsInfo> {
-        self.extensions.get::<WreqTlsInfo>().map(|info| {
-            TlsInfo {
-                peer_certificate: info.peer_certificate().map(|der| der.to_vec()),
-                peer_certificate_chain: info
-                    .peer_certificate_chain()
-                    .map(|chain| chain.map(|cert| cert.to_vec()).collect()),
-            }
+        self.extensions.get::<WreqTlsInfo>().map(|info| TlsInfo {
+            peer_certificate: info.peer_certificate().map(|der| der.to_vec()),
+            peer_certificate_chain: info
+                .peer_certificate_chain()
+                .map(|chain| chain.map(|cert| cert.to_vec()).collect()),
         })
     }
 
