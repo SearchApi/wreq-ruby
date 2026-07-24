@@ -2,15 +2,12 @@
 
 unless defined?(Wreq)
   module Wreq
-    # HTTP response object containing status, headers, and body.
+    # An HTTP response returned by wreq-ruby.
     #
-    # This class wraps a native Rust implementation providing efficient
-    # access to HTTP response data including status codes, headers, body
-    # content, and streaming capabilities.
-    #
-    # Methods that use native response state, including body methods and
-    # {#raise_for_status!}, raise Wreq::ForkError if the child inherited
-    # wreq-ruby from its parent.
+    # Response metadata can be read repeatedly. Body helpers either buffer the
+    # body for reuse or stream it once. Body methods and {#raise_for_status!}
+    # raise Wreq::ForkError in a child that inherited the extension from its
+    # parent.
     #
     # @example Basic response handling
     #   response = client.get("https://api.example.com")
@@ -23,8 +20,8 @@ unless defined?(Wreq)
     #
     # @example Streaming response
     #   response = client.get("https://example.com/large-file")
-    #   response.stream.each do |chunk|
-    #     # Process chunk
+    #   File.open("download.bin", "wb") do |file|
+    #     response.chunks { |chunk| file.write(chunk) }
     #   end
     class Response
       # Get the HTTP status code as an integer.
@@ -44,13 +41,14 @@ unless defined?(Wreq)
       def status
       end
 
-      # Raise for a client or server error status.
+      # Return this response or raise for a 4xx or 5xx status.
       #
-      # This check is opt-in and does not consume the response body.
+      # Requests do not raise for HTTP status codes by default. This opt-in
+      # check leaves the response body available.
       #
-      # @return [Wreq::Response] This response for non-error statuses
-      # @raise [Wreq::StatusError] for a 4xx or 5xx status
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @return [Wreq::Response] The same response for a non-error status
+      # @raise [Wreq::StatusError] If the status is in the 4xx or 5xx range
+      # @raise [Wreq::ForkError] If the child inherited wreq-ruby from its parent
       # @example
       #   response = client.get("https://example.com/missing")
       #   response.raise_for_status!

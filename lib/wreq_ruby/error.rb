@@ -2,244 +2,139 @@
 
 unless defined?(Wreq)
   module Wreq
-    # Base class for regular errors raised by wreq-ruby.
+    # Base class for wreq-ruby runtime errors.
     #
-    # This remains a RuntimeError so existing broad rescue handlers continue
-    # to work. Predicate methods describe a captured native wreq::Error rather
-    # than the Ruby exception class, and more than one predicate may be true.
-    # Errors created entirely by the binding return false for every predicate.
+    # Error remains a RuntimeError so existing rescue handlers keep working.
+    # The `is_*` methods mirror predicates on the captured native `wreq::Error`.
+    # One error can match more than one predicate. Errors created by the binding
+    # itself return false for all of them.
+    #
+    # @example Rescue any wreq-ruby runtime error
+    #   begin
+    #     Wreq.get("not-a-valid-url")
+    #   rescue Wreq::Error => error
+    #     warn "#{error.class}: #{error.message}"
+    #   end
     class Error < RuntimeError
-      # The URI associated with the native error.
+      # Get the URI recorded by the native error.
       #
-      # This explicit accessor may contain credentials or sensitive query
-      # parameters. Error messages and inspection output omit it, so avoid
-      # logging this value without redacting it first.
+      # This value may contain credentials, query parameters, or fragments.
+      # Error messages and `inspect` omit the URI. Redact it before logging it
+      # explicitly.
       #
-      # @return [String, nil] frozen URI string, if one was recorded
+      # @return [String, nil] Frozen URI string, if one was recorded
       attr_reader :uri
 
-      # The response status associated with the error.
+      # Get the HTTP status recorded by the native error.
       #
       # @return [Integer, nil] HTTP status code, if one was recorded
       attr_reader :status
 
-      # @return [Boolean] whether the native error came from a builder
+      # @return [Boolean] Whether the native error came from a builder
       def is_builder
       end
 
-      # @return [Boolean] whether the native error came from redirect handling
+      # @return [Boolean] Whether the native error came from redirect handling
       def is_redirect
       end
 
-      # @return [Boolean] whether the native error represents an HTTP status
+      # @return [Boolean] Whether the native error represents an HTTP status
       def is_status
       end
 
-      # @return [Boolean] whether the native error is related to a timeout
+      # @return [Boolean] Whether the native error is related to a timeout
       def is_timeout
       end
 
-      # @return [Boolean] whether the native error is related to a request
+      # @return [Boolean] Whether the native error is related to a request
       def is_request
       end
 
-      # @return [Boolean] whether the native error is related to connecting
+      # @return [Boolean] Whether the native error is related to connecting
       def is_connect
       end
 
-      # @return [Boolean] whether the native error is related to proxy connection
+      # @return [Boolean] Whether the native error is related to a proxy connection
       def is_proxy_connect
       end
 
-      # @return [Boolean] whether the native error is a connection reset
+      # @return [Boolean] Whether the native error is a connection reset
       def is_connection_reset
       end
 
-      # @return [Boolean] whether the native error is related to a body
+      # @return [Boolean] Whether the native error is related to a body
       def is_body
       end
 
-      # @return [Boolean] whether the native error is related to TLS
+      # @return [Boolean] Whether the native error is related to TLS
       def is_tls
       end
 
-      # @return [Boolean] whether the native error is related to decoding
+      # @return [Boolean] Whether the native error is related to decoding
       def is_decode
       end
 
-      # @return [Boolean] whether the native error is related to an upgrade
+      # @return [Boolean] Whether the native error is related to an upgrade
       def is_upgrade
       end
     end
 
-    # Raised when a native request wait is interrupted.
+    # Raised when Ruby interrupts a native request wait.
     #
-    # InterruptError stays outside StandardError so broad application rescues
-    # do not swallow Ruby interrupts.
+    # This inherits from Interrupt instead of Error, so `rescue StandardError`
+    # does not swallow the interrupt.
     class InterruptError < Interrupt; end
 
-    # System-level and runtime errors
-
-    # Memory allocation failed.
+    # Raised when single-use native state was already consumed or is borrowed.
     class MemoryError < Error; end
 
-    # The child process inherited wreq-ruby from its parent.
+    # Raised when a forked child tries to use inherited native state.
     #
-    # Tokio worker threads do not survive fork, and inherited pooled
-    # connections are not safe to reuse. This error is raised before a child
-    # can access that state.
-    #
-    # @example
-    #   Process.fork do
-    #     Wreq::Client.new # Raises if the parent loaded wreq-ruby.
-    #   end
+    # Tokio worker threads and pooled connections cannot be reused after fork.
     # @see https://github.com/SearchApi/wreq-ruby/blob/main/docs/fork-safety.md
     class ForkError < Error; end
 
-    # Network connection errors
-
-    # Connection to the server failed.
-    #
-    # Raised when the client cannot establish a connection to the server.
-    #
-    # @example
-    #   begin
-    #     client.get("http://localhost:9999")
-    #   rescue Wreq::ConnectionError => e
-    #     puts "Connection failed: #{e.message}"
-    #     retry_with_backoff
-    #   end
+    # Raised when the client cannot connect to the destination server.
     class ConnectionError < Error; end
 
-    # Proxy Connection to the server failed.
-    #
-    # Raised when the client cannot establish a connection to the proxy server.
-    # @example
-    #   begin
-    #     client.get("http://example.com", proxy: "http://invalid-proxy:8080")
-    #   rescue Wreq::ProxyConnectionError => e
-    #     puts "Proxy connection failed: #{e.message}"
-    #     retry_with_different_proxy
-    #   end
+    # Raised when the client cannot connect to the configured proxy.
     class ProxyConnectionError < Error; end
 
-    # Connection was reset by the server.
-    #
-    # Raised when the server closes the connection unexpectedly.
-    #
-    # @example
-    #   rescue Wreq::ConnectionResetError => e
-    #     puts "Connection reset: #{e.message}"
-    #   end
+    # Raised when a peer resets the connection.
     class ConnectionResetError < Error; end
 
-    # TLS/SSL error occurred.
-    #
-    # Raised when there's an error with TLS/SSL, such as certificate
-    # verification failure or protocol mismatch.
-    #
-    # @example
-    #   begin
-    #     client.get("https://self-signed.badssl.com")
-    #   rescue Wreq::TlsError => e
-    #     puts "TLS error: #{e.message}"
-    #   end
+    # Raised when TLS negotiation or certificate verification fails.
     class TlsError < Error; end
 
-    # HTTP protocol and request/response errors
-
-    # Request failed.
-    #
-    # Generic error for request failures that don't fit other categories.
-    #
-    # @example
-    #   rescue Wreq::RequestError => e
-    #     puts "Request failed: #{e.message}"
-    #   end
+    # Raised for a request failure without a more specific error subclass.
     class RequestError < Error; end
 
-    # HTTP status code indicates an error.
+    # Raised when Response#raise_for_status! sees a 4xx or 5xx response.
     #
-    # Raised by Response#raise_for_status! for a 4xx or 5xx response. Requests
-    # continue to return these responses normally until that method is called.
+    # Requests return error responses normally until this opt-in check is made.
+    # The inherited `status` reader returns the integer HTTP status.
     #
     # @example
     #   begin
-    #     response = client.get("https://httpbin.io/status/404")
-    #     response.raise_for_status!
-    #   rescue Wreq::StatusError => e
-    #     puts "HTTP #{e.status}: #{e.message}"
+    #     client.get("https://example.com/missing").raise_for_status!
+    #   rescue Wreq::StatusError => error
+    #     warn "HTTP #{error.status}: #{error.message}"
     #   end
     class StatusError < Error; end
 
-    # Redirect handling failed.
-    #
-    # Raised when too many redirects occur or redirect logic fails.
-    #
-    # @example
-    #   begin
-    #     client = Wreq::Client.new(allow_redirects: true, max_redirects: 3)
-    #     client.get("https://httpbin.io/redirect/10")
-    #   rescue Wreq::RedirectError => e
-    #     puts "Too many redirects: #{e.message}"
-    #   end
+    # Raised when redirect handling fails, such as after too many redirects.
     class RedirectError < Error; end
 
-    # Request timed out.
-    #
-    # Raised when the request exceeds the configured timeout.
-    #
-    # @example
-    #   begin
-    #     client = Wreq::Client.new(timeout: 5)
-    #     client.get("https://httpbin.io/delay/10")
-    #   rescue Wreq::TimeoutError => e
-    #     puts "Request timed out: #{e.message}"
-    #     retry_with_longer_timeout
-    #   end
+    # Raised when a request operation exceeds its timeout.
     class TimeoutError < Error; end
 
-    # Data processing and encoding errors
-
-    # Response body processing failed.
-    #
-    # Raised when there's an error reading or processing the response body.
-    #
-    # @example
-    #   rescue Wreq::BodyError => e
-    #     puts "Body error: #{e.message}"
-    #   end
+    # Raised while sending, reading, or streaming an HTTP body.
     class BodyError < Error; end
 
-    # Decoding response failed.
-    #
-    # Raised when response content cannot be decoded (e.g., invalid UTF-8,
-    # malformed JSON, corrupted compression).
-    #
-    # @example
-    #   begin
-    #     response = client.get("https://example.com/invalid-utf8")
-    #     response.text  # May raise DecodingError
-    #   rescue Wreq::DecodingError => e
-    #     puts "Decoding error: #{e.message}"
-    #     # Fall back to binary data
-    #     data = response.body
-    #   end
+    # Raised when a response body cannot be decoded or parsed.
     class DecodingError < Error; end
 
-    # Configuration and builder errors
-
-    # A native client or request configuration could not be built.
-    #
-    # Raised when validated Ruby options cannot be represented by the native
-    # builder or request body.
-    #
-    # @example
-    #   begin
-    #     client = Wreq::Client.new(proxy: "invalid://")
-    #   rescue Wreq::BuilderError => e
-    #     puts "Invalid configuration: #{e.message}"
-    #   end
+    # Raised when client, request, header, or body configuration is invalid.
     class BuilderError < Error; end
   end
 end

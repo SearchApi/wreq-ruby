@@ -112,11 +112,14 @@ class ErrorHierarchyTest < Minitest::Test
     request_thread&.join(1)
   end
 
-  def test_raise_for_status_returns_same_successful_response
-    with_status_server(204) do |url|
-      response = Wreq.get(url)
+  def test_raise_for_status_returns_same_non_error_response
+    {200 => "ok", 302 => "redirect"}.each do |status, body|
+      with_status_server(status, body:) do |url|
+        response = Wreq.get(url)
 
-      assert_same response, response.raise_for_status!
+        assert_same response, response.raise_for_status!
+        assert_equal body, response.text
+      end
     end
   end
 
@@ -236,7 +239,9 @@ class ErrorHierarchyTest < Minitest::Test
 
   def with_status_server(status, body: "")
     reason = {
+      200 => "OK",
       204 => "No Content",
+      302 => "Found",
       404 => "Not Found",
       503 => "Service Unavailable"
     }.fetch(status)

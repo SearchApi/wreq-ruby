@@ -340,7 +340,7 @@ fn error_has_predicate(rb_self: RObject, predicate: ErrorPredicate) -> Result<bo
         .map(|bits| bits.is_some_and(|bits| ErrorPredicates::from_bits(bits).contains(predicate)))
 }
 
-/// Construct a Ruby exception and attach immutable native error metadata.
+/// Construct a Ruby exception and attach captured native error metadata.
 fn error_with_metadata(
     ruby: &Ruby,
     class: ExceptionClass,
