@@ -148,12 +148,11 @@ macro_rules! define_ruby_enum {
 }
 
 macro_rules! extract_request {
-    ($args:expr, $required:ty) => {{
+    ($ruby:expr, $args:expr, $required:ty) => {{
+        crate::rt::ensure_current($ruby)?;
         let args = magnus::scan_args::scan_args::<$required, (), (), (), magnus::RHash, ()>($args)?;
         let required = args.required;
-        let ruby = magnus::Ruby::get_with(args.keywords);
-        crate::rt::ensure_current(&ruby)?;
-        let request = crate::client::req::Request::new(&ruby, args.keywords)?;
+        let request = crate::client::req::Request::new($ruby, args.keywords)?;
         (required, request)
     }};
 }

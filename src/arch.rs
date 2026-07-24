@@ -6,6 +6,49 @@
 //! do not leak into the rest of the binding.
 #![allow(unsafe_code)]
 
+use std::mem::ManuallyDrop;
+
+/// Native state that belongs to the process where the extension was loaded.
+///
+/// A forked child must not destroy inherited clients, channels, or response
+/// bodies because their synchronization state may belong to threads that no
+/// longer exist. The child intentionally leaks the value and lets the operating
+/// system reclaim it when the process exits.
+///
+/// This wrapper only controls destruction. Call [`crate::rt::ensure_current`]
+/// before accessing the inner value.
+#[derive(Clone)]
+pub(crate) struct ProcessLocal<T>(ManuallyDrop<T>);
+
+impl<T> ProcessLocal<T> {
+    /// Wrap native state created by the current process.
+    pub(crate) fn new(value: T) -> Self {
+        Self(ManuallyDrop::new(value))
+    }
+}
+
+impl<T> AsRef<T> for ProcessLocal<T> {
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> Drop for ProcessLocal<T> {
+    fn drop(&mut self) {
+        #[cfg(unix)]
+        if forked_process_ids().is_some() {
+            return;
+        }
+
+        // SAFETY: `new` initializes the value exactly once, `ManuallyDrop`
+        // prevents an automatic second drop, and this wrapper's `Drop`
+        // implementation runs at most once.
+        unsafe {
+            ManuallyDrop::drop(&mut self.0);
+        }
+    }
+}
+
 /// Whether the native client exposes TCP user-timeout configuration.
 pub(crate) const SUPPORTS_TCP_USER_TIMEOUT: bool = cfg!(any(
     target_os = "android",
@@ -109,5 +152,32 @@ mod windows_gnu {
         unsafe {
             SleepEx(milliseconds, 0);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::Cell;
+
+    use super::ProcessLocal;
+
+    struct DropCounter<'a>(&'a Cell<usize>);
+
+    impl Drop for DropCounter<'_> {
+        fn drop(&mut self) {
+            self.0.set(self.0.get() + 1);
+        }
+    }
+
+    #[test]
+    fn process_local_drops_in_its_owner_process() {
+        let drops = Cell::new(0);
+
+        {
+            let value = ProcessLocal::new(DropCounter(&drops));
+            assert_eq!(value.as_ref().0.get(), 0);
+        }
+
+        assert_eq!(drops.get(), 1);
     }
 }

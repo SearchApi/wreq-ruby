@@ -13,6 +13,7 @@ use magnus::{Error, Integer, RString, Ruby, Value, scan_args::scan_args};
 use tokio::sync::{Mutex, Semaphore, mpsc};
 
 use crate::{
+    arch::ProcessLocal,
     error::{
         argument_error, body_sender_borrow_error, body_sender_borrow_mut_error,
         body_sender_send_error, closed_body_sender_error, memory_error, type_error, wreq_error,
@@ -33,7 +34,7 @@ pub struct BodyReceiver(Mutex<Pin<Box<dyn Stream<Item = wreq::Result<Bytes>> + S
 /// receiver. Ruby's GVL protects state access; no [`RefCell`] borrow is kept
 /// while request backpressure waits without the GVL.
 #[magnus::wrap(class = "Wreq::BodySender", free_immediately, size)]
-pub struct BodySender(RefCell<InnerBodySender>);
+pub struct BodySender(ProcessLocal<RefCell<InnerBodySender>>);
 
 /// Mutable ownership state for both halves of the body channel.
 struct InnerBodySender {
@@ -89,8 +90,10 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `TypeError` for a non-Integer capacity and `ArgumentError` for
-    /// an invalid range or argument count.
+    /// an invalid range or argument count. Returns `Wreq::ForkError` before
+    /// creating a channel in a child that inherited the extension.
     pub fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
+        rt::ensure_current(ruby)?;
         let capacity = parse_capacity(ruby, args)?;
 
         // Create the Tokio channel without allowing an unwind to cross the Ruby FFI boundary.
@@ -100,10 +103,12 @@ impl BodySender {
         let (tx, rx) =
             catch_unwind(|| mpsc::channel(capacity)).map_err(|_| invalid_capacity_error(ruby))?;
 
-        Ok(BodySender(RefCell::new(InnerBodySender {
-            tx: Some(tx),
-            rx: Some(rx),
-        })))
+        Ok(BodySender(ProcessLocal::new(RefCell::new(
+            InnerBodySender {
+                tx: Some(tx),
+                rx: Some(rx),
+            },
+        ))))
     }
 
     /// Push a binary chunk, waiting for capacity when the channel is full.
@@ -113,8 +118,11 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `IOError` after either channel side has closed. An interrupted
-    /// wait raises Ruby's standard `Interrupt` exception.
+    /// wait raises Ruby's standard `Interrupt` exception. Returns
+    /// `Wreq::ForkError` before reading an inherited channel.
     pub fn push(ruby: &Ruby, rb_self: &Self, data: RString) -> Result<(), Error> {
+        rt::ensure_current(ruby)?;
+
         // Clone during the shared borrow, then release it before waiting
         // for capacity. Request attachment needs a mutable borrow.
         let tx = match &rb_self.read_inner(ruby)?.tx {
@@ -131,8 +139,10 @@ impl BodySender {
     ///
     /// # Errors
     ///
-    /// Returns `Wreq::BodyError` if the internal state is already borrowed.
+    /// Returns `Wreq::ForkError` before reading an inherited channel, or
+    /// `Wreq::BodyError` if the internal state is already borrowed.
     pub fn close(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
+        rt::ensure_current(ruby)?;
         let mut inner = rb_self.write_inner(ruby)?;
         inner.tx.take();
         Ok(())
@@ -142,14 +152,17 @@ impl BodySender {
     ///
     /// # Errors
     ///
-    /// Returns `Wreq::BodyError` if the internal state is already borrowed.
+    /// Returns `Wreq::ForkError` before reading an inherited channel, or
+    /// `Wreq::BodyError` if the internal state is already borrowed.
     pub fn is_closed(ruby: &Ruby, rb_self: &Self) -> Result<bool, Error> {
+        rt::ensure_current(ruby)?;
         rb_self.read_inner(ruby).map(|r| r.is_closed())
     }
 
     /// Borrow the channel state without panicking on accidental re-entry.
     fn read_inner(&self, ruby: &Ruby) -> Result<Ref<'_, InnerBodySender>, Error> {
         self.0
+            .as_ref()
             .try_borrow()
             .map_err(|err| body_sender_borrow_error(ruby, err))
     }
@@ -157,6 +170,7 @@ impl BodySender {
     /// Mutably borrow the channel state without panicking on accidental re-entry.
     fn write_inner(&self, ruby: &Ruby) -> Result<RefMut<'_, InnerBodySender>, Error> {
         self.0
+            .as_ref()
             .try_borrow_mut()
             .map_err(|err| body_sender_borrow_mut_error(ruby, err))
     }
@@ -168,6 +182,7 @@ impl BodySender {
     /// Returns `Wreq::MemoryError` if the receiver was already consumed, or
     /// `Wreq::BodyError` if Ruby re-enters while the state is borrowed.
     pub(super) fn take_receiver(&self, ruby: &Ruby) -> Result<ReceiverStream<Bytes>, Error> {
+        rt::ensure_current(ruby)?;
         self.write_inner(ruby)?
             .rx
             .take()
