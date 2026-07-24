@@ -7,16 +7,17 @@ unless defined?(Wreq)
     # Memory allocation failed.
     class MemoryError < StandardError; end
 
-    # The native extension was inherited from a parent process.
+    # The child process inherited wreq-ruby from its parent.
     #
-    # Raised when wreq-ruby is used in a child process forked after the
-    # extension was loaded. Its process-global native state cannot be reused
-    # safely in the child.
+    # Tokio worker threads do not survive fork, and inherited pooled
+    # connections are not safe to reuse. This error is raised before a child
+    # can access that state.
     #
     # @example
     #   Process.fork do
-    #     Wreq::Client.new # Raises when the parent loaded wreq-ruby.
+    #     Wreq::Client.new # Raises if the parent loaded wreq-ruby.
     #   end
+    # @see https://github.com/SearchApi/wreq-ruby/blob/main/docs/fork-safety.md
     class ForkError < RuntimeError; end
 
     # Network connection errors

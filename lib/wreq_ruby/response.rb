@@ -8,8 +8,8 @@ unless defined?(Wreq)
     # access to HTTP response data including status codes, headers, body
     # content, and streaming capabilities.
     #
-    # Reading or streaming the body raises Wreq::ForkError in a child process
-    # forked after wreq-ruby was loaded.
+    # Body methods raise Wreq::ForkError if the child inherited wreq-ruby from
+    # its parent.
     #
     # @example Basic response handling
     #   response = client.get("https://api.example.com")
@@ -110,6 +110,7 @@ unless defined?(Wreq)
 
       # Get the response bytes as a binary string.
       # @return [String] Response body as binary data
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example
       #   binary_data = response.bytes
       #   puts binary_data.size  # => 1024
@@ -125,6 +126,7 @@ unless defined?(Wreq)
       #   html = response.text("ISO-8859-1")
       #   puts html
       # @raise [Wreq::DecodingError] if body cannot be decoded with the specified encoding
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def text(default_encoding = "UTF-8")
       end
 
@@ -135,6 +137,7 @@ unless defined?(Wreq)
       #
       # @return [Object] Parsed JSON (Hash, Array, String, Integer, Float, Boolean, nil)
       # @raise [Wreq::DecodingError] if body is not valid JSON
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example
       #   data = response.json
       #   puts data["key"]
@@ -152,6 +155,7 @@ unless defined?(Wreq)
       # @raise [LocalJumpError] if called without a block
       # @raise [Wreq::TimeoutError, Wreq::BodyError, Wreq::ConnectionResetError, Wreq::RequestError]
       #   if streaming fails while reading the response body
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example Save response to file
       #   File.open("output.bin", "wb") do |f|
       #     response.chunks { |chunk| f.write(chunk) }
@@ -168,6 +172,7 @@ unless defined?(Wreq)
       # Close the response and free associated resources.
       #
       # @return [void]
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example
       #   response.close
       def close
