@@ -140,12 +140,20 @@ jobs:
           ruby-version: "3.3"
           bundler-cache: true
 
+      - name: Install Windows build dependencies for Ruby 3.3
+        run: >-
+          ridk exec pacman -S --needed --noconfirm
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-clang
+          mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-pkgconf
+
       - name: Compile for Ruby 3.3
         shell: pwsh
         env:
           RB_SYS_CARGO_PROFILE: release
         run: |
-          ./script/build_windows_gnu.ps1 -SkipBundleInstall
+          bundle exec rake compile
           New-Item -ItemType Directory -Force "lib\wreq_ruby\3.3" | Out-Null
           Copy-Item "lib\wreq_ruby\wreq_ruby.so" "lib\wreq_ruby\3.3\wreq_ruby.so" -Force
 
@@ -154,12 +162,20 @@ jobs:
           ruby-version: "3.4"
           bundler-cache: true
 
+      - name: Install Windows build dependencies for Ruby 3.4
+        run: >-
+          ridk exec pacman -S --needed --noconfirm
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-clang
+          mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-pkgconf
+
       - name: Compile for Ruby 3.4
         shell: pwsh
         env:
           RB_SYS_CARGO_PROFILE: release
         run: |
-          ./script/build_windows_gnu.ps1 -SkipBundleInstall
+          bundle exec rake compile
           New-Item -ItemType Directory -Force "lib\wreq_ruby\3.4" | Out-Null
           Copy-Item "lib\wreq_ruby\wreq_ruby.so" "lib\wreq_ruby\3.4\wreq_ruby.so" -Force
 
@@ -168,12 +184,20 @@ jobs:
           ruby-version: "4.0"
           bundler-cache: true
 
+      - name: Install Windows build dependencies for Ruby 4.0
+        run: >-
+          ridk exec pacman -S --needed --noconfirm
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-clang
+          mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-pkgconf
+
       - name: Compile for Ruby 4.0
         shell: pwsh
         env:
           RB_SYS_CARGO_PROFILE: release
         run: |
-          ./script/build_windows_gnu.ps1 -SkipBundleInstall
+          bundle exec rake compile
           New-Item -ItemType Directory -Force "lib\wreq_ruby\4.0" | Out-Null
           Copy-Item "lib\wreq_ruby\wreq_ruby.so" "lib\wreq_ruby\4.0\wreq_ruby.so" -Force
 

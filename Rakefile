@@ -1,5 +1,11 @@
 # frozen_string_literal: true
 
+require_relative "script/rust_env"
+
+# Cargo needs RubyInstaller's UCRT tools when Rake builds the native extension
+# on Windows. Other platforms keep their existing native Cargo environment.
+Wreq::RustEnv.activate
+
 require "bundler/gem_tasks"
 require "rake/testtask"
 require "rb_sys/extensiontask"

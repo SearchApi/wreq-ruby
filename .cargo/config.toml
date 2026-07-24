@@ -1,0 +1,4 @@
+# Rake creates or removes this host-specific file when switching platforms.
+include = [
+  { path = "windows.toml", optional = true },
+]
