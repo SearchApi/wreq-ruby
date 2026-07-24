@@ -124,6 +124,13 @@ jobs:
         ruby-version: ${{ matrix.ruby }}
         bundler-cache: true
 
+    - name: Install Windows build dependencies
+      run: >-
+        ridk exec pacman -S --needed --noconfirm
+        mingw-w64-ucrt-x86_64-gcc
+        mingw-w64-ucrt-x86_64-clang
+        mingw-w64-ucrt-x86_64-cmake
+        mingw-w64-ucrt-x86_64-pkgconf
+
     - name: Run tests
-      shell: pwsh
-      run: ./script/build_windows_gnu.ps1 -SkipBundleInstall -RunTests
+      run: bundle exec rake test
