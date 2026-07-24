@@ -8,8 +8,6 @@
 //!
 //! [RFC 9110 section 5.1]: https://www.rfc-editor.org/rfc/rfc9110.html#section-5.1
 
-mod helper;
-
 use std::cell::RefCell;
 
 use bytes::Bytes;
@@ -17,11 +15,12 @@ use http::{HeaderMap, HeaderValue};
 use magnus::{
     Error, RArray, RModule, RString, Ruby, TryConvert, Value, function, method,
     prelude::*,
+    scan_args::scan_args,
     typed_data::{Inspect, Obj},
 };
 use wreq::header::OrigHeaderMap;
 
-use crate::error::{header_value_error_to_magnus, type_value_error_to_magnus};
+use crate::error::{header_type_error, header_value_error};
 
 use self::helper::{
     ensure_header_count, from_source, header_count_error, parse_header_name, parse_header_values,
@@ -45,10 +44,11 @@ pub struct OrigHeaders(pub OrigHeaderMap);
 
 impl TryConvert for UserAgent {
     fn try_convert(value: Value) -> Result<Self, Error> {
+        let ruby = Ruby::get_with(value);
         let s = RString::try_convert(value)?;
         HeaderValue::from_maybe_shared(s.to_bytes())
             .map(Self)
-            .map_err(header_value_error_to_magnus)
+            .map_err(|err| header_value_error(&ruby, err))
     }
 }
 
@@ -78,11 +78,12 @@ impl Headers {
     /// A String stores one occurrence, while an Array stores each String as a
     /// separate occurrence. An empty Array removes the header.
     pub fn set(&self, name: Value, value: Value) -> Result<(), Error> {
+        let ruby = Ruby::get_with(name);
         let name = parse_header_name(name)?;
         let values = parse_header_values(value)?;
         let mut headers = self.0.borrow_mut();
         let replaced = headers.get_all(&name).iter().count();
-        ensure_header_count(headers.len(), replaced, values.len())?;
+        ensure_header_count(&ruby, headers.len(), replaced, values.len())?;
 
         let mut values = values.into_iter();
         let Some(first) = values.next() else {
@@ -92,11 +93,11 @@ impl Headers {
 
         headers
             .try_insert(name.clone(), first)
-            .map_err(|_| header_count_error())?;
+            .map_err(|_| header_count_error(&ruby))?;
         for value in values {
             headers
                 .try_append(name.clone(), value)
-                .map_err(|_| header_count_error())?;
+                .map_err(|_| header_count_error(&ruby))?;
         }
         Ok(())
     }
@@ -105,15 +106,16 @@ impl Headers {
     ///
     /// Array elements are appended separately and are never comma-folded.
     pub fn append(&self, name: Value, value: Value) -> Result<(), Error> {
+        let ruby = Ruby::get_with(name);
         let name = parse_header_name(name)?;
         let values = parse_header_values(value)?;
         let mut headers = self.0.borrow_mut();
-        ensure_header_count(headers.len(), 0, values.len())?;
+        ensure_header_count(&ruby, headers.len(), 0, values.len())?;
 
         for value in values {
             headers
                 .try_append(name.clone(), value)
-                .map_err(|_| header_count_error())?;
+                .map_err(|_| header_count_error(&ruby))?;
         }
         Ok(())
     }
@@ -170,18 +172,13 @@ impl Headers {
     ///
     /// The optional source may be a Hash, another `Wreq::Headers`, or an
     /// Enumerable whose elements are name-value pairs.
-    pub fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
-        match args {
-            [] => Ok(Self::default()),
-            [source] => from_source(*source),
-            _ => Err(Error::new(
-                ruby.exception_arg_error(),
-                format!(
-                    "wrong number of arguments (given {}, expected 0..1)",
-                    args.len()
-                ),
-            )),
-        }
+    pub fn new(args: &[Value]) -> Result<Self, Error> {
+        scan_args::<(), (Option<Value>,), (), (), (), ()>(args)?
+            .optional
+            .0
+            .map(from_source)
+            .transpose()
+            .map(Option::unwrap_or_default)
     }
 
     /// Return a value using Ruby collection semantics.
@@ -268,16 +265,142 @@ impl TryConvert for Headers {
 
 impl TryConvert for OrigHeaders {
     fn try_convert(value: Value) -> Result<Self, Error> {
+        let ruby = Ruby::get_with(value);
         let mut map = OrigHeaderMap::new();
 
         let rarray = RArray::from_value(value)
-            .ok_or_else(|| type_value_error_to_magnus("Expected an array of strings"))?;
+            .ok_or_else(|| header_type_error(&ruby, "Expected an array of strings"))?;
 
-        for value in rarray.into_iter().flat_map(RString::from_value) {
+        for value in rarray {
+            let value = RString::try_convert(value)
+                .map_err(|_| header_type_error(&ruby, "Expected an array of strings"))?;
             map.insert(value.to_bytes());
         }
 
         Ok(Self(map))
+    }
+}
+
+mod helper {
+    //! Ruby value conversion helpers for `Wreq::Headers`.
+
+    use bytes::Bytes;
+    use http::{HeaderName, HeaderValue};
+    use magnus::{
+        Error, RArray, RString, Ruby, Symbol, TryConvert, Value, prelude::*, typed_data::Obj,
+    };
+
+    use crate::error::{header_name_error, header_type_error, header_value_error};
+
+    use super::Headers;
+
+    /// Maximum number of field-value occurrences supported by `HeaderMap`.
+    const MAX_HEADER_ENTRIES: usize = 1 << 15;
+
+    /// Build a header collection from a Ruby source object.
+    ///
+    /// Accepts another `Wreq::Headers`, a Hash, or any object whose `to_a` result
+    /// contains two-element name-value pairs. Array values are delegated to
+    /// [`Headers::append`] so each value remains a separate occurrence.
+    pub(super) fn from_source(source: Value) -> Result<Headers, Error> {
+        let ruby = Ruby::get_with(source);
+        if let Ok(headers) = Obj::<Headers>::try_convert(source) {
+            return Ok((*headers).clone());
+        }
+        if !source.respond_to("to_a", false)? {
+            return Err(header_type_error(
+                &ruby,
+                "Expected Headers, a Hash, or an enumerable of pairs",
+            ));
+        }
+
+        let pairs: RArray = source.funcall_public("to_a", ())?;
+        let headers = Headers::default();
+        for pair in pairs {
+            let pair = RArray::try_convert(pair)
+                .map_err(|_| header_type_error(&ruby, "Expected each header entry to be a pair"))?;
+            if pair.len() != 2 {
+                return Err(header_type_error(
+                    &ruby,
+                    "Expected each header entry to contain a name and value",
+                ));
+            }
+
+            headers.append(pair.entry(0)?, pair.entry(1)?)?;
+        }
+        Ok(headers)
+    }
+
+    /// Convert a Ruby String or Symbol into a normalized HTTP header name.
+    ///
+    /// Symbol underscores are changed to hyphens before [`HeaderName`] validates
+    /// and normalizes the name. Other Ruby types produce `Wreq::BuilderError`.
+    pub(super) fn parse_header_name(value: Value) -> Result<HeaderName, Error> {
+        let ruby = Ruby::get_with(value);
+        let name = match (RString::from_value(value), Symbol::from_value(value)) {
+            (Some(name), _) => name.to_bytes(),
+            (None, Some(name)) => Bytes::from(name.name()?.replace('_', "-")),
+            (None, None) => {
+                return Err(header_type_error(
+                    &ruby,
+                    "Expected a String or Symbol header name",
+                ));
+            }
+        };
+        HeaderName::from_bytes(name.as_ref()).map_err(|err| header_name_error(&ruby, err))
+    }
+
+    /// Convert a Ruby String or Array of Strings into validated header values.
+    ///
+    /// Each Array element becomes one [`HeaderValue`]. An empty Array therefore
+    /// produces no values, allowing `set` to remove a header and `append` to do
+    /// nothing.
+    pub(super) fn parse_header_values(value: Value) -> Result<Vec<HeaderValue>, Error> {
+        if let Some(values) = RArray::from_value(value) {
+            values.into_iter().map(parse_header_value).collect()
+        } else {
+            Ok(vec![parse_header_value(value)?])
+        }
+    }
+
+    /// Convert one Ruby String into a validated HTTP header value.
+    ///
+    /// Invalid Ruby types and bytes rejected by [`HeaderValue`] are mapped to
+    /// `Wreq::BuilderError`.
+    fn parse_header_value(value: Value) -> Result<HeaderValue, Error> {
+        let ruby = Ruby::get_with(value);
+        let value = RString::try_convert(value)
+            .map_err(|_| header_type_error(&ruby, "Expected a String header value"))?;
+        HeaderValue::from_maybe_shared(value.to_bytes())
+            .map_err(|err| header_value_error(&ruby, err))
+    }
+
+    /// Validate the resulting number of header occurrences before a mutation.
+    ///
+    /// `current` is the collection length, `replaced` is the number of existing
+    /// occurrences removed by `set`, and `added` is the incoming value count.
+    /// Checked arithmetic prevents overflow; an invalid calculation or a result
+    /// above the native [`HeaderMap`](http::HeaderMap) limit returns
+    /// `Wreq::BuilderError` without mutating the collection.
+    pub(super) fn ensure_header_count(
+        ruby: &Ruby,
+        current: usize,
+        replaced: usize,
+        added: usize,
+    ) -> Result<(), Error> {
+        let count = current
+            .checked_sub(replaced)
+            .and_then(|count| count.checked_add(added));
+        if count.is_some_and(|count| count <= MAX_HEADER_ENTRIES) {
+            Ok(())
+        } else {
+            Err(header_count_error(ruby))
+        }
+    }
+
+    /// Build the error returned when the native header map reaches its entry limit.
+    pub(super) fn header_count_error(ruby: &Ruby) -> Error {
+        header_type_error(ruby, "Header collection exceeds 32,768 entries")
     }
 }
 

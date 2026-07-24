@@ -25,6 +25,43 @@ module Wreq
       TRACE = nil # @return [Wreq::Method] HTTP TRACE method
       PATCH = nil # @return [Wreq::Method] HTTP PATCH method
     end
+
+    # Returns the HTTP method token (e.g. "GET", "POST").
+    # @return [String]
+    unless method_defined?(:to_s)
+      def to_s
+      end
+    end
+
+    # Returns the HTTP method as a lowercase symbol (e.g. :get, :post).
+    # @return [Symbol]
+    unless method_defined?(:to_sym)
+      def to_sym
+      end
+    end
+
+    # Value-based equality. Returns true when both represent the same HTTP method.
+    # @param other [Object]
+    # @return [Boolean]    
+    unless method_defined?(:==)
+      def ==(other)
+      end
+    end
+
+    # Strict equality for Hash key and Set member semantics.
+    # @param other [Object]
+    # @return [Boolean]
+    unless method_defined?(:eql?)
+      def eql?(other)
+      end
+    end
+
+    # Hash value consistent with {#eql?} for use as Hash keys.
+    # @return [Integer]
+    unless method_defined?(:hash)
+      def hash
+      end
+    end
   end
 
   # HTTP version enumeration backed by Rust.
@@ -61,6 +98,21 @@ module Wreq
     #   Wreq::Version::HTTP_11 == response.version
     unless method_defined?(:==)
       def ==(other)
+      end
+    end
+
+    # Strict equality for Hash key and Set member semantics.
+    # @param other [Object]
+    # @return [Boolean]
+    unless method_defined?(:eql?)
+      def eql?(other)
+      end
+    end
+
+    # Hash value consistent with {#eql?} for use as Hash keys.
+    # @return [Integer]
+    unless method_defined?(:hash)
+      def hash
       end
     end
   end
@@ -140,6 +192,28 @@ module Wreq
       # Returns a string representation of the status code.
       # @return [String] Status code as string
       def to_s
+      end
+
+      # Returns the status code as an integer.
+      # @return [Integer] the numeric HTTP status code
+      def to_i
+      end
+
+      # Value-based equality. Only compares with other StatusCode instances.
+      # @param other [Object]
+      # @return [Boolean]
+      def ==(other)
+      end
+
+      # Strict equality for Hash key and Set member semantics.
+      # @param other [Object]
+      # @return [Boolean]
+      def eql?(other)
+      end
+
+      # Hash value consistent with {#eql?} for use as Hash keys.
+      # @return [Integer]
+      def hash
       end
     end
   end

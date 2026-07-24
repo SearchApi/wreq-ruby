@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 #![allow(clippy::wrong_self_convention)]
 
 #[macro_use]
@@ -11,67 +12,72 @@ mod extractor;
 mod gvl;
 mod header;
 mod http;
+mod options;
 mod rt;
+mod serde;
 
 use magnus::{Error, Module, Ruby, Value};
 
-use crate::client::{Client, resp::Response};
+use crate::{
+    client::{Client, resp::Response},
+    http::Method,
+};
 
 const RUBY_MODULE_NAME: &str = "Wreq";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Send a HTTP request.
 #[inline]
-pub fn request(args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::request(&Client::default(), args)
+pub fn request(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
+    Client::request_with_default_client(ruby, args)
 }
 
 /// Send a GET request.
 #[inline]
-pub fn get(args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::get(&Client::default(), args)
+pub fn get(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
+    Client::execute_with_default_client(ruby, Method::GET, args)
 }
 
 /// Send a POST request.
 #[inline]
-pub fn post(args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::post(&Client::default(), args)
+pub fn post(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
+    Client::execute_with_default_client(ruby, Method::POST, args)
 }
 
 /// Send a PUT request.
 #[inline]
-pub fn put(args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::put(&Client::default(), args)
+pub fn put(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
+    Client::execute_with_default_client(ruby, Method::PUT, args)
 }
 
 /// Send a DELETE request.
 #[inline]
-pub fn delete(args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::delete(&Client::default(), args)
+pub fn delete(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
+    Client::execute_with_default_client(ruby, Method::DELETE, args)
 }
 
 /// Send a HEAD request.
 #[inline]
-pub fn head(args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::head(&Client::default(), args)
+pub fn head(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
+    Client::execute_with_default_client(ruby, Method::HEAD, args)
 }
 
 /// Send an OPTIONS request.
 #[inline]
-pub fn options(args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::options(&Client::default(), args)
+pub fn options(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
+    Client::execute_with_default_client(ruby, Method::OPTIONS, args)
 }
 
 /// Send a TRACE request.
 #[inline]
-pub fn trace(args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::trace(&Client::default(), args)
+pub fn trace(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
+    Client::execute_with_default_client(ruby, Method::TRACE, args)
 }
 
 /// Send a PATCH request.
 #[inline]
-pub fn patch(args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::patch(&Client::default(), args)
+pub fn patch(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
+    Client::execute_with_default_client(ruby, Method::PATCH, args)
 }
 
 /// wreq ruby binding
@@ -93,6 +99,6 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     cookie::include(ruby, &gem_module)?;
     client::include(ruby, &gem_module)?;
     emulate::include(ruby, &gem_module)?;
-    error::include(ruby);
+    error::include(ruby, &gem_module)?;
     Ok(())
 }

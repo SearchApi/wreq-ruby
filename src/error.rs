@@ -1,5 +1,11 @@
+use std::{
+    cell::{BorrowError, BorrowMutError},
+    fmt,
+};
+
 use magnus::{
-    Error as MagnusError, RModule, Ruby, exception::ExceptionClass, prelude::*, value::Lazy,
+    Error as MagnusError, RModule, Ruby, error::ErrorType, exception::ExceptionClass, prelude::*,
+    value::Lazy,
 };
 use tokio::sync::mpsc::error::SendError;
 
@@ -17,16 +23,22 @@ Potential solutions:
 3) Change the order of operations to reference the instance before borrowing it.
 "#;
 
-static WREQ: Lazy<RModule> = Lazy::new(|ruby| ruby.define_module(crate::RUBY_MODULE_NAME).unwrap());
-
 macro_rules! define_exception {
     ($name:ident, $ruby_name:literal, $parent_method:ident) => {
         static $name: Lazy<ExceptionClass> = Lazy::new(|ruby| {
-            ruby.get_inner(&WREQ)
-                .define_error($ruby_name, ruby.$parent_method())
-                .unwrap()
+            ruby.class_object()
+                .const_get::<_, RModule>(crate::RUBY_MODULE_NAME)
+                .and_then(|module| module.const_get::<_, ExceptionClass>($ruby_name))
+                .unwrap_or_else(|_| ruby.$parent_method())
         });
     };
+}
+
+macro_rules! initialize_exception {
+    ($ruby:expr, $module:expr, $name:ident, $ruby_name:literal, $parent_method:ident) => {{
+        $module.define_error($ruby_name, $ruby.$parent_method())?;
+        Lazy::force(&$name, $ruby);
+    }};
 }
 
 macro_rules! map_wreq_error {
@@ -73,60 +85,127 @@ define_exception!(DECODING_ERROR, "DecodingError", exception_runtime_error);
 define_exception!(BUILDER_ERROR, "BuilderError", exception_runtime_error);
 
 /// Memory error constant
-pub fn memory_error() -> MagnusError {
-    MagnusError::new(ruby!().get_inner(&MEMORY), RACE_CONDITION_ERROR_MSG)
+pub fn memory_error(ruby: &Ruby) -> MagnusError {
+    MagnusError::new(ruby.get_inner(&MEMORY), RACE_CONDITION_ERROR_MSG)
 }
 
-/// Create a Ruby thread interruption error.
-pub fn interrupt_error() -> MagnusError {
-    MagnusError::new(ruby!().exception_interrupt(), "request interrupted")
+/// Create Ruby's standard thread interruption error.
+pub fn interrupt_error(ruby: &Ruby) -> MagnusError {
+    MagnusError::new(ruby.exception_interrupt(), "request interrupted")
 }
 
-/// LocalJumpError for methods that require a Ruby block.
-pub fn no_block_given_error() -> MagnusError {
+/// Map a Tokio runtime initialization failure to `Wreq::BuilderError`.
+pub fn runtime_initialization_error(ruby: &Ruby, err: &std::io::Error) -> MagnusError {
     MagnusError::new(
-        ruby!().exception_local_jump_error(),
-        "no block given (yield)",
+        ruby.get_inner(&BUILDER_ERROR),
+        format!("failed to initialize Tokio runtime: {err}"),
     )
 }
 
-/// Map [`tokio::sync::mpsc::error::SendError`] to corresponding [`magnus::Error`]
-pub fn mpsc_send_error_to_magnus<T>(err: SendError<T>) -> MagnusError {
+/// LocalJumpError for methods that require a Ruby block.
+pub fn no_block_given_error(ruby: &Ruby) -> MagnusError {
+    MagnusError::new(ruby.exception_local_jump_error(), "no block given (yield)")
+}
+
+/// Build an `IOError` for writes to a closed request-body sender.
+pub fn closed_body_sender_error(ruby: &Ruby) -> MagnusError {
+    MagnusError::new(ruby.exception_io_error(), "closed body sender")
+}
+
+/// Map a failed body-channel send to `IOError`.
+pub fn body_sender_send_error<T>(ruby: &Ruby, err: SendError<T>) -> MagnusError {
     MagnusError::new(
-        ruby!().get_inner(&BODY_ERROR),
-        format!("failed to send body chunk: {}", err),
+        ruby.exception_io_error(),
+        format!("closed body sender: {err}"),
+    )
+}
+
+/// Map an immutable sender-state borrow failure to `Wreq::BodyError`.
+pub fn body_sender_borrow_error(ruby: &Ruby, err: BorrowError) -> MagnusError {
+    MagnusError::new(
+        ruby.get_inner(&BODY_ERROR),
+        format!("body sender state is unavailable: {err}"),
+    )
+}
+
+/// Map a mutable sender-state borrow failure to `Wreq::BodyError`.
+pub fn body_sender_borrow_mut_error(ruby: &Ruby, err: BorrowMutError) -> MagnusError {
+    MagnusError::new(
+        ruby.get_inner(&BODY_ERROR),
+        format!("body sender state is unavailable: {err}"),
     )
 }
 
 /// Map [`wreq::header::InvalidHeaderName`] to corresponding [`magnus::Error`]
-pub fn header_name_error_to_magnus(err: wreq::header::InvalidHeaderName) -> MagnusError {
+pub fn header_name_error(ruby: &Ruby, err: wreq::header::InvalidHeaderName) -> MagnusError {
     MagnusError::new(
-        ruby!().get_inner(&BUILDER_ERROR),
+        ruby.get_inner(&BUILDER_ERROR),
         format!("invalid header name: {err}"),
     )
 }
 
 /// Map [`wreq::header::InvalidHeaderValue`] to corresponding [`magnus::Error`]
-pub fn header_value_error_to_magnus(err: wreq::header::InvalidHeaderValue) -> MagnusError {
+pub fn header_value_error(ruby: &Ruby, err: wreq::header::InvalidHeaderValue) -> MagnusError {
     MagnusError::new(
-        ruby!().get_inner(&BUILDER_ERROR),
+        ruby.get_inner(&BUILDER_ERROR),
         format!("invalid header value: {err}"),
     )
 }
 
-/// Map type/value errors to corresponding [`magnus::Error`]
-pub fn type_value_error_to_magnus(err: &str) -> MagnusError {
+/// Build a `Wreq::BuilderError` for an invalid Ruby header structure.
+pub fn header_type_error(ruby: &Ruby, err: &str) -> MagnusError {
+    MagnusError::new(ruby.get_inner(&BUILDER_ERROR), format!("type error: {err}"))
+}
+
+/// Build a `Wreq::BuilderError` for unsupported request JSON values.
+pub fn json_serialization_error(ruby: &Ruby, err: MagnusError) -> MagnusError {
     MagnusError::new(
-        ruby!().get_inner(&BUILDER_ERROR),
-        format!("type error: {err}"),
+        ruby.get_inner(&BUILDER_ERROR),
+        format!("JSON serialization error: {err}"),
     )
 }
 
+/// Prefix a Magnus error while preserving its original Ruby exception class.
+pub(crate) fn contextualize_magnus_error(
+    err: MagnusError,
+    context: fmt::Arguments<'_>,
+) -> MagnusError {
+    match err.error_type() {
+        ErrorType::Error(class, message) => {
+            MagnusError::new(*class, format!("{context}: {message}"))
+        }
+        ErrorType::Exception(exception) => MagnusError::new(
+            exception.exception_class(),
+            format!("{context}: {exception}"),
+        ),
+        ErrorType::Jump(_) => err,
+    }
+}
+
+/// Add an option name while preserving the original Ruby exception class.
+pub fn option_value_error(option: &str, err: MagnusError) -> MagnusError {
+    contextualize_magnus_error(err, format_args!("invalid value for :{option}"))
+}
+
+/// Build an `ArgumentError` from a validation message.
+pub fn argument_error(ruby: &Ruby, message: impl Into<String>) -> MagnusError {
+    MagnusError::new(ruby.exception_arg_error(), message.into())
+}
+
+/// Builds a Ruby `RangeError` from a validation message.
+pub fn range_error(ruby: &Ruby, message: impl Into<String>) -> MagnusError {
+    MagnusError::new(ruby.exception_range_error(), message.into())
+}
+
+/// Build a `TypeError` from a conversion message.
+pub fn type_error(ruby: &Ruby, message: impl Into<String>) -> MagnusError {
+    MagnusError::new(ruby.exception_type_error(), message.into())
+}
 /// Map [`wreq::Error`] to corresponding [`magnus::Error`]
-pub fn wreq_error_to_magnus(err: wreq::Error) -> MagnusError {
+pub fn wreq_error(ruby: &Ruby, err: wreq::Error) -> MagnusError {
     let error_msg = err.to_string();
     map_wreq_error!(
-        ruby!(),
+        ruby,
         err,
         error_msg,
         is_builder => BUILDER_ERROR,
@@ -143,17 +222,95 @@ pub fn wreq_error_to_magnus(err: wreq::Error) -> MagnusError {
     )
 }
 
-pub fn include(ruby: &Ruby) {
-    Lazy::force(&MEMORY, ruby);
-    Lazy::force(&CONNECTION_ERROR, ruby);
-    Lazy::force(&PROXY_CONNECTION_ERROR, ruby);
-    Lazy::force(&CONNECTION_RESET_ERROR, ruby);
-    Lazy::force(&TLS_ERROR, ruby);
-    Lazy::force(&REQUEST_ERROR, ruby);
-    Lazy::force(&STATUS_ERROR, ruby);
-    Lazy::force(&REDIRECT_ERROR, ruby);
-    Lazy::force(&TIMEOUT_ERROR, ruby);
-    Lazy::force(&BODY_ERROR, ruby);
-    Lazy::force(&DECODING_ERROR, ruby);
-    Lazy::force(&BUILDER_ERROR, ruby);
+/// Define and retain the Ruby exception classes used by the binding.
+///
+/// # Errors
+///
+/// Returns the Ruby exception raised while defining an error class.
+pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), MagnusError> {
+    initialize_exception!(
+        ruby,
+        gem_module,
+        MEMORY,
+        "MemoryError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        CONNECTION_ERROR,
+        "ConnectionError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        PROXY_CONNECTION_ERROR,
+        "ProxyConnectionError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        CONNECTION_RESET_ERROR,
+        "ConnectionResetError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        TLS_ERROR,
+        "TlsError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        REQUEST_ERROR,
+        "RequestError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        STATUS_ERROR,
+        "StatusError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        REDIRECT_ERROR,
+        "RedirectError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        TIMEOUT_ERROR,
+        "TimeoutError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        BODY_ERROR,
+        "BodyError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        DECODING_ERROR,
+        "DecodingError",
+        exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        BUILDER_ERROR,
+        "BuilderError",
+        exception_runtime_error
+    );
+    Ok(())
 }

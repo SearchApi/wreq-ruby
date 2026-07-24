@@ -1,24 +1,41 @@
-use std::{fmt, sync::Arc, time::SystemTime};
+//! Ruby bindings for HTTP cookies and the shared cookie jar.
+//!
+//! Expiration follows [RFC 6265]. The binding accepts Ruby `Time` values and
+//! finite Unix timestamps without converting them through unsigned
+//! `SystemTime`. A non-positive Max-Age expires the cookie immediately.
+//!
+//! [RFC 6265]: https://www.rfc-editor.org/rfc/rfc6265.html
 
+use std::{fmt, sync::Arc};
+
+use ::serde::Deserialize;
 use bytes::Bytes;
-use cookie::{Cookie as RawCookie, Expiration, ParseError, time::Duration};
+use cookie::{Cookie as RawCookie, ParseError, time::Duration};
 use magnus::{
-    Error, Module, Object, RHash, RModule, RString, Ruby, TryConvert, Value, function, method,
-    r_hash::ForEach, typed_data::Obj, value::ReprValue,
+    Error, Module, Object, RHash, RModule, RString, Ruby, Time, TryConvert, Value, function,
+    method, r_hash::ForEach, typed_data::Obj, value::ReprValue,
 };
 use wreq::header::{self, HeaderMap, HeaderValue};
 
-use crate::{error::header_value_error_to_magnus, gvl};
+use crate::{
+    error::{header_value_error, type_error},
+    gvl,
+    options::{NativeOption, Options},
+};
 
+use self::helper::{CookieExpiration, to_ruby_time, to_unix_timestamp};
+
+// Defines constant registration, `into_ffi`/`from_ffi`, and handlers for
+// Ruby's `to_s`, `to_sym`, `==`, `eql?`, and `hash` methods.
 define_ruby_enum!(
     /// The Cookie SameSite attribute.
-    const,
     SameSite,
     "Wreq::SameSite",
     cookie::SameSite,
-    Strict,
-    Lax,
-    None,
+    symbols:
+    Strict => "strict",
+    Lax => "lax",
+    None => "none",
 );
 
 /// A single HTTP cookie.
@@ -30,80 +47,103 @@ pub struct Cookie(RawCookie<'static>);
 #[derive(Default)]
 pub struct Cookies(pub Vec<HeaderValue>);
 
-/// A good default `CookieStore` implementation.
+/// Keyword options accepted by `Wreq::Cookie.new`.
+#[derive(Deserialize)]
+struct Builder {
+    /// The Domain attribute.
+    domain: Option<String>,
+
+    /// The Path attribute.
+    path: Option<String>,
+
+    /// The signed Max-Age lifetime in seconds.
+    #[serde(default)]
+    max_age: NativeOption<i64>,
+
+    /// The expiration converted from a Ruby `Time` or Numeric value.
+    #[serde(default)]
+    expires: NativeOption<CookieExpiration>,
+
+    /// Whether the cookie is inaccessible to client-side scripts.
+    http_only: Option<bool>,
+
+    /// Whether the cookie is restricted to secure connections.
+    secure: Option<bool>,
+
+    /// The SameSite policy.
+    #[serde(default)]
+    same_site: NativeOption<Obj<SameSite>>,
+}
+
+/// A cookie jar that can be shared with a Ruby `Wreq::Client`.
 ///
-/// This is the implementation used when simply calling `cookie_store(true)`.
-/// This type is exposed to allow creating one and filling it with some
-/// existing cookies more easily, before creating a `Client`.
+/// Pass a populated jar as the client's `cookie_provider` option.
 #[derive(Clone, Default)]
 #[magnus::wrap(class = "Wreq::Jar", free_immediately, size)]
 pub struct Jar(pub Arc<wreq::cookie::Jar>);
 
-// ===== impl Cookie =====
+// ===== impl Builder =====
 
-impl Cookie {
-    /// Create a new [`Cookie`].
-    pub fn new(args: &[Value]) -> Result<Self, Error> {
-        let args =
-            magnus::scan_args::scan_args::<(String, String), (), (), (), magnus::RHash, ()>(args)?;
-        #[allow(clippy::type_complexity)]
-        let keywords: magnus::scan_args::KwArgs<
-            (),
-            (
-                Option<String>,
-                Option<String>,
-                Option<u64>,
-                Option<f64>,
-                Option<bool>,
-                Option<bool>,
-                Option<Obj<SameSite>>,
-            ),
-            (),
-        > = magnus::scan_args::get_kwargs(
-            args.keywords,
-            &[],
-            &[
-                "domain",
-                "path",
-                "max_age",
-                "expires",
-                "http_only",
-                "secure",
-                "same_site",
-            ],
-        )?;
+impl Builder {
+    /// Validates and deserializes a Ruby keyword options hash.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ArgumentError` for unknown or duplicate keys. Invalid values
+    /// return the Ruby conversion error with the option name attached.
+    fn from_options(options: Options<'_>) -> Result<Self, Error> {
+        let mut builder = options.validate_keys::<Self>()?.deserialize::<Self>()?;
+        extract_native_option!(options, builder, max_age);
+        extract_native_option!(options, builder, expires);
+        extract_native_option!(options, builder, same_site);
+        Ok(builder)
+    }
 
-        let (name, value) = args.required;
-
+    /// Builds a native cookie from its name, value, and optional attributes.
+    fn build(mut self, name: String, value: String) -> Cookie {
         let mut cookie = RawCookie::new(name, value);
 
-        if let Some(domain) = keywords.optional.0 {
+        if let Some(domain) = self.domain {
             cookie.set_domain(domain);
         }
 
-        if let Some(path) = keywords.optional.1 {
+        if let Some(path) = self.path {
             cookie.set_path(path);
         }
 
-        if let Some(max_age) = keywords.optional.2 {
-            cookie.set_max_age(Duration::seconds(max_age as i64));
+        if let Some(max_age) = self.max_age.take() {
+            cookie.set_max_age(Duration::seconds(max_age));
         }
 
-        if let Some(expires) = keywords.optional.3 {
-            let duration = std::time::Duration::from_secs_f64(expires);
-            if let Some(system_time) = SystemTime::UNIX_EPOCH.checked_add(duration) {
-                cookie.set_expires(Expiration::DateTime(system_time.into()));
-            }
+        if let Some(expires) = self.expires.take() {
+            cookie.set_expires(expires.into_inner());
         }
 
-        cookie.set_http_only(keywords.optional.4);
-        cookie.set_secure(keywords.optional.5);
+        cookie.set_http_only(self.http_only);
+        cookie.set_secure(self.secure);
 
-        if let Some(same_site) = keywords.optional.6 {
+        if let Some(same_site) = self.same_site.take() {
             cookie.set_same_site(same_site.into_ffi());
         }
 
-        Ok(Self(cookie))
+        Cookie(cookie)
+    }
+}
+
+// ===== Ruby Cookie API =====
+
+impl Cookie {
+    /// Creates a [`Cookie`] from its name, value, and keyword options.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ArgumentError` for unknown or duplicate keys. Invalid values
+    /// return the Ruby conversion error with the option name attached.
+    pub fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
+        let args = magnus::scan_args::scan_args::<(String, String), (), (), (), RHash, ()>(args)?;
+        let (name, value) = args.required;
+        Builder::from_options(Options::new(ruby, args.keywords))
+            .map(|builder| builder.build(name, value))
     }
 
     /// The name of the cookie.
@@ -130,16 +170,22 @@ impl Cookie {
         self.0.secure().unwrap_or(false)
     }
 
-    /// Returns true if  'SameSite' directive is 'Lax'.
+    /// Returns true when the SameSite setting is Lax.
     #[inline]
     pub fn same_site_lax(&self) -> bool {
         self.0.same_site() == Some(cookie::SameSite::Lax)
     }
 
-    /// Returns true if  'SameSite' directive is 'Strict'.
+    /// Returns true when the SameSite setting is Strict.
     #[inline]
     pub fn same_site_strict(&self) -> bool {
         self.0.same_site() == Some(cookie::SameSite::Strict)
+    }
+
+    /// Returns the SameSite setting, if present.
+    #[inline]
+    pub fn same_site(&self) -> Option<SameSite> {
+        self.0.same_site().map(SameSite::from_ffi)
     }
 
     /// Returns the path directive of the cookie, if set.
@@ -154,41 +200,66 @@ impl Cookie {
         self.0.domain()
     }
 
-    /// Get the Max-Age information.
+    /// Returns the signed Max-Age lifetime in seconds.
     #[inline]
     pub fn max_age(&self) -> Option<i64> {
         self.0.max_age().map(|d| d.whole_seconds())
     }
 
-    /// The cookie expiration time.
+    /// Returns the cookie expiration as a UTC Ruby `Time`.
+    pub fn expires_at(ruby: &Ruby, rb_self: &Self) -> Result<Option<Time>, Error> {
+        rb_self
+            .0
+            .expires_datetime()
+            .map(|value| to_ruby_time(ruby, value))
+            .transpose()
+    }
+
+    /// Returns the cookie expiration as fractional Unix seconds.
     #[inline]
     pub fn expires(&self) -> Option<f64> {
-        match self.0.expires() {
-            Some(Expiration::DateTime(offset)) => {
-                let system_time = SystemTime::from(offset);
-                system_time
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .ok()
-                    .map(|d| d.as_secs_f64())
-            }
-            None | Some(Expiration::Session) => None,
-        }
+        self.0.expires_datetime().map(to_unix_timestamp)
+    }
+
+    /// Formats the cookie as a Set-Cookie value.
+    #[inline]
+    pub fn to_s(&self) -> String {
+        self.to_string()
     }
 }
 
+// ===== Native Cookie helpers =====
+
 impl Cookie {
+    /// Clone this cookie for insertion into the native jar.
+    ///
+    /// [RFC 6265 section 5.2.2] says that zero or a negative Max-Age expires a
+    /// cookie immediately. The native jar recognizes zero for deletion, so
+    /// this clone maps negative values to zero before insertion. The Ruby
+    /// object keeps its original signed value.
+    ///
+    /// [RFC 6265 section 5.2.2]: https://www.rfc-editor.org/rfc/rfc6265.html#section-5.2.2
+    fn clone_for_jar(&self) -> RawCookie<'static> {
+        let mut cookie = self.0.clone();
+        if cookie.max_age().is_some_and(Duration::is_negative) {
+            cookie.set_max_age(Duration::ZERO);
+        }
+
+        cookie
+    }
+
     /// Parse cookies from a `HeaderMap`.
-    pub fn extract_headers_cookies(headers: &HeaderMap) -> Vec<Cookie> {
+    pub(crate) fn extract_headers_cookies(headers: &HeaderMap) -> Vec<Cookie> {
         headers
             .get_all(header::SET_COOKIE)
             .iter()
-            .map(Cookie::parse)
-            .flat_map(Result::ok)
+            .filter_map(|value| Self::parse(value).ok())
             .map(RawCookie::into_owned)
             .map(Cookie)
             .collect()
     }
 
+    /// Parse one Set-Cookie header value.
     fn parse<'a>(value: &'a HeaderValue) -> Result<RawCookie<'a>, ParseError> {
         std::str::from_utf8(value.as_bytes())
             .map_err(cookie::ParseError::from)
@@ -206,13 +277,14 @@ impl fmt::Display for Cookie {
 
 impl TryConvert for Cookies {
     fn try_convert(value: magnus::Value) -> Result<Self, magnus::Error> {
+        let ruby = Ruby::get_with(value);
         // try extract uncompressed cookies
         if let Some(rhash) = RHash::from_value(value) {
             let mut cookies = Vec::new();
             rhash.foreach(|name: RString, value: RString| {
                 let cookie = format!("{name}={value}");
                 let header_value = HeaderValue::from_maybe_shared(Bytes::from(cookie))
-                    .map_err(header_value_error_to_magnus)?;
+                    .map_err(|err| header_value_error(&ruby, err))?;
                 cookies.push(header_value);
                 Ok(ForEach::Continue)
             })?;
@@ -224,11 +296,11 @@ impl TryConvert for Cookies {
         if let Some(cookies) = RString::from_value(value) {
             return Ok(Self(vec![
                 HeaderValue::from_maybe_shared(cookies.to_bytes())
-                    .map_err(header_value_error_to_magnus)?,
+                    .map_err(|err| header_value_error(&ruby, err))?,
             ]));
         }
 
-        Ok(Self::default())
+        Err(type_error(&ruby, "cookies must be a Hash or String"))
     }
 }
 
@@ -237,7 +309,7 @@ impl TryConvert for Cookies {
 impl Jar {
     /// Create a new [`Jar`] with an empty cookie store.
     pub fn new() -> Self {
-        Jar(Arc::new(wreq::cookie::Jar::default()))
+        Self(Arc::new(wreq::cookie::Jar::default()))
     }
 
     /// Get all cookies.
@@ -256,14 +328,21 @@ impl Jar {
     }
 
     /// Add a cookie to this jar.
-    pub fn add(&self, cookie: Value, url: String) {
+    ///
+    /// # Errors
+    ///
+    /// Returns `TypeError` when `cookie` is neither a [`Cookie`] nor a String.
+    pub fn add(&self, cookie: Value, url: String) -> Result<(), Error> {
         if let Ok(cookie) = Obj::<Cookie>::try_convert(cookie) {
-            gvl::nogvl(|| self.0.add(cookie.0.clone(), &url))
+            gvl::nogvl(|| self.0.add(cookie.clone_for_jar(), &url));
+            return Ok(());
         }
 
-        if let Ok(cookie_str) = String::try_convert(cookie) {
-            gvl::nogvl(|| self.0.add(cookie_str.as_ref(), &url))
-        }
+        let ruby = Ruby::get_with(cookie);
+        let cookie = String::try_convert(cookie)
+            .map_err(|_| type_error(&ruby, "cookie must be a Wreq::Cookie or String"))?;
+        gvl::nogvl(|| self.0.add(cookie.as_ref(), &url));
+        Ok(())
     }
 
     /// Remove a cookie from this jar by name and URL.
@@ -277,10 +356,121 @@ impl Jar {
     }
 }
 
+mod helper {
+    //! Converts between Ruby time values and native cookie timestamps.
+
+    use cookie::time::{Duration, OffsetDateTime, error::ComponentRange};
+    use magnus::{
+        Error, Integer, Ruby, Time, TryConvert, Value,
+        time::{Offset, Timespec},
+    };
+
+    use crate::error::{argument_error, range_error};
+
+    /// A validated cookie expiration converted from Ruby.
+    ///
+    /// Ruby `Time` values keep nanosecond precision. Integer timestamps are
+    /// converted directly; other Numeric values use finite fractional Unix
+    /// seconds.
+    pub(super) struct CookieExpiration(OffsetDateTime);
+
+    impl CookieExpiration {
+        /// Unwraps the validated UTC expiration.
+        pub(super) fn into_inner(self) -> OffsetDateTime {
+            self.0
+        }
+    }
+
+    impl TryConvert for CookieExpiration {
+        fn try_convert(value: Value) -> Result<Self, Error> {
+            let ruby = Ruby::get_with(value);
+            expiration_from_value(&ruby, value).map(Self)
+        }
+    }
+
+    /// Converts a native cookie expiration into a UTC Ruby `Time`.
+    pub(super) fn to_ruby_time(ruby: &Ruby, value: OffsetDateTime) -> Result<Time, Error> {
+        ruby.time_timespec_new(
+            Timespec {
+                tv_sec: value.unix_timestamp(),
+                tv_nsec: i64::from(value.nanosecond()),
+            },
+            Offset::utc(),
+        )
+    }
+
+    /// Converts a native cookie expiration into fractional Unix seconds.
+    pub(super) fn to_unix_timestamp(value: OffsetDateTime) -> f64 {
+        value.unix_timestamp() as f64 + f64::from(value.nanosecond()) / 1_000_000_000.0
+    }
+
+    /// Converts a Ruby `Time` or Numeric value into a native UTC timestamp.
+    fn expiration_from_value(ruby: &Ruby, value: Value) -> Result<OffsetDateTime, Error> {
+        if let Some(time) = Time::from_value(value) {
+            return expiration_from_time(ruby, time);
+        }
+
+        if let Some(integer) = Integer::from_value(value) {
+            return integer
+                .to_i64()
+                .and_then(|seconds| expiration_from_seconds(ruby, seconds));
+        }
+
+        expiration_from_float(ruby, f64::try_convert(value)?)
+    }
+
+    /// Converts a Ruby `Time` from its signed timespec without using `SystemTime`.
+    fn expiration_from_time(ruby: &Ruby, value: Time) -> Result<OffsetDateTime, Error> {
+        let timespec = value.timespec()?;
+        let nanosecond = u32::try_from(timespec.tv_nsec)
+            .ok()
+            .filter(|value| *value < 1_000_000_000)
+            .ok_or_else(|| {
+                argument_error(ruby, "time nanoseconds are outside the supported range")
+            })?;
+
+        expiration_from_seconds(ruby, timespec.tv_sec)?
+            .replace_nanosecond(nanosecond)
+            .map_err(|error| expiration_range_error(ruby, error))
+    }
+
+    /// Converts signed Unix seconds into the native cookie time range.
+    fn expiration_from_seconds(ruby: &Ruby, seconds: i64) -> Result<OffsetDateTime, Error> {
+        OffsetDateTime::from_unix_timestamp(seconds)
+            .map_err(|error| expiration_range_error(ruby, error))
+    }
+
+    /// Converts a finite fractional Unix timestamp with checked arithmetic.
+    fn expiration_from_float(ruby: &Ruby, seconds: f64) -> Result<OffsetDateTime, Error> {
+        if !seconds.is_finite() {
+            return Err(argument_error(ruby, "timestamp must be finite"));
+        }
+
+        let duration = Duration::checked_seconds_f64(seconds)
+            .ok_or_else(|| range_error(ruby, "timestamp is outside the supported range"))?;
+        OffsetDateTime::UNIX_EPOCH
+            .checked_add(duration)
+            .ok_or_else(|| range_error(ruby, "timestamp is outside the supported range"))
+    }
+
+    /// Maps a native timestamp range error to Ruby's `RangeError`.
+    fn expiration_range_error(ruby: &Ruby, error: ComponentRange) -> Error {
+        range_error(
+            ruby,
+            format!("timestamp is outside the supported range: {error}"),
+        )
+    }
+}
+
 pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     // SameSite enum
     let same_site_class = gem_module.define_class("SameSite", ruby.class_object())?;
     SameSite::define_constants(same_site_class)?;
+    same_site_class.define_method("to_s", method!(SameSite::to_s, 0))?;
+    same_site_class.define_method("to_sym", method!(SameSite::to_sym, 0))?;
+    same_site_class.define_method("==", method!(SameSite::equals, 1))?;
+    same_site_class.define_method("eql?", method!(SameSite::is_eql, 1))?;
+    same_site_class.define_method("hash", method!(SameSite::hash_value, 0))?;
 
     // Cookie class
     let cookie_class = gem_module.define_class("Cookie", ruby.class_object())?;
@@ -293,10 +483,13 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     cookie_class.define_method("secure?", method!(Cookie::secure, 0))?;
     cookie_class.define_method("same_site_lax?", method!(Cookie::same_site_lax, 0))?;
     cookie_class.define_method("same_site_strict?", method!(Cookie::same_site_strict, 0))?;
+    cookie_class.define_method("same_site", method!(Cookie::same_site, 0))?;
     cookie_class.define_method("path", method!(Cookie::path, 0))?;
     cookie_class.define_method("domain", method!(Cookie::domain, 0))?;
     cookie_class.define_method("max_age", method!(Cookie::max_age, 0))?;
+    cookie_class.define_method("expires_at", method!(Cookie::expires_at, 0))?;
     cookie_class.define_method("expires", method!(Cookie::expires, 0))?;
+    cookie_class.define_method("to_s", method!(Cookie::to_s, 0))?;
 
     // Jar class
     let jar_class = gem_module.define_class("Jar", ruby.class_object())?;

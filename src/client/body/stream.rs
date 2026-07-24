@@ -1,32 +1,56 @@
+//! Streaming request and response body support.
+
 use std::{
+    cell::{Ref, RefCell, RefMut},
+    panic::catch_unwind,
     pin::Pin,
-    sync::RwLock,
     task::{Context, Poll},
 };
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt};
-use magnus::{Error, RString, TryConvert, Value};
-use tokio::sync::{
-    Mutex,
-    mpsc::{self},
-};
+use magnus::{Error, Integer, RString, Ruby, Value, scan_args::scan_args};
+use tokio::sync::{Mutex, Semaphore, mpsc};
 
 use crate::{
-    error::{memory_error, mpsc_send_error_to_magnus, wreq_error_to_magnus},
+    error::{
+        argument_error, body_sender_borrow_error, body_sender_borrow_mut_error,
+        body_sender_send_error, closed_body_sender_error, memory_error, type_error, wreq_error,
+    },
     rt,
 };
+
+/// Number of chunks buffered when Ruby omits the channel capacity.
+const DEFAULT_CHANNEL_CAPACITY: usize = 8;
 
 /// A receiver for streaming HTTP response bodies.
 pub struct BodyReceiver(Mutex<Pin<Box<dyn Stream<Item = wreq::Result<Bytes>> + Send>>>);
 
-/// A sender for streaming HTTP request bodies.
+/// A bounded producer for a single streaming HTTP request body.
+///
+/// The receiving side may be attached to one request. The producer remains
+/// writable until [`BodySender::close`] is called or the request drops its
+/// receiver. Ruby's GVL protects state access; no [`RefCell`] borrow is kept
+/// while request backpressure waits without the GVL.
 #[magnus::wrap(class = "Wreq::BodySender", free_immediately, size)]
-pub struct BodySender(RwLock<InnerBodySender>);
+pub struct BodySender(RefCell<InnerBodySender>);
 
+/// Mutable ownership state for both halves of the body channel.
 struct InnerBodySender {
+    /// Producing side, removed by [`BodySender::close`].
     tx: Option<mpsc::Sender<Bytes>>,
+    /// Receiving side, removed when the sender is attached to a request.
     rx: Option<mpsc::Receiver<Bytes>>,
+}
+
+impl InnerBodySender {
+    /// Return whether the channel can no longer accept body chunks.
+    fn is_closed(&self) -> bool {
+        match &self.tx {
+            Some(tx) => tx.is_closed(),
+            None => true,
+        }
+    }
 }
 
 // ===== impl BodyReceiver =====
@@ -39,8 +63,9 @@ impl BodyReceiver {
     }
 
     /// Read the next body chunk, converting stream errors into Ruby errors.
-    pub fn next(&self) -> Result<Option<Bytes>, Error> {
+    pub fn next(&self, ruby: &Ruby) -> Result<Option<Bytes>, Error> {
         rt::try_block_on(
+            ruby,
             async {
                 match self.0.lock().await.as_mut().next().await {
                     Some(Ok(data)) => Ok(Some(data)),
@@ -48,7 +73,7 @@ impl BodyReceiver {
                     None => Ok(None),
                 }
             },
-            wreq_error_to_magnus,
+            wreq_error,
         )
     }
 }
@@ -56,52 +81,131 @@ impl BodyReceiver {
 // ===== impl BodySender =====
 
 impl BodySender {
-    /// Ruby: `Wreq::Sender.new(capacity = 8)`
-    pub fn new(args: &[Value]) -> Self {
-        let capacity: usize = if let Some(v) = args.first() {
-            usize::try_convert(*v).unwrap_or(8)
-        } else {
-            8
-        };
+    /// Create a bounded request-body channel.
+    ///
+    /// Ruby: `Wreq::BodySender.new(capacity = 8)`. Capacity must be greater
+    /// than zero and no larger than [`Semaphore::MAX_PERMITS`].
+    ///
+    /// # Errors
+    ///
+    /// Returns `TypeError` for a non-Integer capacity and `ArgumentError` for
+    /// an invalid range or argument count.
+    pub fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
+        let capacity = parse_capacity(ruby, args)?;
 
-        let (tx, rx) = mpsc::channel(capacity);
-        BodySender(RwLock::new(InnerBodySender {
+        // Create the Tokio channel without allowing an unwind to cross the Ruby FFI boundary.
+        //
+        // Known panic conditions are rejected by [`parse_capacity`]. The unwind guard
+        // remains as a defensive fallback if Tokio adds another channel invariant.
+        let (tx, rx) =
+            catch_unwind(|| mpsc::channel(capacity)).map_err(|_| invalid_capacity_error(ruby))?;
+
+        Ok(BodySender(RefCell::new(InnerBodySender {
             tx: Some(tx),
             rx: Some(rx),
-        }))
+        })))
     }
 
-    /// Ruby: `push(data)` where data is String or bytes
-    pub fn push(rb_self: &Self, data: RString) -> Result<(), Error> {
-        let bytes = data.to_bytes();
-        let inner = rb_self.0.read().unwrap();
-        if let Some(ref tx) = inner.tx {
-            rt::try_block_on(tx.send(bytes), mpsc_send_error_to_magnus)?;
-        }
+    /// Push a binary chunk, waiting for capacity when the channel is full.
+    ///
+    /// Ruby: `push(data)` where `data` is a String.
+    ///
+    /// # Errors
+    ///
+    /// Returns `IOError` after either channel side has closed. An interrupted
+    /// wait raises Ruby's standard `Interrupt` exception.
+    pub fn push(ruby: &Ruby, rb_self: &Self, data: RString) -> Result<(), Error> {
+        // Clone during the shared borrow, then release it before waiting
+        // for capacity. Request attachment needs a mutable borrow.
+        let tx = match &rb_self.read_inner(ruby)?.tx {
+            Some(tx) if !tx.is_closed() => tx.clone(),
+            _ => return Err(closed_body_sender_error(ruby)),
+        };
+
+        rt::try_block_on(ruby, tx.send(data.to_bytes()), body_sender_send_error)
+    }
+
+    /// Close the producing side while retaining the receiver and queued chunks.
+    ///
+    /// Calling this method more than once has no additional effect.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::BodyError` if the internal state is already borrowed.
+    pub fn close(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
+        let mut inner = rb_self.write_inner(ruby)?;
+        inner.tx.take();
         Ok(())
     }
 
-    /// Ruby: `close` to close the sender
-    pub fn close(&self) {
-        let mut inner = self.0.write().unwrap();
-        inner.tx.take();
-        inner.rx.take();
+    /// Return whether this sender can no longer accept body chunks.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::BodyError` if the internal state is already borrowed.
+    pub fn is_closed(ruby: &Ruby, rb_self: &Self) -> Result<bool, Error> {
+        rb_self.read_inner(ruby).map(|r| r.is_closed())
     }
-}
 
-impl TryFrom<&BodySender> for ReceiverStream<Bytes> {
-    type Error = magnus::Error;
+    /// Borrow the channel state without panicking on accidental re-entry.
+    fn read_inner(&self, ruby: &Ruby) -> Result<Ref<'_, InnerBodySender>, Error> {
+        self.0
+            .try_borrow()
+            .map_err(|err| body_sender_borrow_error(ruby, err))
+    }
 
-    fn try_from(sender: &BodySender) -> Result<Self, Self::Error> {
-        sender
-            .0
-            .write()
-            .unwrap()
+    /// Mutably borrow the channel state without panicking on accidental re-entry.
+    fn write_inner(&self, ruby: &Ruby) -> Result<RefMut<'_, InnerBodySender>, Error> {
+        self.0
+            .try_borrow_mut()
+            .map_err(|err| body_sender_borrow_mut_error(ruby, err))
+    }
+
+    /// Move the receiving side into one request body.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::MemoryError` if the receiver was already consumed, or
+    /// `Wreq::BodyError` if Ruby re-enters while the state is borrowed.
+    pub(super) fn take_receiver(&self, ruby: &Ruby) -> Result<ReceiverStream<Bytes>, Error> {
+        self.write_inner(ruby)?
             .rx
             .take()
             .map(ReceiverStream::new)
-            .ok_or_else(memory_error)
+            .ok_or_else(|| memory_error(ruby))
     }
+}
+
+/// Parse and validate the optional Ruby channel capacity.
+///
+/// [`mpsc::channel`] panics for zero or values above
+/// [`Semaphore::MAX_PERMITS`], so validation must finish before channel creation.
+fn parse_capacity(ruby: &Ruby, args: &[Value]) -> Result<usize, Error> {
+    let Some(value) = scan_args::<(), (Option<Value>,), (), (), (), ()>(args)?
+        .optional
+        .0
+    else {
+        return Ok(DEFAULT_CHANNEL_CAPACITY);
+    };
+
+    let integer = Integer::from_value(value)
+        .ok_or_else(|| type_error(ruby, "capacity must be an Integer"))?;
+    let capacity = integer
+        .to_i64()
+        .ok()
+        .and_then(|capacity| usize::try_from(capacity).ok())
+        .filter(|capacity| (1..=Semaphore::MAX_PERMITS).contains(capacity))
+        .ok_or_else(|| invalid_capacity_error(ruby))?;
+
+    Ok(capacity)
+}
+
+/// Build the synchronous Ruby error used for an invalid channel capacity.
+fn invalid_capacity_error(ruby: &Ruby) -> Error {
+    argument_error(
+        ruby,
+        format!("capacity must be between 1 and {}", Semaphore::MAX_PERMITS),
+    )
 }
 
 /// A wrapper around [`tokio::sync::mpsc::Receiver`] that implements [`Stream`].

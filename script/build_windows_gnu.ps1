@@ -32,7 +32,12 @@ function Invoke-Step {
     )
 
     Write-Host "==> $Name"
+    # Native command failures do not honor ErrorActionPreference in Windows PowerShell.
+    $global:LASTEXITCODE = 0
     & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Name failed with exit code $LASTEXITCODE."
+    }
 }
 
 function Get-MissingUcrtTools {
@@ -122,6 +127,7 @@ Invoke-Step "Check MSYS2 UCRT build tools" {
         $stillMissing = @(Get-MissingUcrtTools)
         if ($stillMissing.Count -eq 0) {
             Write-Warning "pacman returned exit code $LASTEXITCODE, but all required tools are present; continuing."
+            $global:LASTEXITCODE = 0
             return
         }
 

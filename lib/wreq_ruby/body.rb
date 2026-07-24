@@ -2,10 +2,10 @@
 
 unless defined?(Wreq)
   module Wreq
-    # BodySender: for streaming request bodies, allowing thread-safe chunked data push.
-    # Backed by a Rust channel, avoids buffering the entire payload in memory.
+    # Streams a request body through a bounded, thread-safe channel.
     #
-    # Supports multi-threaded chunk push: you can safely call `push` from multiple threads.
+    # The channel applies backpressure instead of buffering the entire request body.
+    # Multiple threads may safely push chunks while a request drains the receiving side.
     #
     # Usage:
     #   sender = Wreq::BodySender.new(8)
@@ -15,24 +15,42 @@ unless defined?(Wreq)
     #   end
     #   resp = client.post(url, body: sender)
     #
-    # Note:
-    #   - Sender is for request upload only, not for response reading.
-    #   - Each BodySender instance can only be used once (single-use):
-    #     after being consumed by a request, further push or reuse is not allowed.
+    # A sender can be attached to one request. Closing it prevents further writes but
+    # retains queued chunks so a request attached afterward can still drain them.
     class BodySender
-      # @param capacity [Integer] channel buffer size, default 8
+      # Create a bounded request-body sender.
+      #
+      # @param capacity [Integer] positive number of chunks that may wait in the channel;
+      #   defaults to 8 and must be greater than zero
       # @return [Wreq::BodySender] A streaming request body sender
+      # @raise [ArgumentError] if capacity is zero, negative, or too large
+      # @raise [TypeError] if capacity is not an Integer
       def self.new(capacity = 8)
       end
 
+      # Push one binary chunk, waiting while the channel is full.
+      #
       # @param data [String] binary chunk
-      # @return [void]
+      # @return [nil]
+      # @raise [IOError] if the sender or receiving side is closed
       def push(data)
       end
 
-      # Close the sender, signaling end of data.
-      # @return [void]
+      # Close the producer and signal EOF after all queued chunks are read.
+      #
+      # This operation is idempotent.
+      #
+      # @return [nil]
       def close
+      end
+
+      # Return whether the sender can no longer accept chunks.
+      #
+      # This becomes true after {#close} or when the request stops consuming
+      # the receiving side.
+      #
+      # @return [Boolean]
+      def closed?
       end
     end
   end

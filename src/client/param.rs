@@ -1,19 +1,19 @@
+use ::serde::{Deserialize, Serialize};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 
-/// Represents HTTP parameters from Python as either a mapping or a sequence of key-value pairs.
+/// HTTP parameters represented as an insertion-ordered Ruby mapping.
 pub type Params = IndexMap<String, ParamValue>;
 
-/// Represents a single parameter value that can be automatically converted from Python types.
+/// A scalar Ruby value accepted in query-string and form mappings.
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ParamValue {
-    /// A boolean value from Python `bool`.
+    /// A Ruby `true` or `false` value.
     Boolean(bool),
-    /// An integer value from Python `int`.
+    /// A Ruby Integer that fits in the native pointer-sized range.
     Number(isize),
-    /// A floating-point value from Python `float`.
+    /// A Ruby Float.
     Float64(f64),
-    /// A string value from Python `str`.
+    /// A Ruby String or Symbol.
     String(String),
 }

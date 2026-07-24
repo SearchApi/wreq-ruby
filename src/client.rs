@@ -6,38 +6,38 @@ pub mod resp;
 
 use std::{net::IpAddr, time::Duration};
 
-use magnus::{
-    Module, Object, RHash, RModule, Ruby, TryConvert, Value, function, method, typed_data::Obj,
-};
-use serde::Deserialize;
+use ::serde::Deserialize;
+use magnus::{Module, Object, RModule, Ruby, TryConvert, Value, function, method, typed_data::Obj};
 use wreq::Proxy;
 
 use crate::{
+    arch::{SUPPORTS_INTERFACE, SUPPORTS_TCP_USER_TIMEOUT},
     client::{req::execute_request, resp::Response},
     cookie::Jar,
     emulate::Emulation,
-    error::wreq_error_to_magnus,
+    error::wreq_error,
     extractor::Extractor,
     gvl,
     header::{Headers, OrigHeaders, UserAgent},
     http::Method,
+    options::{NativeOption, Options},
 };
 
 /// A builder for `Client`.
 #[derive(Default, Deserialize)]
 struct Builder {
     // The emulation option for the client.
-    #[serde(skip)]
-    emulation: Option<Emulation>,
+    #[serde(default)]
+    emulation: NativeOption<Emulation>,
     /// The user agent to use for the client.
-    #[serde(skip)]
-    user_agent: Option<UserAgent>,
+    #[serde(default)]
+    user_agent: NativeOption<UserAgent>,
     /// The headers to use for the client.
-    #[serde(skip)]
-    headers: Option<Headers>,
+    #[serde(default)]
+    headers: NativeOption<Headers>,
     /// The original headers to use for the client.
-    #[serde(skip)]
-    orig_headers: Option<OrigHeaders>,
+    #[serde(default)]
+    orig_headers: NativeOption<OrigHeaders>,
     /// Whether to use referer.
     referer: Option<bool>,
     /// Whether to allow redirects.
@@ -49,8 +49,8 @@ struct Builder {
     /// Whether to use cookie store.
     cookie_store: Option<bool>,
     /// Whether to use cookie store provider.
-    #[serde(skip)]
-    cookie_provider: Option<Jar>,
+    #[serde(default)]
+    cookie_provider: NativeOption<Jar>,
 
     // ========= Timeout options =========
     /// The timeout to use for the client. (in seconds)
@@ -68,7 +68,7 @@ struct Builder {
     /// Set the number of retries for TCP keepalive.
     tcp_keepalive_retries: Option<u32>,
     /// Set an optional user timeout for TCP sockets. (in seconds)
-    #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
+    #[allow(dead_code)]
     tcp_user_timeout: Option<u64>,
     /// Set that all sockets have `NO_DELAY` set.
     tcp_nodelay: Option<bool>,
@@ -92,15 +92,15 @@ struct Builder {
     https_only: Option<bool>,
 
     // ========= TLS options =========
-    /// Whether to verify the SSL certificate or root certificate file path.
+    /// Whether to verify TLS certificates.
     verify: Option<bool>,
 
     // ========= Network options =========
     /// Whether to disable the proxy for the client.
     no_proxy: Option<bool>,
     /// The proxy to use for the client.
-    #[serde(skip)]
-    proxy: Option<Proxy>,
+    #[serde(default)]
+    proxy: NativeOption<Proxy>,
     /// Bind to a local IP Address.
     local_address: Option<IpAddr>,
     /// Bind to an interface by `SO_BINDTODEVICE`.
@@ -118,42 +118,65 @@ struct Builder {
     zstd: Option<bool>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Client", free_immediately, size)]
 pub struct Client(wreq::Client);
 
 // ===== impl Builder =====
 
 impl Builder {
-    /// Create a new [`Builder`] from Ruby keyword arguments.
-    fn new(ruby: &magnus::Ruby, keyword: &Value) -> Result<Self, magnus::Error> {
-        let Ok(hash) = RHash::try_convert(*keyword) else {
-            return Ok(Default::default());
-        };
+    /// Create a new [`Builder`] from a Ruby options Hash.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ArgumentError` for unknown, duplicate, conflicting,
+    /// ineffective, or platform-specific options. Known values retain their
+    /// Ruby conversion error class and include the option name.
+    fn from_options(options: Options<'_>) -> Result<Self, magnus::Error> {
+        let options = options.validate_keys::<Self>()?;
+        let mut builder = options
+            .validator()
+            .reject_unsupported(stringify!(tcp_user_timeout), SUPPORTS_TCP_USER_TIMEOUT)
+            .reject_unsupported(stringify!(interface), SUPPORTS_INTERFACE)
+            .finish()?
+            .deserialize::<Self>()?;
 
-        let mut builder: Self = serde_magnus::deserialize(ruby, hash)?;
+        options
+            .validator()
+            .reject_conflicts([
+                (stringify!(http1_only), builder.http1_only == Some(true)),
+                (stringify!(http2_only), builder.http2_only == Some(true)),
+            ])
+            .reject_conflicts([
+                (stringify!(proxy), options.is_non_nil(stringify!(proxy))),
+                (stringify!(no_proxy), builder.no_proxy == Some(true)),
+            ])
+            .require_when_present(
+                stringify!(max_redirects),
+                builder.max_redirects.is_some(),
+                builder.allow_redirects == Some(true),
+                ":allow_redirects to be true",
+            )
+            .finish()?;
 
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(emulation))) {
-            builder.emulation = Some((*Obj::<Emulation>::try_convert(v)?).clone());
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(user_agent))) {
-            builder.user_agent = Some(UserAgent::try_convert(v)?);
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(headers))) {
-            builder.headers = Some(Headers::try_convert(v)?);
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(orig_headers))) {
-            builder.orig_headers = Some(OrigHeaders::try_convert(v)?);
-        }
-
-        if let Some(v) = hash.get(ruby.to_symbol(stringify!(cookie_provider))) {
-            builder.cookie_provider = Some((*Obj::<Jar>::try_convert(v)?).clone());
-        }
-
-        builder.proxy = Extractor::<Proxy>::try_convert(*keyword)?.into_inner();
+        extract_native_option!(
+            options,
+            builder,
+            emulation,
+            Obj<Emulation> => |value| (*value).clone()
+        );
+        extract_native_option!(options, builder, user_agent);
+        extract_native_option!(options, builder, headers);
+        extract_native_option!(options, builder, orig_headers);
+        extract_native_option!(
+            options,
+            builder,
+            cookie_provider,
+            Obj<Jar> => |value| (*value).clone()
+        );
+        builder
+            .proxy
+            .set(Extractor::<Proxy>::try_convert(options.as_value())?.into_inner());
 
         Ok(builder)
     }
@@ -163,234 +186,291 @@ impl Builder {
 
 impl Client {
     /// Create a new [`Client`] with the given keyword arguments.
-    pub fn new(ruby: &Ruby, keyword: &[Value]) -> Result<Self, magnus::Error> {
-        if let Some(keyword) = keyword.first() {
-            let mut params = Builder::new(ruby, keyword)?;
-            gvl::nogvl(|| {
-                let mut builder = wreq::Client::builder();
+    ///
+    /// # Errors
+    ///
+    /// Returns Ruby configuration errors from [`Builder::from_options`] or the
+    /// native fallible client builder. Extra positional arguments return
+    /// `ArgumentError`.
+    pub fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, magnus::Error> {
+        Options::from_args(ruby, args, "client")?
+            .map(Builder::from_options)
+            .transpose()
+            .map(Option::unwrap_or_default)
+            .and_then(|params| Self::build(ruby, params))
+    }
 
-                // Emulation options.
-                apply_option!(set_if_some_inner, builder, params.emulation, emulation);
+    /// Build the default client through the same fallible path as `new`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::BuilderError`, `Wreq::TlsError`, or another mapped native
+    /// initialization error without unwinding through Ruby.
+    pub(crate) fn default_client(ruby: &Ruby) -> Result<Self, magnus::Error> {
+        Self::build(ruby, Builder::default())
+    }
 
-                // User agent options.
-                apply_option!(set_if_some_inner, builder, params.user_agent, user_agent);
+    /// Apply validated parameters and build the native client without the GVL.
+    ///
+    /// # Errors
+    ///
+    /// Maps native build failures only after the GVL has been reacquired.
+    fn build(ruby: &Ruby, mut params: Builder) -> Result<Self, magnus::Error> {
+        let result = gvl::nogvl(|| {
+            let mut builder = wreq::Client::builder();
 
-                // Headers options.
-                apply_option!(
-                    set_if_some_into_inner,
-                    builder,
-                    params.headers,
-                    default_headers
-                );
-                apply_option!(
-                    set_if_some_inner,
-                    builder,
-                    params.orig_headers,
-                    orig_headers
-                );
+            // Emulation options.
+            apply_option!(set_if_some_inner, builder, params.emulation, emulation);
 
-                // Allow redirects options.
-                apply_option!(set_if_some, builder, params.referer, referer);
-                apply_option!(
-                    set_if_true_with,
-                    builder,
-                    params.allow_redirects,
-                    redirect,
-                    false,
-                    params
-                        .max_redirects
-                        .take()
-                        .map(wreq::redirect::Policy::limited)
-                        .unwrap_or_default()
-                );
+            // User agent options.
+            apply_option!(set_if_some_inner, builder, params.user_agent, user_agent);
 
-                // Cookie options.
-                apply_option!(set_if_some, builder, params.cookie_store, cookie_store);
-                apply_option!(
-                    set_if_some_inner,
-                    builder,
-                    params.cookie_provider,
-                    cookie_provider
-                );
+            // Headers options.
+            apply_option!(
+                set_if_some_into_inner,
+                builder,
+                params.headers,
+                default_headers
+            );
+            apply_option!(
+                set_if_some_inner,
+                builder,
+                params.orig_headers,
+                orig_headers
+            );
 
-                // TCP options.
-                apply_option!(
-                    set_if_some_map,
-                    builder,
-                    params.tcp_keepalive,
-                    tcp_keepalive,
-                    Duration::from_secs
-                );
-                apply_option!(
-                    set_if_some_map,
-                    builder,
-                    params.tcp_keepalive_interval,
-                    tcp_keepalive_interval,
-                    Duration::from_secs
-                );
-                apply_option!(
-                    set_if_some,
-                    builder,
-                    params.tcp_keepalive_retries,
-                    tcp_keepalive_retries
-                );
-                #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
-                apply_option!(
-                    set_if_some_map,
-                    builder,
-                    params.tcp_user_timeout,
-                    tcp_user_timeout,
-                    Duration::from_secs
-                );
-                apply_option!(set_if_some, builder, params.tcp_nodelay, tcp_nodelay);
-                apply_option!(
-                    set_if_some,
-                    builder,
-                    params.tcp_reuse_address,
-                    tcp_reuse_address
-                );
+            // Allow redirects options.
+            apply_option!(set_if_some, builder, params.referer, referer);
+            match params.allow_redirects {
+                Some(false) => {
+                    builder = builder.redirect(wreq::redirect::Policy::none());
+                }
+                Some(true) => {
+                    builder = builder.redirect(
+                        params
+                            .max_redirects
+                            .take()
+                            .map(wreq::redirect::Policy::limited)
+                            .unwrap_or_default(),
+                    );
+                }
+                None => {}
+            }
 
-                // Timeout options.
-                apply_option!(
-                    set_if_some_map,
-                    builder,
-                    params.timeout,
-                    timeout,
-                    Duration::from_secs
-                );
-                apply_option!(
-                    set_if_some_map,
-                    builder,
-                    params.connect_timeout,
-                    connect_timeout,
-                    Duration::from_secs
-                );
-                apply_option!(
-                    set_if_some_map,
-                    builder,
-                    params.read_timeout,
-                    read_timeout,
-                    Duration::from_secs
-                );
+            // Cookie options.
+            apply_option!(set_if_some, builder, params.cookie_store, cookie_store);
+            apply_option!(
+                set_if_some_inner,
+                builder,
+                params.cookie_provider,
+                cookie_provider
+            );
 
-                // Pool options.
-                apply_option!(
-                    set_if_some_map,
-                    builder,
-                    params.pool_idle_timeout,
-                    pool_idle_timeout,
-                    Duration::from_secs
-                );
-                apply_option!(
-                    set_if_some,
-                    builder,
-                    params.pool_max_idle_per_host,
-                    pool_max_idle_per_host
-                );
-                apply_option!(set_if_some, builder, params.pool_max_size, pool_max_size);
+            // TCP options.
+            apply_option!(
+                set_if_some_map,
+                builder,
+                params.tcp_keepalive,
+                tcp_keepalive,
+                Duration::from_secs
+            );
+            apply_option!(
+                set_if_some_map,
+                builder,
+                params.tcp_keepalive_interval,
+                tcp_keepalive_interval,
+                Duration::from_secs
+            );
+            apply_option!(
+                set_if_some,
+                builder,
+                params.tcp_keepalive_retries,
+                tcp_keepalive_retries
+            );
+            #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
+            apply_option!(
+                set_if_some_map,
+                builder,
+                params.tcp_user_timeout,
+                tcp_user_timeout,
+                Duration::from_secs
+            );
+            apply_option!(set_if_some, builder, params.tcp_nodelay, tcp_nodelay);
+            apply_option!(
+                set_if_some,
+                builder,
+                params.tcp_reuse_address,
+                tcp_reuse_address
+            );
 
-                // Protocol options.
-                apply_option!(set_if_true, builder, params.http1_only, http1_only, false);
-                apply_option!(set_if_true, builder, params.http2_only, http2_only, false);
-                apply_option!(set_if_some, builder, params.https_only, https_only);
+            // Timeout options.
+            apply_option!(
+                set_if_some_map,
+                builder,
+                params.timeout,
+                timeout,
+                Duration::from_secs
+            );
+            apply_option!(
+                set_if_some_map,
+                builder,
+                params.connect_timeout,
+                connect_timeout,
+                Duration::from_secs
+            );
+            apply_option!(
+                set_if_some_map,
+                builder,
+                params.read_timeout,
+                read_timeout,
+                Duration::from_secs
+            );
 
-                // TLS options.
-                apply_option!(set_if_some, builder, params.verify, tls_cert_verification);
+            // Pool options.
+            apply_option!(
+                set_if_some_map,
+                builder,
+                params.pool_idle_timeout,
+                pool_idle_timeout,
+                Duration::from_secs
+            );
+            apply_option!(
+                set_if_some,
+                builder,
+                params.pool_max_idle_per_host,
+                pool_max_idle_per_host
+            );
+            apply_option!(set_if_some, builder, params.pool_max_size, pool_max_size);
 
-                // Network options.
-                apply_option!(set_if_some, builder, params.proxy, proxy);
-                apply_option!(set_if_true, builder, params.no_proxy, no_proxy, false);
-                apply_option!(set_if_some, builder, params.local_address, local_address);
-                #[cfg(any(
-                    target_os = "android",
-                    target_os = "fuchsia",
-                    target_os = "illumos",
-                    target_os = "ios",
-                    target_os = "linux",
-                    target_os = "macos",
-                    target_os = "solaris",
-                    target_os = "tvos",
-                    target_os = "visionos",
-                    target_os = "watchos",
-                ))]
-                apply_option!(set_if_some, builder, params.interface, interface);
+            // Protocol options.
+            apply_option!(set_if_true, builder, params.http1_only, http1_only, false);
+            apply_option!(set_if_true, builder, params.http2_only, http2_only, false);
+            apply_option!(set_if_some, builder, params.https_only, https_only);
 
-                // Compression options.
-                apply_option!(set_if_some, builder, params.gzip, gzip);
-                apply_option!(set_if_some, builder, params.brotli, brotli);
-                apply_option!(set_if_some, builder, params.deflate, deflate);
-                apply_option!(set_if_some, builder, params.zstd, zstd);
+            // TLS options.
+            apply_option!(set_if_some, builder, params.verify, tls_cert_verification);
 
-                builder.build().map(Client).map_err(wreq_error_to_magnus)
-            })
-        } else {
-            gvl::nogvl(|| Ok(Self(wreq::Client::new())))
-        }
+            // Network options.
+            apply_option!(set_if_some, builder, params.proxy, proxy);
+            apply_option!(set_if_true, builder, params.no_proxy, no_proxy, false);
+            apply_option!(set_if_some, builder, params.local_address, local_address);
+            #[cfg(any(
+                target_os = "android",
+                target_os = "fuchsia",
+                target_os = "illumos",
+                target_os = "ios",
+                target_os = "linux",
+                target_os = "macos",
+                target_os = "solaris",
+                target_os = "tvos",
+                target_os = "visionos",
+                target_os = "watchos",
+            ))]
+            apply_option!(set_if_some, builder, params.interface, interface);
+
+            // Compression options.
+            apply_option!(set_if_some, builder, params.gzip, gzip);
+            apply_option!(set_if_some, builder, params.brotli, brotli);
+            apply_option!(set_if_some, builder, params.deflate, deflate);
+            apply_option!(set_if_some, builder, params.zstd, zstd);
+
+            builder.build().map(Client)
+        });
+
+        // Ruby exceptions must be created after the GVL has been reacquired.
+        result.map_err(|err| wreq_error(ruby, err))
     }
 }
 
 impl Client {
+    /// Send a request through a newly built default client.
+    ///
+    /// Request arguments are validated before the native client is built, so
+    /// invalid options fail without initializing a connection pool.
+    pub(crate) fn request_with_default_client(
+        ruby: &Ruby,
+        args: &[Value],
+    ) -> Result<Response, magnus::Error> {
+        let ((method, url), request) = extract_request!(args, (Obj<Method>, String));
+        let client = Self::default_client(ruby)?;
+        execute_request(ruby, client.0, *method, url, request)
+    }
+
+    /// Send a request with `method` through a newly built default client.
+    ///
+    /// Request arguments are validated before the native client is built, so
+    /// invalid options fail without initializing a connection pool.
+    pub(crate) fn execute_with_default_client(
+        ruby: &Ruby,
+        method: Method,
+        args: &[Value],
+    ) -> Result<Response, magnus::Error> {
+        let ((url,), request) = extract_request!(args, (String,));
+        let client = Self::default_client(ruby)?;
+        execute_request(ruby, client.0, method, url, request)
+    }
+
     /// Send a HTTP request.
     #[inline]
-    pub fn request(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+    pub fn request(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((method, url), request) = extract_request!(args, (Obj<Method>, String));
-        execute_request(rb_self.0.clone(), *method, url, request)
+        execute_request(ruby, rb_self.0.clone(), *method, url, request)
     }
 
     /// Send a GET request.
     #[inline]
-    pub fn get(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+    pub fn get(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        execute_request(rb_self.0.clone(), Method::GET, url, request)
+        execute_request(ruby, rb_self.0.clone(), Method::GET, url, request)
     }
 
     /// Send a POST request.
     #[inline]
-    pub fn post(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+    pub fn post(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        execute_request(rb_self.0.clone(), Method::POST, url, request)
+        execute_request(ruby, rb_self.0.clone(), Method::POST, url, request)
     }
 
     /// Send a PUT request.
     #[inline]
-    pub fn put(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+    pub fn put(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        execute_request(rb_self.0.clone(), Method::PUT, url, request)
+        execute_request(ruby, rb_self.0.clone(), Method::PUT, url, request)
     }
 
     /// Send a DELETE request.
     #[inline]
-    pub fn delete(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+    pub fn delete(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        execute_request(rb_self.0.clone(), Method::DELETE, url, request)
+        execute_request(ruby, rb_self.0.clone(), Method::DELETE, url, request)
     }
 
     /// Send a HEAD request.
     #[inline]
-    pub fn head(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+    pub fn head(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        execute_request(rb_self.0.clone(), Method::HEAD, url, request)
+        execute_request(ruby, rb_self.0.clone(), Method::HEAD, url, request)
     }
 
     /// Send an OPTIONS request.
     #[inline]
-    pub fn options(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+    pub fn options(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        execute_request(rb_self.0.clone(), Method::OPTIONS, url, request)
+        execute_request(ruby, rb_self.0.clone(), Method::OPTIONS, url, request)
     }
 
     /// Send a TRACE request.
     #[inline]
-    pub fn trace(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+    pub fn trace(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        execute_request(rb_self.0.clone(), Method::TRACE, url, request)
+        execute_request(ruby, rb_self.0.clone(), Method::TRACE, url, request)
     }
 
     /// Send a PATCH request.
     #[inline]
-    pub fn patch(rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
+    pub fn patch(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(args, (String,));
-        execute_request(rb_self.0.clone(), Method::PATCH, url, request)
+        execute_request(ruby, rb_self.0.clone(), Method::PATCH, url, request)
     }
 }
 

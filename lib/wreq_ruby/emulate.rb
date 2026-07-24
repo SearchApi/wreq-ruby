@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+# Profile and platform constants mirror the native enum variant names.
+# standard:disable Naming/ConstantName
+
 module Wreq
   # Browser and client fingerprint profile enumeration backed by Rust.
   #
@@ -164,6 +167,29 @@ module Wreq
       def to_s
       end
     end
+
+    unless method_defined?(:==)
+      # Value-based equality.
+      # @param other [Object]
+      # @return [Boolean]
+      def ==(other)
+      end
+    end
+
+    unless method_defined?(:eql?)
+      # Strict equality for Hash key and Set member semantics.
+      # @param other [Object]
+      # @return [Boolean]
+      def eql?(other)
+      end
+    end
+
+    unless method_defined?(:hash)
+      # Hash value consistent with {#eql?} for use as Hash keys.
+      # @return [Integer]
+      def hash
+      end
+    end
   end
 
   # Operating system platform enumeration backed by Rust.
@@ -195,6 +221,36 @@ module Wreq
       def to_s
       end
     end
+
+    unless method_defined?(:to_sym)
+      # Returns the platform as a lowercase symbol (e.g. :windows, :linux).
+      # @return [Symbol]
+      def to_sym
+      end
+    end
+
+    unless method_defined?(:==)
+      # Value-based equality.
+      # @param other [Object]
+      # @return [Boolean]
+      def ==(other)
+      end
+    end
+
+    unless method_defined?(:eql?)
+      # Strict equality for Hash key and Set member semantics.
+      # @param other [Object]
+      # @return [Boolean]
+      def eql?(other)
+      end
+    end
+
+    unless method_defined?(:hash)
+      # Hash value consistent with {#eql?} for use as Hash keys.
+      # @return [Integer]
+      def hash
+      end
+    end
   end
 
   # Emulation option wrapper.
@@ -216,19 +272,31 @@ module Wreq
   #
   # @param profile [Wreq::Profile, nil] Fingerprint profile to emulate
   # @param platform [Wreq::Platform, nil] Operating system platform to emulate
-  # @param http2 [Boolean] Whether HTTP/2 support is enabled
-  # @param headers [Boolean] Whether default emulation headers are enabled
+  # @param http2 [Boolean, nil] Whether HTTP/2 emulation is enabled; defaults
+  #   to true when omitted or nil
+  # @param headers [Boolean, nil] Whether default emulation headers are enabled;
+  #   defaults to true when omitted or nil
+  # @return [Wreq::Emulation] Configured emulation settings
+  # @raise [ArgumentError] if an option is unknown or extra arguments are given
+  # @raise [TypeError] if the option argument is not a Hash or a value has the
+  #   wrong Ruby type
   class Emulation
     # Native fields and methods are set by the extension.
     # This stub is for documentation only.
-    unless method_defined?(:new)
+    unless singleton_methods(false).include?(:new)
       # @param profile [Wreq::Profile, nil] Fingerprint profile to emulate
       # @param platform [Wreq::Platform, nil] Operating system platform to emulate
-      # @param http2 [Boolean] Whether HTTP/2 support is enabled
-      # @param headers [Boolean] Whether default emulation headers are enabled
+      # @param http2 [Boolean, nil] Whether HTTP/2 emulation is enabled; defaults
+      #   to true when omitted or nil
+      # @param headers [Boolean, nil] Whether default emulation headers are enabled;
+      #   defaults to true when omitted or nil
       # @return [Wreq::Emulation] Configured emulation settings
-      def self.new(profile: nil, platform: nil, http2: true, headers: true)
+      # @raise [ArgumentError] if an option is unknown or extra arguments are given
+      # @raise [TypeError] if an option or value has the wrong Ruby type
+      def self.new(**options)
       end
     end
   end
 end
+
+# standard:enable Naming/ConstantName
