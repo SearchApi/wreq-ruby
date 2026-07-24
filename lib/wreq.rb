@@ -29,9 +29,8 @@ unless defined?(Wreq)
     # or native conversion, such as TypeError or Wreq::BuilderError. Validation
     # finishes before network I/O.
     #
-    # Requests made in a child process forked after wreq-ruby was loaded raise
-    # Wreq::ForkError. Load wreq-ruby inside each worker after it has been
-    # forked.
+    # If a child process inherits wreq-ruby from its parent, requests raise
+    # Wreq::ForkError. Require wreq after the worker has been forked.
 
     # Send an HTTP request.
     #
@@ -68,6 +67,7 @@ unless defined?(Wreq)
     # @return [Wreq::Response] HTTP response
     # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
     #   value cannot be converted, validated, or built
+    # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
     def self.request(method, url, **options)
     end
 
@@ -105,6 +105,7 @@ unless defined?(Wreq)
     # @return [Wreq::Response] HTTP response
     # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
     #   value cannot be converted, validated, or built
+    # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
     def self.get(url, **options)
     end
 
@@ -142,6 +143,7 @@ unless defined?(Wreq)
     # @return [Wreq::Response] HTTP response
     # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
     #   value cannot be converted, validated, or built
+    # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
     def self.head(url, **options)
     end
 
@@ -179,6 +181,7 @@ unless defined?(Wreq)
     # @return [Wreq::Response] HTTP response
     # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
     #   value cannot be converted, validated, or built
+    # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
     def self.post(url, **options)
     end
 
@@ -216,6 +219,7 @@ unless defined?(Wreq)
     # @return [Wreq::Response] HTTP response
     # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
     #   value cannot be converted, validated, or built
+    # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
     def self.put(url, **options)
     end
 
@@ -253,6 +257,7 @@ unless defined?(Wreq)
     # @return [Wreq::Response] HTTP response
     # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
     #   value cannot be converted, validated, or built
+    # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
     def self.delete(url, **options)
     end
 
@@ -290,6 +295,7 @@ unless defined?(Wreq)
     # @return [Wreq::Response] HTTP response
     # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
     #   value cannot be converted, validated, or built
+    # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
     def self.options(url, **options)
     end
 
@@ -327,6 +333,7 @@ unless defined?(Wreq)
     # @return [Wreq::Response] HTTP response
     # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
     #   value cannot be converted, validated, or built
+    # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
     def self.trace(url, **options)
     end
 
@@ -364,6 +371,7 @@ unless defined?(Wreq)
     # @return [Wreq::Response] HTTP response
     # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
     #   value cannot be converted, validated, or built
+    # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
     def self.patch(url, **options)
     end
   end

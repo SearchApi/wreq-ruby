@@ -101,7 +101,7 @@ pub fn fork_error(ruby: &Ruby, owner_pid: u32, current_pid: u32) -> MagnusError 
     MagnusError::new(
         ruby.get_inner(&FORK_ERROR),
         format!(
-            "wreq loaded in process {owner_pid} cannot be used after fork in process {current_pid}"
+            "wreq-ruby was loaded in process {owner_pid} and cannot be used after fork in process {current_pid}"
         ),
     )
 }
