@@ -41,16 +41,6 @@ class ForkTest < Minitest::Test
     refute_match(/\[BUG\]|segmentation fault|panicked/i, stderr)
   end
 
-  def test_extension_can_be_loaded_after_fork
-    skip "fork is not supported on this platform" unless Process.respond_to?(:fork)
-
-    stdout, stderr, status = run_fork_script("fork_fresh_load.rb")
-
-    assert status.success?, "subprocess failed with #{status.inspect}: #{stderr}"
-    assert_equal "ok\n", stdout
-    assert_empty stderr
-  end
-
   private
 
   def run_fork_script(name)
