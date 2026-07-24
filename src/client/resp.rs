@@ -71,10 +71,7 @@ impl Response {
         }
     }
 
-    /// Build a body-free native response so wreq can construct a status error.
-    ///
-    /// This is used only for a client or server error status. Successful and
-    /// redirect responses avoid cloning the native extensions.
+    /// Build a body-free native response for its status classification logic.
     fn response_for_status(&self) -> wreq::Response {
         let mut response = HttpResponse::new(Bytes::new());
         *response.status_mut() = self.status.0;
@@ -147,18 +144,14 @@ impl Response {
 
     /// Return this response unless its status is a client or server error.
     ///
-    /// Error construction is delegated to
-    /// [`wreq::Response::error_for_status_ref`] without consuming the body.
+    /// Delegates classification to [`wreq::Response::error_for_status_ref`]
+    /// without consuming the response body.
     pub fn raise_for_status(ruby: &Ruby, rb_self: Obj<Self>) -> Result<Obj<Self>, Error> {
         rt::ensure_current(ruby)?;
-
-        if rb_self.status.0.is_client_error() || rb_self.status.0.is_server_error() {
-            rb_self
-                .response_for_status()
-                .error_for_status_ref()
-                .map_err(|err| wreq_error(ruby, err))?;
-        }
-
+        rb_self
+            .response_for_status()
+            .error_for_status_ref()
+            .map_err(|err| wreq_error(ruby, err))?;
         Ok(rb_self)
     }
 
