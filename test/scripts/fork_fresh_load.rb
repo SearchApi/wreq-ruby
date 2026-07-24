@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "socket"
-require "timeout"
 
 $stdout.sync = true
 $stderr.sync = true
@@ -14,7 +13,10 @@ child_pid = fork do
 
   begin
     require "wreq"
-    response = Timeout.timeout(10) { Wreq.get("http://127.0.0.1:#{port}/") }
+    # macOS system proxy discovery can trigger unsafe Objective-C class
+    # initialization after fork. This test only exercises wreq-ruby.
+    client = Wreq::Client.new(no_proxy: true, timeout: 10)
+    response = client.get("http://127.0.0.1:#{port}/")
     abort "child request failed" unless response.bytes == "ok"
   rescue => error
     warn "unexpected #{error.class}: #{error.message}"

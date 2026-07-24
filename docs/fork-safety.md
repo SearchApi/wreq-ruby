@@ -22,6 +22,16 @@ A child can use wreq-ruby normally when it loads the extension for the first
 time after `fork`. Prefork servers should therefore avoid loading wreq-ruby in
 the parent and require it when each worker boots.
 
+On macOS, automatic system proxy discovery uses SystemConfiguration and
+CoreFoundation. In a multithreaded parent, Objective-C class initialization can
+be left in an unsafe state after `fork`, so macOS aborts the child rather than
+continue. A worker that loads wreq-ruby after `fork` should disable automatic
+proxy discovery or configure its proxy explicitly:
+
+```ruby
+client = Wreq::Client.new(no_proxy: true)
+```
+
 For Puma:
 
 ```ruby
