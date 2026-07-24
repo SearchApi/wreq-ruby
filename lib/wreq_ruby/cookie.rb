@@ -1,8 +1,9 @@
 unless defined?(Wreq)
   module Wreq
-    # Cookie SameSite attribute.
+    # SameSite values for HTTP cookies.
     #
-    # Values follow the Rust enum exposed by the native extension.
+    # The constant names match the native Rust variants.
+    # standard:disable Naming/ConstantName
     class SameSite
       # Strict same-site policy.
       Strict = nil
@@ -38,35 +39,39 @@ unless defined?(Wreq)
       def hash
       end
     end
+    # standard:enable Naming/ConstantName
 
-    # A single HTTP cookie.
+    # A single HTTP cookie backed by an immutable native value.
     #
-    # Thread-safe: instances are backed by an immutable Rust value and can be
-    # shared across threads safely. This mirrors the native `Wreq::Cookie`.
-    # Constructor accepts `name`, `value`, plus optional keyword arguments for
-    # other attributes.
+    # Cookie instances can be shared safely between threads. Pass optional
+    # attributes as keywords to {.new}.
     class Cookie
-      # Create a new Cookie instance.
+      # Creates a Cookie instance.
       #
-      # Note: This matches the native binding which defines `new` (not `initialize`).
+      # The native extension defines `.new` directly instead of `#initialize`.
       #
       # @param name [String] Cookie name
       # @param value [String] Cookie value
       # @param options [Hash] Optional keyword arguments
       # @option options [String] :domain Domain attribute
       # @option options [String] :path Path attribute
-      # @option options [Integer] :max_age Max-Age in seconds
-      # @option options [Float] :expires Unix timestamp (seconds, float)
+      # @option options [Integer] :max_age Signed Max-Age in seconds.
+      #   Zero or negative values expire the cookie immediately.
+      # @option options [Time, Numeric] :expires A Time or finite Unix timestamp in seconds
       # @option options [Boolean] :http_only HttpOnly flag
       # @option options [Boolean] :secure Secure flag
       # @option options [Wreq::SameSite] :same_site SameSite attribute
       # @return [Wreq::Cookie]
+      # @raise [ArgumentError] if an option is unknown or duplicated, or if :expires is not finite
+      # @raise [RangeError] if :max_age or :expires is outside the supported range
+      # @raise [TypeError] if an option has the wrong type
       # @example
       #   c = Wreq::Cookie.new(
       #     "sid", "abc",
       #     domain: "example.com",
       #     path: "/",
       #     max_age: 3600,
+      #     expires: Time.utc(2030, 1, 1),
       #     http_only: true,
       #     secure: true,
       #     same_site: Wreq::SameSite::Lax
@@ -112,6 +117,11 @@ unless defined?(Wreq)
       def same_site_strict?
       end
 
+      # Returns the SameSite setting, or nil if it was omitted.
+      # @return [Wreq::SameSite, nil]
+      def same_site
+      end
+
       # @return [String, nil] Path attribute
       def path
       end
@@ -120,31 +130,50 @@ unless defined?(Wreq)
       def domain
       end
 
-      # @return [Integer, nil] Max-Age in seconds
+      # Returns the signed Max-Age lifetime in seconds.
+      #
+      # Zero and negative values expire the cookie immediately.
+      # @return [Integer, nil]
       def max_age
       end
 
-      # @return [Float, nil] Expires as Unix timestamp (seconds)
+      # Returns the expiration time in UTC.
+      # @return [Time, nil]
+      def expires_at
+      end
+
+      # Returns the expiration as a Unix timestamp with fractional seconds.
+      # The Float return value may lose precision for large timestamps.
+      # @deprecated Use {#expires_at}, which returns Time.
+      # @return [Float, nil]
       def expires
+      end
+
+      # Returns the cookie formatted as a Set-Cookie value.
+      # @return [String]
+      def to_s
       end
     end
 
-    # A cookie store (jar) used by the client to manage cookies across requests.
+    # Stores cookies for reuse across requests.
+    #
+    # Pass a Jar to Wreq::Client as `cookie_provider` to share its cookies.
     class Jar
-      # Create a new, empty cookie jar.
+      # Creates an empty cookie jar.
       # @return [Wreq::Jar]
       def self.new
       end
 
-      # Get all cookies currently stored.
+      # Returns all stored cookies.
       # @return [Array<Wreq::Cookie>]
       def get_all
       end
 
-      # Add a cookie from a Set-Cookie string for the given URL.
-      # @param cookie [String, Wreq::Cookie] A Set-Cookie string
-      # @param url [String]
+      # Adds a Cookie object or Set-Cookie string for the given URL.
+      # @param cookie [String, Wreq::Cookie] Cookie to store
+      # @param url [String] URL that scopes the cookie
       # @return [void]
+      # @raise [TypeError] if cookie is neither a String nor Wreq::Cookie
       def add(cookie, url)
       end
 
@@ -165,6 +194,8 @@ end
 
 module Wreq
   class Cookie
+    # Returns a short representation for debugging.
+    # @return [String]
     def inspect
       parts = ["#<Wreq::Cookie", name]
       parts << "domain=#{domain}" if domain
@@ -176,6 +207,8 @@ module Wreq
   end
 
   class Jar
+    # Returns a short representation with the number of stored cookies.
+    # @return [String]
     def inspect
       "#<Wreq::Jar [#{get_all.length} cookies]>"
     end
