@@ -81,6 +81,7 @@ expect_fork_error("inherited_body_sender_closed") { inherited_objects[1].closed?
 expect_fork_error("fresh_client") { Wreq::Client.new }
 expect_fork_error("inherited_client") { client.get(url) }
 expect_fork_error("inherited_response") { inherited_objects[2].bytes }
+expect_fork_error("inherited_response_status") { inherited_objects[2].raise_for_status! }
 expect_fork_error("inherited_response_text") { inherited_objects[2].text(1) }
 expect_fork_error("inherited_response_chunks") { inherited_objects[2].chunks }
 expect_fork_error("inherited_response_close") { inherited_objects[2].close }

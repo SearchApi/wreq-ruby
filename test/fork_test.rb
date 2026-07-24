@@ -17,6 +17,7 @@ class ForkTest < Minitest::Test
     fresh_client
     inherited_client
     inherited_response
+    inherited_response_status
     inherited_response_text
     inherited_response_chunks
     inherited_response_close

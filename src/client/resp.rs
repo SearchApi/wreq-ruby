@@ -5,7 +5,7 @@ use bytes::Bytes;
 use futures_util::TryFutureExt;
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RArray, RModule, Ruby, Value, scan_args::scan_args};
+use magnus::{Error, Module, RArray, RModule, Ruby, Value, scan_args::scan_args, typed_data::Obj};
 use wreq::Uri;
 
 use crate::{
@@ -71,6 +71,14 @@ impl Response {
         }
     }
 
+    /// Build a body-free native response for its status classification logic.
+    fn response_for_status(&self) -> wreq::Response {
+        let mut response = HttpResponse::new(Bytes::new());
+        *response.status_mut() = self.status.0;
+        *response.extensions_mut() = self.state.as_ref().extensions.clone();
+        wreq::Response::from(response)
+    }
+
     /// Internal method to get the wreq::Response, optionally streaming the body.
     fn response(&self, ruby: &Ruby, stream: bool) -> Result<wreq::Response, Error> {
         rt::ensure_current(ruby)?;
@@ -132,6 +140,19 @@ impl Response {
     #[inline]
     pub fn status(&self) -> StatusCode {
         self.status
+    }
+
+    /// Return this response unless its status is a client or server error.
+    ///
+    /// Delegates classification to [`wreq::Response::error_for_status_ref`]
+    /// without consuming the response body.
+    pub fn raise_for_status(ruby: &Ruby, rb_self: Obj<Self>) -> Result<Obj<Self>, Error> {
+        rt::ensure_current(ruby)?;
+        rb_self
+            .response_for_status()
+            .error_for_status_ref()
+            .map_err(|err| wreq_error(ruby, err))?;
+        Ok(rb_self)
     }
 
     /// Get the response HTTP version.
@@ -243,6 +264,10 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     let response = gem_module.define_class("Response", ruby.class_object())?;
     response.define_method("code", magnus::method!(Response::code, 0))?;
     response.define_method("status", magnus::method!(Response::status, 0))?;
+    response.define_method(
+        "raise_for_status!",
+        magnus::method!(Response::raise_for_status, 0),
+    )?;
     response.define_method("version", magnus::method!(Response::version, 0))?;
     response.define_method("url", magnus::method!(Response::url, 0))?;
     response.define_method(

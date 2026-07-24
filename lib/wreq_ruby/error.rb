@@ -2,167 +2,261 @@
 
 unless defined?(Wreq)
   module Wreq
-    # System-level and runtime errors
-
-    # Memory allocation failed.
-    class MemoryError < StandardError; end
-
-    # The child process inherited wreq-ruby from its parent.
+    # Base class for wreq-ruby runtime errors.
     #
-    # Tokio worker threads do not survive fork, and inherited pooled
-    # connections are not safe to reuse. This error is raised before a child
-    # can access that state.
+    # Error remains a RuntimeError so existing rescue handlers keep working.
+    # The `is_*` methods mirror predicates on the captured native `wreq::Error`.
+    # One error can match more than one predicate. Errors created by the binding
+    # itself return false for all of them.
     #
-    # @example
-    #   Process.fork do
-    #     Wreq::Client.new # Raises if the parent loaded wreq-ruby.
+    # @example Rescue any wreq-ruby runtime error
+    #   begin
+    #     Wreq.get("not-a-valid-url")
+    #   rescue Wreq::Error => error
+    #     warn "#{error.class}: #{error.message}"
+    #     warn "invalid request" if error.is_builder
     #   end
+    class Error < RuntimeError
+      # Get the URI recorded by the native error.
+      #
+      # This value may contain credentials, query parameters, or fragments.
+      # Error messages and `inspect` omit the URI. Redact it before logging it
+      # explicitly.
+      #
+      # @return [String, nil] Frozen URI string, if one was recorded
+      attr_reader :uri
+
+      # Get the HTTP status recorded by the native error.
+      #
+      # @return [Integer, nil] HTTP status code, if one was recorded
+      attr_reader :status
+
+      # @return [Boolean] Whether the native error came from a builder
+      def is_builder
+      end
+
+      # @return [Boolean] Whether the native error came from redirect handling
+      def is_redirect
+      end
+
+      # @return [Boolean] Whether the native error represents an HTTP status
+      def is_status
+      end
+
+      # @return [Boolean] Whether the native error is related to a timeout
+      def is_timeout
+      end
+
+      # @return [Boolean] Whether the native error is related to a request
+      def is_request
+      end
+
+      # @return [Boolean] Whether the native error is related to connecting
+      def is_connect
+      end
+
+      # @return [Boolean] Whether the native error is related to a proxy connection
+      def is_proxy_connect
+      end
+
+      # @return [Boolean] Whether the native error is a connection reset
+      def is_connection_reset
+      end
+
+      # @return [Boolean] Whether the native error is related to a body
+      def is_body
+      end
+
+      # @return [Boolean] Whether the native error is related to TLS
+      def is_tls
+      end
+
+      # @return [Boolean] Whether the native error is related to decoding
+      def is_decode
+      end
+
+      # @return [Boolean] Whether the native error is related to an upgrade
+      def is_upgrade
+      end
+    end
+
+    # Raised when Ruby interrupts a native request wait.
+    #
+    # This inherits from Interrupt instead of Error, so `rescue StandardError`
+    # does not swallow the interrupt.
+    #
+    # @example Handle an interrupted request separately
+    #   begin
+    #     Wreq.get("https://example.com", timeout: 30)
+    #   rescue Wreq::InterruptError
+    #     warn "request interrupted"
+    #   rescue Wreq::Error => error
+    #     warn error.message
+    #   end
+    class InterruptError < Interrupt; end
+
+    # Raised when single-use native state was already consumed or is borrowed.
+    #
+    # @example A closed response no longer has a readable body
+    #   response = Wreq.get("https://example.com")
+    #   response.close
+    #   response.bytes # Raises Wreq::MemoryError
+    class MemoryError < Error; end
+
+    # Raised when a forked child tries to use inherited native state.
+    #
+    # Tokio worker threads and pooled connections cannot be reused after fork.
+    #
+    # @example Native operations are rejected in an inherited child
+    #   pid = Process.fork do
+    #     begin
+    #       Wreq::Client.new
+    #     rescue Wreq::ForkError => error
+    #       warn error.message
+    #     end
+    #   end
+    #   Process.wait(pid)
+    #
     # @see https://github.com/SearchApi/wreq-ruby/blob/main/docs/fork-safety.md
-    class ForkError < RuntimeError; end
+    class ForkError < Error; end
 
-    # Network connection errors
-
-    # Connection to the server failed.
+    # Raised when the client cannot connect to the destination server.
     #
-    # Raised when the client cannot establish a connection to the server.
+    # The error reflects the layer that actually fails. If a system proxy or
+    # VPN accepts the connection but does not return a response, the request
+    # raises Wreq::TimeoutError instead.
     #
-    # @example
+    # @example Handle a destination connection failure
+    #   client = Wreq::Client.new(no_proxy: true)
     #   begin
-    #     client.get("http://localhost:9999")
-    #   rescue Wreq::ConnectionError => e
-    #     puts "Connection failed: #{e.message}"
-    #     retry_with_backoff
+    #     client.get("http://127.0.0.1:1")
+    #   rescue Wreq::ConnectionError => error
+    #     warn "connection failed: #{error.message}"
     #   end
-    class ConnectionError < StandardError; end
+    class ConnectionError < Error; end
 
-    # Proxy Connection to the server failed.
+    # Raised when the client cannot connect to the configured proxy.
     #
-    # Raised when the client cannot establish a connection to the proxy server.
-    # @example
+    # @example Handle a proxy connection failure
     #   begin
-    #     client.get("http://example.com", proxy: "http://invalid-proxy:8080")
-    #   rescue Wreq::ProxyConnectionError => e
-    #     puts "Proxy connection failed: #{e.message}"
-    #     retry_with_different_proxy
+    #     Wreq.get(
+    #       "https://example.com",
+    #       proxy: "http://127.0.0.1:1"
+    #     )
+    #   rescue Wreq::ProxyConnectionError => error
+    #     warn "proxy connection failed: #{error.message}"
     #   end
-    class ProxyConnectionError < StandardError; end
+    class ProxyConnectionError < Error; end
 
-    # Connection was reset by the server.
+    # Raised when a peer resets the connection.
     #
-    # Raised when the server closes the connection unexpectedly.
-    #
-    # @example
-    #   rescue Wreq::ConnectionResetError => e
-    #     puts "Connection reset: #{e.message}"
-    #   end
-    class ConnectionResetError < StandardError; end
-
-    # TLS/SSL error occurred.
-    #
-    # Raised when there's an error with TLS/SSL, such as certificate
-    # verification failure or protocol mismatch.
-    #
-    # @example
+    # @example Handle a reset while streaming a response
+    #   response = Wreq.get("https://example.com")
     #   begin
-    #     client.get("https://self-signed.badssl.com")
-    #   rescue Wreq::TlsError => e
-    #     puts "TLS error: #{e.message}"
+    #     File.open("response.bin", "wb") do |file|
+    #       response.chunks { |chunk| file.write(chunk) }
+    #     end
+    #   rescue Wreq::ConnectionResetError => error
+    #     warn "connection reset: #{error.message}"
     #   end
-    class TlsError < StandardError; end
+    class ConnectionResetError < Error; end
 
-    # HTTP protocol and request/response errors
-
-    # Request failed.
+    # Raised when native TLS setup fails while constructing a client.
     #
-    # Generic error for request failures that don't fit other categories.
+    # The current Ruby API does not expose certificate or identity inputs that
+    # can deliberately trigger this error. TLS handshake and certificate
+    # verification failures happen while connecting and normally raise
+    # Wreq::ConnectionError instead.
     #
-    # @example
-    #   rescue Wreq::RequestError => e
-    #     puts "Request failed: #{e.message}"
-    #   end
-    class RequestError < StandardError; end
-
-    # HTTP status code indicates an error.
-    #
-    # Raised when the server returns an error status code (4xx or 5xx).
-    #
-    # @example
+    # @example Distinguish TLS setup errors from connection errors
     #   begin
-    #     response = client.get("https://httpbin.io/status/404")
-    #   rescue Wreq::StatusError => e
-    #     puts "HTTP error: #{e.message}"
-    #     # e.response contains the full response
+    #     Wreq::Client.new(verify: true).get("https://example.com")
+    #   rescue Wreq::TlsError => error
+    #     warn "TLS setup failed: #{error.message}"
+    #   rescue Wreq::ConnectionError => error
+    #     warn "TLS connection failed: #{error.message}"
     #   end
-    class StatusError < StandardError; end
+    class TlsError < Error; end
 
-    # Redirect handling failed.
+    # Raised for a request failure without a more specific error subclass.
     #
-    # Raised when too many redirects occur or redirect logic fails.
+    # @example Rescue the native fallback request category
+    #   client = Wreq::Client.new
+    #   begin
+    #     client.get("https://example.com")
+    #   rescue Wreq::RequestError => error
+    #     warn "request failed: #{error.message}"
+    #   end
+    class RequestError < Error; end
+
+    # Raised when Response#raise_for_status! sees a 4xx or 5xx response.
+    #
+    # Requests return error responses normally until this opt-in check is made.
+    # The inherited `status` reader returns the integer HTTP status.
     #
     # @example
+    #   client = Wreq::Client.new
     #   begin
-    #     client = Wreq::Client.new(allow_redirects: true, max_redirects: 3)
+    #     client.get("https://httpbin.io/status/404").raise_for_status!
+    #   rescue Wreq::StatusError => error
+    #     warn "HTTP #{error.status}: #{error.message}"
+    #   end
+    class StatusError < Error; end
+
+    # Raised when redirect handling fails, such as after too many redirects.
+    #
+    # @example Limit the number of redirects
+    #   client = Wreq::Client.new(allow_redirects: true, max_redirects: 3)
+    #   begin
     #     client.get("https://httpbin.io/redirect/10")
-    #   rescue Wreq::RedirectError => e
-    #     puts "Too many redirects: #{e.message}"
+    #   rescue Wreq::RedirectError => error
+    #     warn "redirect failed: #{error.message}"
     #   end
-    class RedirectError < StandardError; end
+    class RedirectError < Error; end
 
-    # Request timed out.
+    # Raised when a request operation exceeds its timeout.
     #
-    # Raised when the request exceeds the configured timeout.
-    #
-    # @example
+    # @example Handle a request timeout
+    #   client = Wreq::Client.new(timeout: 1)
     #   begin
-    #     client = Wreq::Client.new(timeout: 5)
     #     client.get("https://httpbin.io/delay/10")
-    #   rescue Wreq::TimeoutError => e
-    #     puts "Request timed out: #{e.message}"
-    #     retry_with_longer_timeout
+    #   rescue Wreq::TimeoutError => error
+    #     warn "request timed out: #{error.message}"
     #   end
-    class TimeoutError < StandardError; end
+    class TimeoutError < Error; end
 
-    # Data processing and encoding errors
-
-    # Response body processing failed.
+    # Raised while sending, reading, or streaming an HTTP body.
     #
-    # Raised when there's an error reading or processing the response body.
-    #
-    # @example
-    #   rescue Wreq::BodyError => e
-    #     puts "Body error: #{e.message}"
-    #   end
-    class BodyError < StandardError; end
-
-    # Decoding response failed.
-    #
-    # Raised when response content cannot be decoded (e.g., invalid UTF-8,
-    # malformed JSON, corrupted compression).
-    #
-    # @example
+    # @example Handle a body error while streaming
+    #   response = Wreq.get("https://example.com")
     #   begin
-    #     response = client.get("https://example.com/invalid-utf8")
-    #     response.text  # May raise DecodingError
-    #   rescue Wreq::DecodingError => e
-    #     puts "Decoding error: #{e.message}"
-    #     # Fall back to binary data
-    #     data = response.body
+    #     File.open("response.bin", "wb") do |file|
+    #       response.chunks { |chunk| file.write(chunk) }
+    #     end
+    #   rescue Wreq::BodyError => error
+    #     warn "body failed: #{error.message}"
     #   end
-    class DecodingError < StandardError; end
+    class BodyError < Error; end
 
-    # Configuration and builder errors
-
-    # A native client or request configuration could not be built.
+    # Raised when a response body cannot be decoded or parsed.
     #
-    # Raised when validated Ruby options cannot be represented by the native
-    # builder or request body.
-    #
-    # @example
+    # @example Fall back to bytes when a response is not valid JSON
+    #   response = Wreq.get("https://example.com")
     #   begin
-    #     client = Wreq::Client.new(proxy: "invalid://")
-    #   rescue Wreq::BuilderError => e
-    #     puts "Invalid configuration: #{e.message}"
+    #     data = response.json
+    #   rescue Wreq::DecodingError
+    #     data = response.bytes
     #   end
-    class BuilderError < StandardError; end
+    class DecodingError < Error; end
+
+    # Raised when client, request, header, or body configuration is invalid.
+    #
+    # @example Handle an invalid request URL
+    #   begin
+    #     Wreq.get("not-a-valid-url")
+    #   rescue Wreq::BuilderError => error
+    #     warn "invalid request: #{error.message}"
+    #   end
+    class BuilderError < Error; end
   end
 end
