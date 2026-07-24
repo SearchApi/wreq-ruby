@@ -16,46 +16,17 @@ The parent can continue using its clients. When inherited Ruby objects are
 collected in the child, their native runtime state is left for the operating
 system to reclaim when the process exits.
 
-## Loading wreq-ruby after fork
+## Child processes are unsupported
 
-A child can use wreq-ruby normally when it loads the extension for the first
-time after `fork`. Prefork servers should therefore avoid loading wreq-ruby in
-the parent and require it when each worker boots.
+A process created with `fork` must not use wreq-ruby, even when it first loads
+the extension after the fork. If the parent loaded wreq-ruby, native operations
+in the child raise `Wreq::ForkError`.
 
-On macOS, automatic system proxy discovery uses SystemConfiguration and
-CoreFoundation. In a multithreaded parent, Objective-C class initialization can
-be left in an unsafe state after `fork`, so macOS aborts the child rather than
-continue. A worker that loads wreq-ruby after `fork` should disable automatic
-proxy discovery or configure its proxy explicitly:
+When the extension was not present in the parent, no wreq-ruby state or fork
+marker reaches the child. The extension cannot reliably distinguish that child
+from a newly started process, so this unsupported path cannot guarantee a Ruby
+error and may fail inside platform libraries.
 
-```ruby
-client = Wreq::Client.new(no_proxy: true)
-```
-
-For Puma:
-
-```ruby
-# Gemfile
-gem "wreq", require: false
-
-# config/puma.rb
-on_worker_boot do
-  require "wreq"
-end
-```
-
-For Unicorn:
-
-```ruby
-# Gemfile
-gem "wreq", require: false
-
-# config/unicorn.rb
-after_fork do |_server, _worker|
-  require "wreq"
-end
-```
-
-Requiring wreq-ruby again in a child does not reset an extension that was
-already loaded by the parent. There is no `after_fork!` reset hook, so the load
-order must be fixed before workers are started.
+Prefork servers should use an `exec`- or spawn-based worker model when workers
+need wreq-ruby. Requiring the extension again does not reset inherited runtime
+state, and there is no `after_fork!` hook.
