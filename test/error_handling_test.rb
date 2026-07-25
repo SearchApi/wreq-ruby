@@ -1,6 +1,37 @@
 require "test_helper"
+require "socket"
+require "timeout"
 
 class ErrorHandlingTest < Minitest::Test
+  def test_interrupt_error_stays_outside_standard_error
+    assert_equal Interrupt, Wreq::InterruptError.superclass
+    refute_operator Wreq::InterruptError, :<, StandardError
+  end
+
+  def test_request_interruption_raises_interrupt_error
+    request_thread = nil
+    with_hanging_server do |url, accepted|
+      request_thread = Thread.new do
+        Wreq.get(url, timeout: 60)
+      rescue Interrupt, StandardError => error
+        error
+      end
+      request_thread.report_on_exception = false
+
+      Timeout.timeout(5) { accepted.pop }
+      request_thread.wakeup
+
+      assert request_thread.join(5), "Interrupted request thread should stop"
+
+      error = request_thread.value
+      assert_instance_of Wreq::InterruptError, error
+      refute_kind_of StandardError, error
+    end
+  ensure
+    request_thread&.kill
+    request_thread&.join(1)
+  end
+
   def test_network_error_handling
     # Try to connect to a non-existent domain
     response = Wreq.get("https://definitely-not-a-real-domain-12345.com")
@@ -88,5 +119,28 @@ class ErrorHandlingTest < Minitest::Test
         )
       end
     end
+  end
+
+  private
+
+  def with_hanging_server
+    server = TCPServer.new("127.0.0.1", 0)
+    accepted = Queue.new
+    thread = Thread.new do
+      socket = server.accept
+      accepted << true
+      sleep
+    rescue IOError, SystemCallError
+      nil
+    ensure
+      socket&.close unless socket&.closed?
+    end
+    thread.report_on_exception = false
+
+    yield "http://127.0.0.1:#{server.addr[1]}/", accepted
+  ensure
+    server&.close unless server&.closed?
+    thread&.kill
+    thread&.join(1)
   end
 end

@@ -93,6 +93,8 @@ unless defined?(Wreq)
     #   rescue Wreq::Error => error
     #     warn error.message
     #   end
+    # Keep interruption outside StandardError so a broad transport rescue
+    # never swallows a Ruby interrupt.
     class InterruptError < Interrupt; end
 
     # Raised when single-use native state was already consumed or is borrowed.

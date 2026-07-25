@@ -118,8 +118,8 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `IOError` after either channel side has closed. An interrupted
-    /// wait raises Ruby's standard `Interrupt` exception. Returns
-    /// `Wreq::ForkError` before reading an inherited channel.
+    /// wait raises `Wreq::InterruptError`. Returns `Wreq::ForkError` before
+    /// reading an inherited channel.
     pub fn push(ruby: &Ruby, rb_self: &Self, data: RString) -> Result<(), Error> {
         rt::ensure_current(ruby)?;
 
