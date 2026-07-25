@@ -113,7 +113,7 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `IOError` after either channel side has closed. An interrupted
-    /// wait raises Ruby's standard `Interrupt` exception.
+    /// wait raises `Wreq::InterruptError`.
     pub fn push(ruby: &Ruby, rb_self: &Self, data: RString) -> Result<(), Error> {
         // Clone during the shared borrow, then release it before waiting
         // for capacity. Request attachment needs a mutable borrow.

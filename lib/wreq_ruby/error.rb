@@ -2,6 +2,10 @@
 
 unless defined?(Wreq)
   module Wreq
+    # Keep interruption outside StandardError so a broad transport rescue
+    # never swallows a Ruby interrupt.
+    class InterruptError < Interrupt; end
+
     # System-level and runtime errors
 
     # Memory allocation failed.
