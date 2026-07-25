@@ -180,6 +180,9 @@ struct ErrorMetadata<'a> {
 
 // Stable roots for native errors.
 define_exception!(WREQ_ERROR, "Error", exception_runtime_error);
+
+// Keep interruption outside StandardError so a broad transport rescue
+// never swallows a Ruby interrupt.
 define_exception!(INTERRUPT_ERROR, "InterruptError", exception_interrupt);
 
 // System-level and runtime errors
@@ -191,7 +194,7 @@ pub fn memory_error(ruby: &Ruby) -> MagnusError {
     MagnusError::new(ruby.get_inner(&MEMORY), RACE_CONDITION_ERROR_MSG)
 }
 
-/// Create a `Wreq::InterruptError` outside the `StandardError` hierarchy.
+/// Create a `Wreq::InterruptError` when Ruby interrupts a request.
 pub fn interrupt_error(ruby: &Ruby) -> MagnusError {
     MagnusError::new(ruby.get_inner(&INTERRUPT_ERROR), "request interrupted")
 }
