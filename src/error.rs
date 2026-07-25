@@ -85,14 +85,18 @@ define_exception!(DECODING_ERROR, "DecodingError", exception_runtime_error);
 // Configuration and builder errors
 define_exception!(BUILDER_ERROR, "BuilderError", exception_runtime_error);
 
+// Keep interruption outside StandardError so a broad transport rescue
+// never swallows a Ruby interrupt.
+define_exception!(INTERRUPT_ERROR, "InterruptError", exception_interrupt);
+
 /// Memory error constant
 pub fn memory_error(ruby: &Ruby) -> MagnusError {
     MagnusError::new(ruby.get_inner(&MEMORY), RACE_CONDITION_ERROR_MSG)
 }
 
-/// Create Ruby's standard thread interruption error.
+/// Create a `Wreq::InterruptError` when Ruby interrupts a request.
 pub fn interrupt_error(ruby: &Ruby) -> MagnusError {
-    MagnusError::new(ruby.exception_interrupt(), "request interrupted")
+    MagnusError::new(ruby.get_inner(&INTERRUPT_ERROR), "request interrupted")
 }
 
 /// Build `Wreq::ForkError` without touching inherited native state.
@@ -339,6 +343,13 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), MagnusError> {
         BUILDER_ERROR,
         "BuilderError",
         exception_runtime_error
+    );
+    initialize_exception!(
+        ruby,
+        gem_module,
+        INTERRUPT_ERROR,
+        "InterruptError",
+        exception_interrupt
     );
     Ok(())
 }
