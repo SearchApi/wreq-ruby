@@ -113,7 +113,7 @@ dependencies = [
 [[package]]
 name = "btls"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?branch=demo%2Fmerge-upstream-boring-20260616#3100f47f98d45765a55ce0b9f8d3a281109cb6fe"
+source = "git+https://github.com/0x676e67/btls?branch=demo%2Fmerge-upstream-boring-20260616#67bc8c3547acabe5aa97f8e4529813926f2f7d4d"
 dependencies = [
  "bitflags",
  "btls-sys",
@@ -125,7 +125,7 @@ dependencies = [
 [[package]]
 name = "btls-sys"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?branch=demo%2Fmerge-upstream-boring-20260616#3100f47f98d45765a55ce0b9f8d3a281109cb6fe"
+source = "git+https://github.com/0x676e67/btls?branch=demo%2Fmerge-upstream-boring-20260616#67bc8c3547acabe5aa97f8e4529813926f2f7d4d"
 dependencies = [
  "bindgen",
  "cmake",
@@ -260,9 +260,9 @@ dependencies = [
 
 [[package]]
 name = "either"
-version = "1.16.0"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e"
+checksum = "9e5e8f6c15a24b9a3ee5efec809ccd006d3b30e8b3bb63c39af737c7f87daa1d"
 
 [[package]]
 name = "encoding_rs"
