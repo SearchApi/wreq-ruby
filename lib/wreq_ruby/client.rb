@@ -17,6 +17,10 @@ unless defined?(Wreq)
     # native conversion, such as TypeError or Wreq::BuilderError. Request
     # validation finishes before network I/O.
     #
+    # A child process cannot create or use a client if it inherited wreq-ruby
+    # from its parent. These calls raise Wreq::ForkError before accessing the
+    # native runtime. Require wreq after the worker has been forked.
+    #
     # @example Basic usage
     #   client = Wreq::Client.new
     #   # Use client for HTTP requests
@@ -165,6 +169,7 @@ unless defined?(Wreq)
       #   value cannot be converted or validated.
       # @raise [Wreq::BuilderError, Wreq::TlsError] if the native client cannot
       #   be initialized.
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       #
       # @example Minimal client
       #   client = Wreq::Client.new
@@ -280,6 +285,7 @@ unless defined?(Wreq)
       #   or unavailable on the current platform
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def request(method, url, **options)
       end
 
@@ -313,6 +319,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def get(url, **options)
       end
 
@@ -346,6 +353,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def head(url, **options)
       end
 
@@ -379,6 +387,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def post(url, **options)
       end
 
@@ -412,6 +421,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def put(url, **options)
       end
 
@@ -445,6 +455,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def delete(url, **options)
       end
 
@@ -478,6 +489,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def options(url, **options)
       end
 
@@ -511,6 +523,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def trace(url, **options)
       end
 
@@ -544,6 +557,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def patch(url, **options)
       end
     end
