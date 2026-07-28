@@ -224,7 +224,7 @@ impl Response {
 
     /// Get TLS certificate information, if available.
     fn tls_info(&self) -> Option<TlsInfo> {
-        self.extensions.get::<WreqTlsInfo>().map(|info| TlsInfo {
+        self.state.as_ref().extensions.get::<WreqTlsInfo>().map(|info| TlsInfo {
             peer_certificate: info.peer_certificate().map(|der| der.to_vec()),
             peer_certificate_chain: info
                 .peer_certificate_chain()
