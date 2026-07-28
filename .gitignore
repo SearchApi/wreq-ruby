@@ -26,3 +26,4 @@ DATA.md
 AGENTS.md
 .agents/
 .cargo/windows.toml
+btls-extension-order-validation
