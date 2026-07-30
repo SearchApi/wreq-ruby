@@ -7,7 +7,10 @@ pub mod resp;
 use std::{net::IpAddr, time::Duration};
 
 use ::serde::Deserialize;
-use magnus::{Module, Object, RModule, Ruby, TryConvert, Value, function, method, typed_data::Obj};
+use magnus::{
+    Module, Object, RModule, RString, Ruby, TryConvert, Value, function, method, typed_data::Obj,
+    value::ReprValue,
+};
 use wreq::Proxy;
 
 use crate::{
@@ -15,7 +18,7 @@ use crate::{
     client::{req::execute_request, resp::Response},
     cookie::Jar,
     emulate::Emulation,
-    error::wreq_error,
+    error::{argument_error, option_value_error, wreq_error},
     extractor::Extractor,
     gvl,
     header::{Headers, OrigHeaders, UserAgent},
@@ -95,6 +98,16 @@ struct Builder {
     // ========= TLS options =========
     /// Whether to verify TLS certificates.
     verify: Option<bool>,
+    /// Path to a PEM CA bundle that replaces the default trust store.
+    #[serde(default)]
+    ca_file: NativeOption<String>,
+    /// Raw PEM certificate content that replaces the default trust store.
+    ca_pem: Option<String>,
+    /// Path to a PEM CA bundle added alongside the default trust store.
+    #[serde(default)]
+    additional_ca_file: NativeOption<String>,
+    /// Raw PEM certificate content added alongside the default trust store.
+    additional_ca_pem: Option<String>,
 
     // ========= Network options =========
     /// Whether to disable the proxy for the client.
@@ -152,6 +165,18 @@ impl Builder {
                 (stringify!(proxy), options.is_non_nil(stringify!(proxy))),
                 (stringify!(no_proxy), builder.no_proxy == Some(true)),
             ])
+            .reject_conflicts([
+                (stringify!(ca_file), options.is_non_nil(stringify!(ca_file))),
+                (stringify!(ca_pem), builder.ca_pem.is_some()),
+                (
+                    stringify!(additional_ca_file),
+                    options.is_non_nil(stringify!(additional_ca_file)),
+                ),
+                (
+                    stringify!(additional_ca_pem),
+                    builder.additional_ca_pem.is_some(),
+                ),
+            ])
             .require_when_present(
                 stringify!(max_redirects),
                 builder.max_redirects.is_some(),
@@ -159,6 +184,22 @@ impl Builder {
                 ":allow_redirects to be true",
             )
             .finish()?;
+
+        // Convert path-like objects (Pathname, etc.) for CA file options.
+        if let Some(value) = options.convert_present::<Value>("ca_file")? {
+            if !value.is_nil() {
+                builder.ca_file.set(Some(
+                    convert_path(value).map_err(|e| option_value_error("ca_file", e))?,
+                ));
+            }
+        }
+        if let Some(value) = options.convert_present::<Value>("additional_ca_file")? {
+            if !value.is_nil() {
+                builder.additional_ca_file.set(Some(
+                    convert_path(value).map_err(|e| option_value_error("additional_ca_file", e))?,
+                ));
+            }
+        }
 
         extract_native_option!(
             options,
@@ -181,6 +222,16 @@ impl Builder {
 
         Ok(builder)
     }
+}
+
+/// Convert a Ruby value to a file-system path `String`.
+///
+/// Accepts a plain `String` or any object responding to `to_path` (e.g. `Pathname`).
+fn convert_path(value: Value) -> Result<String, magnus::Error> {
+    if let Ok(path) = value.funcall::<_, _, RString>("to_path", ()) {
+        return path.to_string().map_err(|e| e.into());
+    }
+    String::try_convert(value)
 }
 
 // ===== impl Client =====
@@ -224,6 +275,39 @@ impl Client {
     /// failures only after the GVL has been reacquired.
     fn build(ruby: &Ruby, mut params: Builder) -> Result<wreq::Client, magnus::Error> {
         rt::ensure_current(ruby)?;
+
+        // Resolve the CA option (at most one is set, enforced by reject_conflicts).
+        // Read file contents before releasing the GVL so I/O errors become ArgumentError.
+        // The bool indicates whether to augment system defaults (true) or replace them (false).
+        let ca_pem_data: Option<(Vec<u8>, bool)> = if let Some(path) = params.ca_file.take() {
+            let data = std::fs::read(&path)
+                .map_err(|e| argument_error(ruby, format!("ca_file: cannot read {path}: {e}")))?;
+            Some((data, false))
+        } else if let Some(pem) = params.ca_pem.take() {
+            Some((pem.into_bytes(), false))
+        } else if let Some(path) = params.additional_ca_file.take() {
+            let data = std::fs::read(&path).map_err(|e| {
+                argument_error(ruby, format!("additional_ca_file: cannot read {path}: {e}"))
+            })?;
+            Some((data, true))
+        } else if let Some(pem) = params.additional_ca_pem.take() {
+            Some((pem.into_bytes(), true))
+        } else {
+            None
+        };
+
+        // Validate that PEM data contains at least one certificate.
+        if let Some((ref pem_bytes, _)) = ca_pem_data {
+            if !pem_bytes
+                .windows(27)
+                .any(|w| w == b"-----BEGIN CERTIFICATE-----")
+            {
+                return Err(argument_error(
+                    ruby,
+                    "PEM data does not contain any certificates",
+                ));
+            }
+        }
 
         let result = gvl::nogvl(|| {
             let mut builder = wreq::Client::builder();
@@ -358,6 +442,16 @@ impl Client {
 
             // TLS options.
             apply_option!(set_if_some, builder, params.verify, tls_cert_verification);
+
+            // Custom CA certificate store.
+            if let Some((pem_bytes, augment)) = ca_pem_data {
+                let mut store_builder = wreq::tls::trust::CertStore::builder();
+                if augment {
+                    store_builder = store_builder.set_default_paths();
+                }
+                let store = store_builder.add_stack_pem_certs(&pem_bytes).build()?;
+                builder = builder.tls_cert_store(store);
+            }
 
             // Network options.
             apply_option!(set_if_some, builder, params.proxy, proxy);
