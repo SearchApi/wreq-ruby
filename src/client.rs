@@ -186,19 +186,19 @@ impl Builder {
             .finish()?;
 
         // Convert path-like objects (Pathname, etc.) for CA file options.
-        if let Some(value) = options.convert_present::<Value>("ca_file")? {
-            if !value.is_nil() {
-                builder.ca_file.set(Some(
-                    convert_path(value).map_err(|e| option_value_error("ca_file", e))?,
-                ));
-            }
+        if let Some(value) = options.convert_present::<Value>("ca_file")?
+            && !value.is_nil()
+        {
+            builder.ca_file.set(Some(
+                convert_path(value).map_err(|e| option_value_error("ca_file", e))?,
+            ));
         }
-        if let Some(value) = options.convert_present::<Value>("additional_ca_file")? {
-            if !value.is_nil() {
-                builder.additional_ca_file.set(Some(
-                    convert_path(value).map_err(|e| option_value_error("additional_ca_file", e))?,
-                ));
-            }
+        if let Some(value) = options.convert_present::<Value>("additional_ca_file")?
+            && !value.is_nil()
+        {
+            builder.additional_ca_file.set(Some(
+                convert_path(value).map_err(|e| option_value_error("additional_ca_file", e))?,
+            ));
         }
 
         extract_native_option!(
@@ -224,7 +224,7 @@ impl Builder {
 /// Accepts a plain `String` or any object responding to `to_path` (e.g. `Pathname`).
 fn convert_path(value: Value) -> Result<String, magnus::Error> {
     if let Ok(path) = value.funcall::<_, _, RString>("to_path", ()) {
-        return path.to_string().map_err(|e| e.into());
+        return path.to_string();
     }
     String::try_convert(value)
 }
@@ -287,23 +287,23 @@ impl Client {
                 argument_error(ruby, format!("additional_ca_file: cannot read {path}: {e}"))
             })?;
             Some((data, true))
-        } else if let Some(pem) = params.additional_ca_pem.take() {
-            Some((pem.into_bytes(), true))
         } else {
-            None
+            params
+                .additional_ca_pem
+                .take()
+                .map(|pem| (pem.into_bytes(), true))
         };
 
         // Validate that PEM data contains at least one certificate.
-        if let Some((ref pem_bytes, _)) = ca_pem_data {
-            if !pem_bytes
+        if let Some((ref pem_bytes, _)) = ca_pem_data
+            && !pem_bytes
                 .windows(27)
                 .any(|w| w == b"-----BEGIN CERTIFICATE-----")
-            {
-                return Err(argument_error(
-                    ruby,
-                    "PEM data does not contain any certificates",
-                ));
-            }
+        {
+            return Err(argument_error(
+                ruby,
+                "PEM data does not contain any certificates",
+            ));
         }
         let result = gvl::nogvl(|| {
             let mut builder = wreq::Client::builder();
