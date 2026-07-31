@@ -11,6 +11,7 @@ use magnus::{
 use tokio::sync::mpsc::error::SendError;
 
 const ERROR_PREDICATES_IVAR: &str = "wreq_error_predicates";
+type ErrorPredicateBits = u64;
 
 const RACE_CONDITION_ERROR_MSG: &str = r#"Due to Rust's memory management with borrowing,
 you cannot use certain instances multiple times as they may be consumed.
@@ -70,8 +71,8 @@ macro_rules! define_error_mapping {
             const ALL: &'static [Self] = &[$(Self::$predicate),+];
 
             /// Return this predicate's position in the compact Ruby metadata.
-            const fn mask(self) -> u16 {
-                1_u16 << (self as u8)
+            const fn mask(self) -> ErrorPredicateBits {
+                1 << (self as u8)
             }
 
             /// Return whether this is a native kind or a request detail.
@@ -96,7 +97,8 @@ macro_rules! define_error_mapping {
             }
         }
 
-        const _: () = assert!(ErrorPredicate::ALL.len() <= u16::BITS as usize);
+        const _: () =
+            assert!(ErrorPredicate::ALL.len() <= ErrorPredicateBits::BITS as usize);
 
         $(
             $(define_exception!($class, $ruby_name, exception_runtime_error);)?
@@ -154,16 +156,16 @@ define_error_mapping! {
 
 /// Native predicates retained after consuming a wreq error.
 #[derive(Clone, Copy, Default)]
-struct ErrorPredicates(u16);
+struct ErrorPredicates(ErrorPredicateBits);
 
 impl ErrorPredicates {
     /// Restore predicates from compact Ruby metadata.
-    const fn from_bits(bits: u16) -> Self {
+    const fn from_bits(bits: ErrorPredicateBits) -> Self {
         Self(bits)
     }
 
     /// Return the compact representation stored on the Ruby exception.
-    const fn bits(self) -> u16 {
+    const fn bits(self) -> ErrorPredicateBits {
         self.0
     }
 
@@ -382,7 +384,7 @@ fn wreq_error_class(ruby: &Ruby, predicates: ErrorPredicates) -> ExceptionClass 
 /// Read one native predicate from a Ruby error, defaulting to false.
 fn error_has_predicate(rb_self: RObject, predicate: ErrorPredicate) -> Result<bool, MagnusError> {
     rb_self
-        .ivar_get::<_, Option<u16>>(ERROR_PREDICATES_IVAR)
+        .ivar_get::<_, Option<ErrorPredicateBits>>(ERROR_PREDICATES_IVAR)
         .map(|bits| bits.is_some_and(|bits| ErrorPredicates::from_bits(bits).contains(predicate)))
 }
 
