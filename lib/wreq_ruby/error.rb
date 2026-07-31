@@ -5,10 +5,10 @@ unless defined?(Wreq)
     # Base class for wreq-ruby runtime errors.
     #
     # Error remains a RuntimeError so existing rescue handlers keep working.
-    # Its subclass records one error category. The `is_*` methods preserve every
-    # predicate reported by the native `wreq::Error`, so more than one can be
-    # true. For example, a request timeout raises TimeoutError while both
-    # `is_timeout` and `is_request` are true.
+    # Its subclass records one primary category. Predicate methods retain every
+    # classification reported by the native `wreq::Error`, so more than one can
+    # be true. For example, a request timeout raises TimeoutError while both
+    # `timeout?` and `request?` return true.
     #
     # A native kind such as BodyError, TlsError, or StatusError takes precedence
     # over details found in its cause chain. Native request errors are then
@@ -22,7 +22,7 @@ unless defined?(Wreq)
     #     Wreq.get("not-a-valid-url")
     #   rescue Wreq::Error => error
     #     warn "#{error.class}: #{error.message}"
-    #     warn "invalid request" if error.is_builder
+    #     warn "invalid request" if error.builder?
     #   end
     class Error < RuntimeError
       # Get the URI recorded by the native error.
@@ -40,57 +40,57 @@ unless defined?(Wreq)
       attr_reader :status
 
       # @return [Boolean] Whether the native error came from a builder
-      def is_builder
+      def builder?
       end
 
       # @return [Boolean] Whether the native error came from redirect handling
-      def is_redirect
+      def redirect?
       end
 
       # @return [Boolean] Whether the native error represents an HTTP status
-      def is_status
+      def status?
       end
 
       # A request timeout uses TimeoutError even when this is also a connection
       # or proxy connection error.
       #
       # @return [Boolean] Whether the native error is related to a timeout
-      def is_timeout
+      def timeout?
       end
 
       # This may be true on connection and timeout subclasses because those
       # errors occur while sending a request.
       #
       # @return [Boolean] Whether the native error is related to a request
-      def is_request
+      def request?
       end
 
       # @return [Boolean] Whether the native error is related to connecting
-      def is_connect
+      def connection?
       end
 
       # @return [Boolean] Whether the native error is related to a proxy connection
-      def is_proxy_connect
+      def proxy_connection?
       end
 
       # @return [Boolean] Whether the native error is a connection reset
-      def is_connection_reset
+      def connection_reset?
       end
 
       # @return [Boolean] Whether the native error is related to a body
-      def is_body
+      def body?
       end
 
       # @return [Boolean] Whether the native error is related to TLS
-      def is_tls
+      def tls?
       end
 
       # @return [Boolean] Whether the native error is related to decoding
-      def is_decode
+      def decoding?
       end
 
       # @return [Boolean] Whether the native error is related to an upgrade
-      def is_upgrade
+      def upgrade?
       end
     end
 
@@ -139,7 +139,7 @@ unless defined?(Wreq)
     # Raised when the client cannot connect to the destination server.
     #
     # If the native error reports both a destination connection failure and a
-    # timeout, Wreq::TimeoutError is raised and `is_connect` remains true. A
+    # timeout, Wreq::TimeoutError is raised and `connection?` remains true. A
     # system proxy or VPN that accepts the connection but never responds may
     # instead appear as a general request timeout.
     #
@@ -155,7 +155,7 @@ unless defined?(Wreq)
     # Raised when the client cannot connect to the configured proxy.
     #
     # If the native error reports both a proxy connection failure and a timeout,
-    # Wreq::TimeoutError is raised and `is_proxy_connect` remains true.
+    # Wreq::TimeoutError is raised and `proxy_connection?` remains true.
     #
     # @example Handle a proxy connection failure
     #   begin
@@ -242,8 +242,8 @@ unless defined?(Wreq)
     # Raised when a request operation exceeds its timeout.
     #
     # This includes destination and proxy connection timeouts when the native
-    # error reports them as timeouts. Check `is_connect` or `is_proxy_connect`
-    # to see whether the native error also identifies that phase. `is_request`
+    # error reports them as timeouts. Check `connection?` or `proxy_connection?`
+    # to see whether the native error also identifies that phase. `request?`
     # can be true on the same error.
     #
     # @example Handle a request timeout

@@ -49,7 +49,8 @@ macro_rules! define_error_mapping {
     (
         $(
             $predicate:ident [$role:ident]:
-                $method:ident => $class:ident $(($ruby_name:literal))?
+                $native_method:ident as $ruby_method:ident
+                => $class:ident $(($ruby_name:literal))?
         ),+ $(,)?
     ) => {
         /// How a native predicate participates in Ruby exception classification.
@@ -85,7 +86,7 @@ macro_rules! define_error_mapping {
             /// Evaluate this predicate before the native error is consumed.
             fn matches_wreq(self, error: &wreq::Error) -> bool {
                 match self {
-                    $(Self::$predicate => error.$method(),)+
+                    $(Self::$predicate => error.$native_method(),)+
                 }
             }
 
@@ -105,15 +106,18 @@ macro_rules! define_error_mapping {
         )+
 
         $(
-            fn $method(rb_self: RObject) -> Result<bool, MagnusError> {
+            fn $native_method(rb_self: RObject) -> Result<bool, MagnusError> {
                 error_has_predicate(rb_self, ErrorPredicate::$predicate)
             }
         )+
 
-        /// Define the native wreq predicate methods on Wreq::Error.
+        /// Define idiomatic Ruby predicate methods on `Wreq::Error`.
         fn include_error_predicates(class: ExceptionClass) -> Result<(), MagnusError> {
             $(
-                class.define_method(stringify!($method), magnus::method!($method, 0))?;
+                class.define_method(
+                    concat!(stringify!($ruby_method), "?"),
+                    magnus::method!($native_method, 0),
+                )?;
             )+
             Ok(())
         }
@@ -136,22 +140,25 @@ macro_rules! define_error_mapping {
 
 // wreq keeps its error kind private. Keep its mutually exclusive kind predicates
 // separate from request details, which inspect the source chain and may overlap.
+// Each entry maps the native method before `as` to the Ruby predicate after it.
 // Entries within each role are classified from top to bottom.
 define_error_mapping! {
-    Builder [NativeKind]: is_builder => BUILDER_ERROR("BuilderError"),
-    Body [NativeKind]: is_body => BODY_ERROR("BodyError"),
-    Tls [NativeKind]: is_tls => TLS_ERROR("TlsError"),
-    Decode [NativeKind]: is_decode => DECODING_ERROR("DecodingError"),
-    Redirect [NativeKind]: is_redirect => REDIRECT_ERROR("RedirectError"),
-    Status [NativeKind]: is_status => STATUS_ERROR("StatusError"),
-    Upgrade [NativeKind]: is_upgrade => WREQ_ERROR,
-    Request [NativeKind]: is_request => REQUEST_ERROR("RequestError"),
+    Builder [NativeKind]: is_builder as builder => BUILDER_ERROR("BuilderError"),
+    Body [NativeKind]: is_body as body => BODY_ERROR("BodyError"),
+    Tls [NativeKind]: is_tls as tls => TLS_ERROR("TlsError"),
+    Decode [NativeKind]: is_decode as decoding => DECODING_ERROR("DecodingError"),
+    Redirect [NativeKind]: is_redirect as redirect => REDIRECT_ERROR("RedirectError"),
+    Status [NativeKind]: is_status as status => STATUS_ERROR("StatusError"),
+    Upgrade [NativeKind]: is_upgrade as upgrade => WREQ_ERROR,
+    Request [NativeKind]: is_request as request => REQUEST_ERROR("RequestError"),
     ConnectionReset [RequestDetail]:
-        is_connection_reset => CONNECTION_RESET_ERROR("ConnectionResetError"),
-    Timeout [RequestDetail]: is_timeout => TIMEOUT_ERROR("TimeoutError"),
+        is_connection_reset as connection_reset
+        => CONNECTION_RESET_ERROR("ConnectionResetError"),
+    Timeout [RequestDetail]: is_timeout as timeout => TIMEOUT_ERROR("TimeoutError"),
     ProxyConnect [RequestDetail]:
-        is_proxy_connect => PROXY_CONNECTION_ERROR("ProxyConnectionError"),
-    Connect [RequestDetail]: is_connect => CONNECTION_ERROR("ConnectionError"),
+        is_proxy_connect as proxy_connection
+        => PROXY_CONNECTION_ERROR("ProxyConnectionError"),
+    Connect [RequestDetail]: is_connect as connection => CONNECTION_ERROR("ConnectionError"),
 }
 
 /// Native predicates retained after consuming a wreq error.
