@@ -19,18 +19,18 @@ class ErrorHierarchyTest < Minitest::Test
     BuilderError
   ].freeze
   NATIVE_ERROR_PREDICATES = %i[
-    is_builder
-    is_redirect
-    is_status
-    is_timeout
-    is_request
-    is_connect
-    is_proxy_connect
-    is_connection_reset
-    is_body
-    is_tls
-    is_decode
-    is_upgrade
+    builder?
+    redirect?
+    status?
+    timeout?
+    request?
+    connection?
+    proxy_connection?
+    connection_reset?
+    body?
+    tls?
+    decoding?
+    upgrade?
   ].freeze
 
   def test_regular_errors_share_stable_root
@@ -57,9 +57,9 @@ class ErrorHierarchyTest < Minitest::Test
     end
 
     assert_instance_of Wreq::BuilderError, root_error
-    assert root_error.is_builder
+    assert_predicate root_error, :builder?
     assert_nil root_error.status
-    assert_equal [:is_builder], active_native_predicates(root_error)
+    assert_equal [:builder?], active_native_predicates(root_error)
     assert_raises(Wreq::BuilderError) { Wreq.get("not-a-valid-url") }
   end
 
@@ -75,9 +75,9 @@ class ErrorHierarchyTest < Minitest::Test
     with_hanging_server do |url, _accepted|
       error = assert_raises(Wreq::TimeoutError) { client.get(url, timeout: 1) }
 
-      assert error.is_timeout
-      assert error.is_request
-      assert_equal %i[is_timeout is_request], active_native_predicates(error)
+      assert_predicate error, :timeout?
+      assert_predicate error, :request?
+      assert_equal %i[timeout? request?], active_native_predicates(error)
     end
   end
 
@@ -137,8 +137,8 @@ class ErrorHierarchyTest < Minitest::Test
         assert_equal status, error.status
         assert_equal response.url, error.uri
         assert_predicate error.uri, :frozen?
-        assert error.is_status
-        assert_equal [:is_status], active_native_predicates(error)
+        assert_predicate error, :status?
+        assert_equal [:status?], active_native_predicates(error)
         refute_respond_to error, :kind
         refute_respond_to error, :retryable?
         refute_includes error.message, "response-secret"
@@ -203,7 +203,7 @@ class ErrorHierarchyTest < Minitest::Test
     error = assert_raises(Wreq::BuilderError) { Wreq::Client.new(proxy: "://") }
 
     assert_includes error.message, ":proxy"
-    assert_equal [:is_builder], active_native_predicates(error)
+    assert_equal [:builder?], active_native_predicates(error)
   end
 
   private
