@@ -70,11 +70,14 @@ class ErrorHierarchyTest < Minitest::Test
   end
 
   def test_native_error_predicates_are_not_mutually_exclusive
+    client = Wreq::Client.new(no_proxy: true)
+
     with_hanging_server do |url, _accepted|
-      error = assert_raises(Wreq::TimeoutError) { Wreq.get(url, timeout: 1) }
+      error = assert_raises(Wreq::TimeoutError) { client.get(url, timeout: 1) }
 
       assert error.is_timeout
       assert error.is_request
+      assert_equal %i[is_timeout is_request], active_native_predicates(error)
     end
   end
 
