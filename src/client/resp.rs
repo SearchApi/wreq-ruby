@@ -111,7 +111,7 @@ fn redact_url(url: &str) -> String {
             }
             if let Some(port) = uri.port() {
                 result.push(':');
-                result.push_str(&port.to_string());
+                result.push_str(port.as_ref());
             }
             result.push_str(uri.path());
             if uri.query().is_some() {
