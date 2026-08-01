@@ -5,8 +5,11 @@ use bytes::Bytes;
 use futures_util::TryFutureExt;
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::{Error, Module, RArray, RModule, Ruby, Value, scan_args::scan_args};
+use magnus::{
+    Error, Module, RArray, RHash, RModule, Ruby, Value, scan_args::scan_args, value::ReprValue,
+};
 use wreq::Uri;
+use wreq::redirect::History as WreqHistory;
 
 use crate::{
     arch::ProcessLocal,
@@ -44,6 +47,80 @@ enum Body {
 struct NativeResponseState {
     body: ArcSwapOption<Body>,
     extensions: Extensions,
+}
+
+/// A single redirect hop extracted from the response's redirect history.
+#[magnus::wrap(class = "Wreq::RedirectHistoryEntry", free_immediately, size)]
+struct RedirectHistoryEntry {
+    status: u16,
+    url: String,
+    previous_url: String,
+    headers: HeaderMap,
+}
+
+impl RedirectHistoryEntry {
+    fn status(&self) -> u16 {
+        self.status
+    }
+
+    fn url(&self) -> &str {
+        &self.url
+    }
+
+    fn previous_url(&self) -> &str {
+        &self.previous_url
+    }
+
+    fn headers(&self) -> Headers {
+        Headers::from(self.headers.clone())
+    }
+
+    fn to_h(ruby: &Ruby, rb_self: &Self) -> RHash {
+        let hash = ruby.hash_new();
+        let _ = hash.aset(ruby.to_symbol("status"), rb_self.status);
+        let _ = hash.aset(ruby.to_symbol("url"), rb_self.url.as_str());
+        let _ = hash.aset(
+            ruby.to_symbol("previous_url"),
+            rb_self.previous_url.as_str(),
+        );
+        let _ = hash.aset(ruby.to_symbol("headers"), rb_self.headers());
+        hash
+    }
+
+    fn inspect(&self) -> String {
+        format!(
+            "#<Wreq::RedirectHistoryEntry {} {} -> {}>",
+            self.status,
+            redact_url(&self.previous_url),
+            redact_url(&self.url)
+        )
+    }
+}
+
+/// Redact query string and userinfo from a URL for safe display.
+fn redact_url(url: &str) -> String {
+    match Uri::try_from(url) {
+        Ok(uri) => {
+            let mut result = String::new();
+            if let Some(scheme) = uri.scheme_str() {
+                result.push_str(scheme);
+                result.push_str("://");
+            }
+            if let Some(host) = uri.host() {
+                result.push_str(host);
+            }
+            if let Some(port) = uri.port() {
+                result.push(':');
+                result.push_str(&port.to_string());
+            }
+            result.push_str(uri.path());
+            if uri.query().is_some() {
+                result.push_str("?[REDACTED]");
+            }
+            result
+        }
+        Err(_) => "[invalid URI]".to_owned(),
+    }
 }
 
 impl Response {
@@ -168,6 +245,38 @@ impl Response {
         Headers::from(self.headers.clone())
     }
 
+    /// Get the redirect history as a frozen array of RedirectHistoryEntry values.
+    fn history(ruby: &Ruby, rb_self: &Self) -> RArray {
+        let state = rb_self.state.as_ref();
+        let entries = state.extensions.get::<WreqHistory>();
+
+        match entries {
+            Some(history) => {
+                let items: Vec<RedirectHistoryEntry> = history
+                    .into_iter()
+                    .map(|entry| RedirectHistoryEntry {
+                        status: entry.status.as_u16(),
+                        url: entry.uri.to_string(),
+                        previous_url: entry.previous.to_string(),
+                        headers: entry.headers.clone(),
+                    })
+                    .collect();
+
+                let ary = ruby.ary_new_capa(items.len());
+                for item in items {
+                    let _ = ary.push(item);
+                }
+                let _: Result<Value, Error> = ary.funcall("freeze", ());
+                ary
+            }
+            None => {
+                let ary = ruby.ary_new();
+                let _: Result<Value, Error> = ary.funcall("freeze", ());
+                ary
+            }
+        }
+    }
+
     /// Get the local socket address, if available.
     #[inline]
     pub fn local_addr(&self) -> Option<String> {
@@ -258,5 +367,18 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response.define_method("json", magnus::method!(Response::json, 0))?;
     response.define_method("chunks", magnus::method!(Response::chunks, 0))?;
     response.define_method("close", magnus::method!(Response::close, 0))?;
+    response.define_method("history", magnus::method!(Response::history, 0))?;
+
+    let entry_class = gem_module.define_class("RedirectHistoryEntry", ruby.class_object())?;
+    entry_class.define_method("status", magnus::method!(RedirectHistoryEntry::status, 0))?;
+    entry_class.define_method("url", magnus::method!(RedirectHistoryEntry::url, 0))?;
+    entry_class.define_method(
+        "previous_url",
+        magnus::method!(RedirectHistoryEntry::previous_url, 0),
+    )?;
+    entry_class.define_method("headers", magnus::method!(RedirectHistoryEntry::headers, 0))?;
+    entry_class.define_method("to_h", magnus::method!(RedirectHistoryEntry::to_h, 0))?;
+    entry_class.define_method("inspect", magnus::method!(RedirectHistoryEntry::inspect, 0))?;
+    entry_class.define_method("to_s", magnus::method!(RedirectHistoryEntry::inspect, 0))?;
     Ok(())
 }

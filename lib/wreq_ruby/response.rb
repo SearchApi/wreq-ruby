@@ -177,6 +177,116 @@ unless defined?(Wreq)
       #   response.close
       def close
       end
+
+      # Get the redirect history for this response.
+      #
+      # Returns an ordered, frozen array of {Wreq::RedirectHistoryEntry} objects
+      # representing each hop followed during the request. When no redirects
+      # were followed (including when redirects are disabled), returns an empty
+      # frozen array.
+      #
+      # History is available regardless of whether the response body has been
+      # consumed or closed.
+      #
+      # @return [Array<Wreq::RedirectHistoryEntry>] Ordered redirect hops (frozen)
+      #
+      # @example No redirects
+      #   response = client.get("https://example.com/page")
+      #   response.history  # => []
+      #
+      # @example Single redirect
+      #   response = client.get("https://example.com/old",
+      #     allow_redirects: true)
+      #   response.history.length  # => 1
+      #   hop = response.history[0]
+      #   hop.status        # => 301
+      #   hop.previous_url  # => "https://example.com/old"
+      #   hop.url           # => "https://example.com/new"
+      #
+      # @example Iterating over multiple hops
+      #   response.history.each do |hop|
+      #     puts "#{hop.status}: #{hop.previous_url} -> #{hop.url}"
+      #   end
+      #
+      # @example Converting to hashes
+      #   response.history.map(&:to_h)
+      def history
+      end
+    end
+
+    # A single hop in the redirect history of a response.
+    #
+    # Each entry captures the status code, source and destination URLs,
+    # and headers from one intermediate redirect response. Entries are
+    # immutable value objects.
+    #
+    # Sensitive URL components (query strings, userinfo) are redacted
+    # from {#inspect} and {#to_s} output.
+    #
+    # @see Response#history
+    class RedirectHistoryEntry
+      # The HTTP status code of the redirect response.
+      #
+      # @return [Integer] Status code (e.g., 301, 302, 307, 308)
+      # @example
+      #   hop.status  # => 301
+      def status
+      end
+
+      # The resolved destination URL of the redirect.
+      #
+      # @return [String] The URL that was redirected to
+      # @example
+      #   hop.url  # => "https://example.com/new-page"
+      def url
+      end
+
+      # The URL that was requested before this redirect occurred.
+      #
+      # @return [String] The source URL of the redirect
+      # @example
+      #   hop.previous_url  # => "https://example.com/old-page"
+      def previous_url
+      end
+
+      # The headers from the redirect response.
+      #
+      # Returns a mutable snapshot of the intermediate response headers.
+      # Duplicate header values are preserved.
+      #
+      # @return [Wreq::Headers] Headers from the redirect response
+      # @example
+      #   hop.headers.get("location")  # => "https://example.com/new"
+      def headers
+      end
+
+      # Convert this entry to a Hash with symbol keys.
+      #
+      # @return [Hash{Symbol => Object}] Hash with +:status+, +:url+,
+      #   +:previous_url+, and +:headers+ keys
+      # @example
+      #   hop.to_h
+      #   # => { status: 301, url: "...", previous_url: "...",
+      #   #      headers: #<Wreq::Headers ...> }
+      def to_h
+      end
+
+      # Return a compact, safe string representation.
+      #
+      # Query strings and userinfo are redacted from URLs.
+      #
+      # @return [String] Formatted entry for debugging
+      # @example
+      #   hop.inspect
+      #   # => "#<Wreq::RedirectHistoryEntry 301 https://example.com/old -> https://example.com/new>"
+      def inspect
+      end
+
+      # Return the same representation as {#inspect}.
+      #
+      # @return [String]
+      def to_s
+      end
     end
   end
 end
