@@ -50,23 +50,21 @@ struct NativeResponseState {
 
 /// TLS certificate information extracted from a response.
 #[magnus::wrap(class = "Wreq::TlsInfo", free_immediately, size)]
-struct TlsInfo {
-    peer_certificate: Option<Vec<u8>>,
-    peer_certificate_chain: Option<Vec<Vec<u8>>>,
-}
+struct TlsInfo(WreqTlsInfo);
 
 impl TlsInfo {
     /// Get the DER-encoded leaf certificate of the peer as a binary Ruby String.
     fn peer_certificate(ruby: &Ruby, rb_self: &Self) -> Option<RString> {
         rb_self
-            .peer_certificate
-            .as_ref()
+            .0
+            .peer_certificate()
             .map(|der| ruby.str_from_slice(der))
     }
+
     /// Get the full certificate chain as a frozen Array of binary Ruby Strings.
     fn peer_certificate_chain(ruby: &Ruby, rb_self: &Self) -> Option<RArray> {
-        rb_self.peer_certificate_chain.as_ref().map(|chain| {
-            let ary = ruby.ary_new_capa(chain.len());
+        rb_self.0.peer_certificate_chain().map(|chain| {
+            let ary = ruby.ary_new();
             for cert in chain {
                 let _ = ary.push(ruby.str_from_slice(cert));
             }
@@ -76,14 +74,14 @@ impl TlsInfo {
     }
 
     fn inspect(&self) -> String {
-        let cert_info = match &self.peer_certificate {
+        let cert_info = match self.0.peer_certificate() {
             Some(der) => format!("peer_certificate=({} bytes)", der.len()),
             None => "peer_certificate=nil".to_owned(),
         };
-        let chain_info = match &self.peer_certificate_chain {
-            Some(chain) => format!("peer_certificate_chain=({} certs)", chain.len()),
-            None => "peer_certificate_chain=nil".to_owned(),
-        };
+        let chain_info = self.0.peer_certificate_chain().map_or_else(
+            || "peer_certificate_chain=nil".to_owned(),
+            |chain| format!("peer_certificate_chain=({} certs)", chain.count()),
+        );
         format!("#<Wreq::TlsInfo {cert_info} {chain_info}>")
     }
 }
@@ -228,12 +226,8 @@ impl Response {
             .as_ref()
             .extensions
             .get::<WreqTlsInfo>()
-            .map(|info| TlsInfo {
-                peer_certificate: info.peer_certificate().map(|der| der.to_vec()),
-                peer_certificate_chain: info
-                    .peer_certificate_chain()
-                    .map(|chain| chain.map(|cert| cert.to_vec()).collect()),
-            })
+            .cloned()
+            .map(TlsInfo)
     }
 
     /// Get the response body as bytes.
