@@ -9,18 +9,20 @@ connections are not safe to reuse.
 
 If the parent has already loaded wreq-ruby, native HTTP operations in the child
 raise `Wreq::ForkError`. This applies to new and existing clients, module
-request methods, streaming request bodies, and response body methods. Retrying
-the operation in the same child raises the same error.
+request methods, streaming request bodies, and response methods backed by native
+state. Retrying the operation in the same child raises the same error. Read-only
+response metadata such as status, headers, and captured TLS information remains
+available.
 
 The parent can continue using its clients. When inherited Ruby objects are
 collected in the child, their native runtime state is left for the operating
 system to reclaim when the process exits.
 
-## Child processes are unsupported
+## HTTP work in forked children is unsupported
 
-A process created with `fork` must not use wreq-ruby, even when it first loads
-the extension after the fork. If the parent loaded wreq-ruby, native operations
-in the child raise `Wreq::ForkError`.
+A process created with `fork` must not start or continue HTTP work through
+wreq-ruby, even when it first loads the extension after the fork. If the parent
+loaded wreq-ruby, native HTTP operations in the child raise `Wreq::ForkError`.
 
 When the extension was not present in the parent, no wreq-ruby state or fork
 marker reaches the child. The extension cannot reliably distinguish that child

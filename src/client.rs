@@ -95,7 +95,7 @@ struct Builder {
     // ========= TLS options =========
     /// Whether to verify TLS certificates.
     verify: Option<bool>,
-    /// Whether to collect TLS information on responses.
+    /// Whether to retain peer certificate data on responses.
     tls_info: Option<bool>,
 
     // ========= Network options =========

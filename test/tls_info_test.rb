@@ -1,144 +1,55 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "support/tls_server"
 
 class TlsInfoTest < Minitest::Test
-  # ---- Opt-in behavior ----
+  HTTPBIN_HTTP_URL = ENV.fetch("HTTPBIN_HTTP_URL", HTTPBIN_URL.sub(/\Ahttps:/, "http:"))
 
-  def test_tls_info_nil_when_not_enabled
-    response = Wreq.get("#{HTTPBIN_URL}/get")
-    assert_nil response.tls_info
+  def test_tls_info_is_nil_when_disabled_or_request_is_plain_http
+    default_response = Wreq::Client.new.get("#{HTTPBIN_URL}/get")
+    plain_response = Wreq::Client.new(tls_info: true).get("#{HTTPBIN_HTTP_URL}/get")
+
+    assert_nil default_response.tls_info
+    assert_nil plain_response.tls_info
   end
 
-  def test_tls_info_nil_on_default_client
-    client = Wreq::Client.new
-    response = client.get("#{HTTPBIN_URL}/get")
-    assert_nil response.tls_info
-  end
+  def test_certificate_data_survives_body_lifecycle_on_a_reused_connection
+    fixture = TlsTestServer.with_connection(request_count: 2) do |base_url, certificate_der|
+      client = Wreq::Client.new(
+        tls_info: true,
+        verify: false,
+        http1_only: true,
+        no_proxy: true,
+        timeout: 5
+      )
 
-  def test_tls_info_present_when_enabled
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("#{HTTPBIN_URL}/get")
-    refute_nil response.tls_info
-    assert_instance_of Wreq::TlsInfo, response.tls_info
-  end
+      read_response = client.get("#{base_url}read")
+      assert_equal "ok", read_response.text
+      read_tls = read_response.tls_info
 
-  # ---- Plain HTTP returns nil ----
+      closed_response = client.get("#{base_url}close")
+      closed_response.close
+      closed_tls = closed_response.tls_info
 
-  def test_tls_info_nil_for_plain_http
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("http://httpbin.io/get")
-    assert_nil response.tls_info
-  end
+      assert_instance_of Wreq::TlsInfo, read_tls
+      certificate = read_tls.peer_certificate
+      chain = read_tls.peer_certificate_chain
+      assert_equal certificate_der, certificate
+      assert_equal Encoding::BINARY, certificate.encoding
+      assert_equal [certificate_der], chain
+      assert_equal Encoding::BINARY, chain.first.encoding
+      assert_predicate chain, :frozen?
+      assert_empty Wreq::TlsInfo.instance_methods(false) & %i[inspect to_h to_s]
 
-  # ---- Peer certificate ----
-
-  def test_peer_certificate_is_binary_string
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("#{HTTPBIN_URL}/get")
-    tls = response.tls_info
-
-    cert = tls.peer_certificate
-    refute_nil cert
-    assert_instance_of String, cert
-    assert_equal Encoding::BINARY, cert.encoding
-    assert cert.bytesize > 0
-  end
-
-  # ---- Peer certificate chain ----
-
-  def test_peer_certificate_chain_is_frozen_array
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("#{HTTPBIN_URL}/get")
-    tls = response.tls_info
-
-    chain = tls.peer_certificate_chain
-    refute_nil chain
-    assert_instance_of Array, chain
-    assert chain.frozen?, "certificate chain array must be frozen"
-    assert chain.length > 0
-  end
-
-  def test_peer_certificate_chain_contains_binary_strings
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("#{HTTPBIN_URL}/get")
-    chain = response.tls_info.peer_certificate_chain
-
-    chain.each do |cert|
-      assert_instance_of String, cert
-      assert_equal Encoding::BINARY, cert.encoding
-      assert cert.bytesize > 0
+      certificate.clear
+      assert_equal certificate_der, read_tls.peer_certificate
+      assert_equal certificate_der, closed_tls.peer_certificate
     end
-  end
 
-  def test_peer_certificate_chain_immutable
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("#{HTTPBIN_URL}/get")
-    chain = response.tls_info.peer_certificate_chain
-
-    assert_raises(FrozenError) { chain.push("test") }
-  end
-
-  # ---- Data survives body consumption ----
-
-  def test_tls_info_available_after_body_read
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("#{HTTPBIN_URL}/get")
-
-    _body = response.text
-    tls = response.tls_info
-
-    refute_nil tls
-    refute_nil tls.peer_certificate
-    assert tls.peer_certificate.bytesize > 0
-  end
-
-  def test_tls_info_available_after_close
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("#{HTTPBIN_URL}/get")
-
-    response.close
-    tls = response.tls_info
-
-    refute_nil tls
-    refute_nil tls.peer_certificate
-  end
-
-  # ---- Inspect does not leak certificate bytes ----
-
-  def test_inspect_shows_byte_counts_only
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("#{HTTPBIN_URL}/get")
-    tls = response.tls_info
-
-    inspection = tls.inspect
-    assert_match(/peer_certificate=\(\d+ bytes\)/, inspection)
-    assert_match(/peer_certificate_chain=\(\d+ certs\)/, inspection)
-    assert_match(/\A#<Wreq::TlsInfo /, inspection)
-  end
-
-  def test_to_s_matches_inspect
-    client = Wreq::Client.new(tls_info: true)
-    response = client.get("#{HTTPBIN_URL}/get")
-    tls = response.tls_info
-
-    assert_equal tls.inspect, tls.to_s
-  end
-
-  # ---- Connection reuse ----
-
-  def test_tls_info_on_reused_connection
-    client = Wreq::Client.new(tls_info: true)
-
-    resp1 = client.get("#{HTTPBIN_URL}/get")
-    resp2 = client.get("#{HTTPBIN_URL}/get")
-
-    tls1 = resp1.tls_info
-    tls2 = resp2.tls_info
-
-    refute_nil tls1
-    refute_nil tls2
-    assert tls1.peer_certificate.bytesize > 0
-    assert tls2.peer_certificate.bytesize > 0
+    assert_equal(
+      {connections: 1, requests: ["GET /read HTTP/1.1\r\n", "GET /close HTTP/1.1\r\n"]},
+      fixture
+    )
   end
 end

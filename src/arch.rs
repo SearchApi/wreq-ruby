@@ -16,7 +16,7 @@ use std::mem::ManuallyDrop;
 /// system reclaim it when the process exits.
 ///
 /// This wrapper only controls destruction. Call [`crate::rt::ensure_current`]
-/// before accessing the inner value.
+/// before using process-bound state stored inside it.
 #[derive(Clone)]
 pub(crate) struct ProcessLocal<T>(ManuallyDrop<T>);
 

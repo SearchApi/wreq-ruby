@@ -178,76 +178,24 @@ unless defined?(Wreq)
       def close
       end
 
-      # Get TLS certificate information from the response.
+      # Return TLS information captured for this response.
       #
-      # Returns a {Wreq::TlsInfo} object when TLS information collection was
-      # enabled on the client via +tls_info: true+ and the response was received
-      # over HTTPS. Returns +nil+ when collection was not enabled, the response
-      # did not use TLS, or the native transport has no TLS information.
+      # Returns +nil+ when +tls_info: true+ was not enabled, the response used
+      # plain HTTP, or the transport supplied no TLS information. Reading or
+      # closing the response body does not discard captured TLS data.
       #
-      # @return [Wreq::TlsInfo, nil] TLS certificate information, or nil
+      # @return [Wreq::TlsInfo, nil] TLS information for this response, or +nil+
+      #   when unavailable
       # @example
       #   client = Wreq::Client.new(tls_info: true)
       #   response = client.get("https://example.com")
       #   tls = response.tls_info
-      #   tls.peer_certificate       # => DER-encoded binary String
-      #   tls.peer_certificate_chain  # => frozen Array of DER binary Strings
+      #
+      #   if tls
+      #     tls.peer_certificate       # => DER-encoded binary String
+      #     tls.peer_certificate_chain # => frozen Array of DER binary Strings
+      #   end
       def tls_info
-      end
-    end
-
-    # TLS certificate information extracted from a response.
-    #
-    # This is an immutable value object returned by {Response#tls_info} when
-    # TLS information collection is enabled on the client. Certificate data
-    # is DER-encoded and independent of response-body consumption and
-    # connection-pool reuse.
-    #
-    # Callers can pass DER bytes to +OpenSSL::X509::Certificate.new+ for
-    # parsing, subject/issuer inspection, or fingerprint formatting.
-    #
-    # @example Inspect TLS info
-    #   tls = response.tls_info
-    #   tls.peer_certificate       # => "\x30\x82..." (DER binary String)
-    #   tls.peer_certificate_chain # => ["\x30\x82...", ...] (frozen Array)
-    #
-    # @example Parse with OpenSSL
-    #   cert = OpenSSL::X509::Certificate.new(tls.peer_certificate)
-    #   puts cert.subject
-    class TlsInfo
-      # Get the DER-encoded leaf certificate of the peer.
-      #
-      # @return [String, nil] DER-encoded certificate as a binary String
-      #   (+Encoding::BINARY+), or +nil+ if unavailable
-      def peer_certificate
-      end
-
-      # Get the full peer certificate chain.
-      #
-      # The returned array is frozen and contains DER-encoded binary Strings.
-      # It includes the leaf certificate when the native transport supplies it.
-      #
-      # @return [Array<String>, nil] frozen Array of DER-encoded binary Strings,
-      #   or +nil+ if unavailable
-      def peer_certificate_chain
-      end
-
-      # Returns a compact string representation for debugging.
-      #
-      # Only shows byte counts and certificate counts; no raw certificate
-      # bytes are included.
-      #
-      # @return [String] human-readable representation
-      # @example
-      #   tls.inspect
-      #   # => "#<Wreq::TlsInfo peer_certificate=(1467 bytes) peer_certificate_chain=(3 certs)>"
-      def inspect
-      end
-
-      # Returns the same representation as {#inspect}.
-      #
-      # @return [String]
-      def to_s
       end
     end
   end

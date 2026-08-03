@@ -5,10 +5,8 @@ use bytes::Bytes;
 use futures_util::TryFutureExt;
 use http::{Extensions, HeaderMap, response::Response as HttpResponse};
 use http_body_util::BodyExt;
-use magnus::value::ReprValue;
-use magnus::{Error, Module, RArray, RModule, RString, Ruby, Value, scan_args::scan_args};
+use magnus::{Error, Module, RArray, RModule, Ruby, Value, scan_args::scan_args};
 use wreq::Uri;
-use wreq::tls::TlsInfo as WreqTlsInfo;
 
 use crate::{
     arch::ProcessLocal,
@@ -19,6 +17,7 @@ use crate::{
     header::Headers,
     http::{StatusCode, Version},
     rt,
+    tls::TlsInfo,
 };
 
 /// A response from a request.
@@ -46,44 +45,6 @@ enum Body {
 struct NativeResponseState {
     body: ArcSwapOption<Body>,
     extensions: Extensions,
-}
-
-/// TLS certificate information extracted from a response.
-#[magnus::wrap(class = "Wreq::TlsInfo", free_immediately, size)]
-struct TlsInfo(WreqTlsInfo);
-
-impl TlsInfo {
-    /// Get the DER-encoded leaf certificate of the peer as a binary Ruby String.
-    fn peer_certificate(ruby: &Ruby, rb_self: &Self) -> Option<RString> {
-        rb_self
-            .0
-            .peer_certificate()
-            .map(|der| ruby.str_from_slice(der))
-    }
-
-    /// Get the full certificate chain as a frozen Array of binary Ruby Strings.
-    fn peer_certificate_chain(ruby: &Ruby, rb_self: &Self) -> Option<RArray> {
-        rb_self.0.peer_certificate_chain().map(|chain| {
-            let ary = ruby.ary_new();
-            for cert in chain {
-                let _ = ary.push(ruby.str_from_slice(cert));
-            }
-            let _: Result<Value, Error> = ary.funcall("freeze", ());
-            ary
-        })
-    }
-
-    fn inspect(&self) -> String {
-        let cert_info = match self.0.peer_certificate() {
-            Some(der) => format!("peer_certificate=({} bytes)", der.len()),
-            None => "peer_certificate=nil".to_owned(),
-        };
-        let chain_info = self.0.peer_certificate_chain().map_or_else(
-            || "peer_certificate_chain=nil".to_owned(),
-            |chain| format!("peer_certificate_chain=({} certs)", chain.count()),
-        );
-        format!("#<Wreq::TlsInfo {cert_info} {chain_info}>")
-    }
 }
 
 impl Response {
@@ -220,12 +181,12 @@ impl Response {
         self.remote_addr.map(|addr| addr.to_string())
     }
 
-    /// Get TLS certificate information, if available.
+    /// Return peer certificate data retained for this response.
     fn tls_info(&self) -> Option<TlsInfo> {
         self.state
             .as_ref()
             .extensions
-            .get::<WreqTlsInfo>()
+            .get::<wreq::tls::TlsInfo>()
             .cloned()
             .map(TlsInfo)
     }
@@ -309,17 +270,5 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response.define_method("chunks", magnus::method!(Response::chunks, 0))?;
     response.define_method("close", magnus::method!(Response::close, 0))?;
     response.define_method("tls_info", magnus::method!(Response::tls_info, 0))?;
-
-    let tls_info_class = gem_module.define_class("TlsInfo", ruby.class_object())?;
-    tls_info_class.define_method(
-        "peer_certificate",
-        magnus::method!(TlsInfo::peer_certificate, 0),
-    )?;
-    tls_info_class.define_method(
-        "peer_certificate_chain",
-        magnus::method!(TlsInfo::peer_certificate_chain, 0),
-    )?;
-    tls_info_class.define_method("inspect", magnus::method!(TlsInfo::inspect, 0))?;
-    tls_info_class.define_method("to_s", magnus::method!(TlsInfo::inspect, 0))?;
     Ok(())
 }
