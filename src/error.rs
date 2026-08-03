@@ -156,9 +156,9 @@ define_error_mapping! {
         => CONNECTION_RESET_ERROR("ConnectionResetError"),
     Timeout [RequestDetail]: is_timeout as timeout => TIMEOUT_ERROR("TimeoutError"),
     ProxyConnect [RequestDetail]:
-        is_proxy_connect as proxy_connection
-        => PROXY_CONNECTION_ERROR("ProxyConnectionError"),
-    Connect [RequestDetail]: is_connect as connection => CONNECTION_ERROR("ConnectionError"),
+        is_proxy_connect as proxy_connect
+        => PROXY_CONNECT_ERROR("ProxyConnectError"),
+    Connect [RequestDetail]: is_connect as connect => CONNECT_ERROR("ConnectError"),
 }
 
 /// Native predicates retained after consuming a wreq error.

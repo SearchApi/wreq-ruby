@@ -12,10 +12,10 @@ unless defined?(Wreq)
     #
     # A native kind such as BodyError, TlsError, or StatusError takes precedence
     # over details found in its cause chain. Native request errors are then
-    # classified as connection reset, timeout, proxy connection, destination
-    # connection, or RequestError, in that order. Use the predicates when code
-    # needs every native classification. Errors created by the binding itself
-    # return false for all of them.
+    # classified as connection reset, timeout, proxy connect failure,
+    # destination connect failure, or RequestError, in that order. Use the
+    # predicates when code needs every native classification. Errors created by
+    # the binding itself return false for all of them.
     #
     # @example Rescue any wreq-ruby runtime error
     #   begin
@@ -65,12 +65,14 @@ unless defined?(Wreq)
       def request?
       end
 
-      # @return [Boolean] Whether the native error is related to connecting
-      def connection?
+      # @return [Boolean] Whether the native error occurred while acquiring a
+      #   connection to the destination
+      def connect?
       end
 
-      # @return [Boolean] Whether the native error is related to a proxy connection
-      def proxy_connection?
+      # @return [Boolean] Whether the native error occurred while connecting
+      #   through a proxy
+      def proxy_connect?
       end
 
       # @return [Boolean] Whether the native error is a connection reset
@@ -136,10 +138,11 @@ unless defined?(Wreq)
     # @see https://github.com/SearchApi/wreq-ruby/blob/main/docs/fork-safety.md
     class ForkError < Error; end
 
-    # Raised when the client cannot connect to the destination server.
+    # Raised when the client cannot acquire a usable connection to the
+    # destination server.
     #
     # If the native error reports both a destination connection failure and a
-    # timeout, Wreq::TimeoutError is raised and `connection?` remains true. A
+    # timeout, Wreq::TimeoutError is raised and `connect?` remains true. A
     # system proxy or VPN that accepts the connection but never responds may
     # instead appear as a general request timeout.
     #
@@ -147,15 +150,17 @@ unless defined?(Wreq)
     #   client = Wreq::Client.new(no_proxy: true)
     #   begin
     #     client.get("http://127.0.0.1:1")
-    #   rescue Wreq::ConnectionError => error
+    #   rescue Wreq::ConnectError => error
     #     warn "connection failed: #{error.message}"
     #   end
-    class ConnectionError < Error; end
+    class ConnectError < Error; end
 
-    # Raised when the client cannot connect to the configured proxy.
+    # Raised when the client cannot establish a connection through the
+    # configured proxy. This includes failures while connecting to the proxy or
+    # negotiating a proxy tunnel.
     #
     # If the native error reports both a proxy connection failure and a timeout,
-    # Wreq::TimeoutError is raised and `proxy_connection?` remains true.
+    # Wreq::TimeoutError is raised and `proxy_connect?` remains true.
     #
     # @example Handle a proxy connection failure
     #   begin
@@ -163,10 +168,10 @@ unless defined?(Wreq)
     #       "https://example.com",
     #       proxy: "http://127.0.0.1:1"
     #     )
-    #   rescue Wreq::ProxyConnectionError => error
+    #   rescue Wreq::ProxyConnectError => error
     #     warn "proxy connection failed: #{error.message}"
     #   end
-    class ProxyConnectionError < Error; end
+    class ProxyConnectError < Error; end
 
     # Raised when a peer resets the connection.
     #
@@ -186,14 +191,14 @@ unless defined?(Wreq)
     # The current Ruby API does not expose certificate or identity inputs that
     # can deliberately trigger this error. TLS handshake and certificate
     # verification failures happen while connecting and normally raise
-    # Wreq::ConnectionError instead.
+    # Wreq::ConnectError instead.
     #
     # @example Distinguish TLS setup errors from connection errors
     #   begin
     #     Wreq::Client.new(verify: true).get("https://example.com")
     #   rescue Wreq::TlsError => error
     #     warn "TLS setup failed: #{error.message}"
-    #   rescue Wreq::ConnectionError => error
+    #   rescue Wreq::ConnectError => error
     #     warn "TLS connection failed: #{error.message}"
     #   end
     class TlsError < Error; end
@@ -241,10 +246,9 @@ unless defined?(Wreq)
 
     # Raised when a request operation exceeds its timeout.
     #
-    # This includes destination and proxy connection timeouts when the native
-    # error reports them as timeouts. Check `connection?` or `proxy_connection?`
-    # to see whether the native error also identifies that phase. `request?`
-    # can be true on the same error.
+    # This includes timeouts while connecting to the destination or proxy. Check
+    # `connect?` or `proxy_connect?` to see whether the native error also
+    # identifies the connect phase. `request?` can be true on the same error.
     #
     # @example Handle a request timeout
     #   client = Wreq::Client.new(timeout: 1)

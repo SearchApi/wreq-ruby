@@ -6,8 +6,8 @@ class ErrorHierarchyTest < Minitest::Test
   REGULAR_ERROR_NAMES = %i[
     MemoryError
     ForkError
-    ConnectionError
-    ProxyConnectionError
+    ConnectError
+    ProxyConnectError
     ConnectionResetError
     TlsError
     RequestError
@@ -24,8 +24,8 @@ class ErrorHierarchyTest < Minitest::Test
     status?
     timeout?
     request?
-    connection?
-    proxy_connection?
+    connect?
+    proxy_connect?
     connection_reset?
     body?
     tls?
@@ -40,10 +40,14 @@ class ErrorHierarchyTest < Minitest::Test
     REGULAR_ERROR_NAMES.each do |name|
       assert_equal Wreq::Error, Wreq.const_get(name).superclass
     end
+    refute Wreq.const_defined?(:ConnectionError, false)
+    refute Wreq.const_defined?(:ProxyConnectionError, false)
 
     error = Wreq::MemoryError.new
     assert_nil error.uri
     assert_nil error.status
+    refute_respond_to error, :connection?
+    refute_respond_to error, :proxy_connection?
     NATIVE_ERROR_PREDICATES.each do |predicate|
       assert_equal false, error.public_send(predicate)
     end
