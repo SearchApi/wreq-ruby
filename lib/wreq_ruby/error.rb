@@ -10,15 +10,16 @@ unless defined?(Wreq)
     # be true. For example, a request timeout raises TimeoutError while both
     # `timeout?` and `request?` return true.
     #
-    # A native kind such as BodyError, TlsError, or StatusError takes precedence
-    # over details found in its cause chain. Native request errors are then
-    # classified as connection reset, timeout, proxy connect failure,
-    # destination connect failure, or RequestError, in that order. This order is
-    # defined by wreq-ruby and does not depend on the order of native checks. Use
-    # the predicates when code needs every native classification. Errors created
-    # by the binding itself return false for all of them. New native facts may be
-    # added as predicates without changing the exception class for existing
-    # failures.
+    # wreq-ruby records the native checks as facts, then chooses the exception
+    # class using its own rules. Native body, TLS, and status kinds take
+    # precedence over details found in their cause chains. The remaining errors
+    # are classified as connection reset, timeout, proxy connect failure,
+    # destination connect failure, or RequestError, in that order. These
+    # transport details do not depend on `request?` also being true.
+    #
+    # Use the predicates when code needs every native fact. Errors created by
+    # the binding return false for all of them. New facts may be exposed as
+    # predicates without changing the exception class for existing failures.
     #
     # @example Rescue any wreq-ruby runtime error
     #   begin
