@@ -13,9 +13,12 @@ unless defined?(Wreq)
     # A native kind such as BodyError, TlsError, or StatusError takes precedence
     # over details found in its cause chain. Native request errors are then
     # classified as connection reset, timeout, proxy connect failure,
-    # destination connect failure, or RequestError, in that order. Use the
-    # predicates when code needs every native classification. Errors created by
-    # the binding itself return false for all of them.
+    # destination connect failure, or RequestError, in that order. This order is
+    # defined by wreq-ruby and does not depend on the order of native checks. Use
+    # the predicates when code needs every native classification. Errors created
+    # by the binding itself return false for all of them. New native facts may be
+    # added as predicates without changing the exception class for existing
+    # failures.
     #
     # @example Rescue any wreq-ruby runtime error
     #   begin
