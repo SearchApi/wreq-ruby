@@ -6,8 +6,8 @@ class ErrorHierarchyTest < Minitest::Test
   REGULAR_ERROR_NAMES = %i[
     MemoryError
     ForkError
-    ConnectionError
-    ProxyConnectionError
+    ConnectError
+    ProxyConnectError
     ConnectionResetError
     TlsError
     RequestError
@@ -19,18 +19,18 @@ class ErrorHierarchyTest < Minitest::Test
     BuilderError
   ].freeze
   NATIVE_ERROR_PREDICATES = %i[
-    is_builder
-    is_redirect
-    is_status
-    is_timeout
-    is_request
-    is_connect
-    is_proxy_connect
-    is_connection_reset
-    is_body
-    is_tls
-    is_decode
-    is_upgrade
+    builder?
+    redirect?
+    status?
+    timeout?
+    request?
+    connect?
+    proxy_connect?
+    connection_reset?
+    body?
+    tls?
+    decoding?
+    upgrade?
   ].freeze
 
   def test_regular_errors_share_stable_root
@@ -40,10 +40,14 @@ class ErrorHierarchyTest < Minitest::Test
     REGULAR_ERROR_NAMES.each do |name|
       assert_equal Wreq::Error, Wreq.const_get(name).superclass
     end
+    refute Wreq.const_defined?(:ConnectionError, false)
+    refute Wreq.const_defined?(:ProxyConnectionError, false)
 
     error = Wreq::MemoryError.new
     assert_nil error.uri
     assert_nil error.status
+    refute_respond_to error, :connection?
+    refute_respond_to error, :proxy_connection?
     NATIVE_ERROR_PREDICATES.each do |predicate|
       assert_equal false, error.public_send(predicate)
     end
@@ -57,9 +61,9 @@ class ErrorHierarchyTest < Minitest::Test
     end
 
     assert_instance_of Wreq::BuilderError, root_error
-    assert root_error.is_builder
+    assert_predicate root_error, :builder?
     assert_nil root_error.status
-    assert_equal [:is_builder], active_native_predicates(root_error)
+    assert_equal [:builder?], active_native_predicates(root_error)
     assert_raises(Wreq::BuilderError) { Wreq.get("not-a-valid-url") }
   end
 
@@ -70,11 +74,14 @@ class ErrorHierarchyTest < Minitest::Test
   end
 
   def test_native_error_predicates_are_not_mutually_exclusive
-    with_hanging_server do |url, _accepted|
-      error = assert_raises(Wreq::TimeoutError) { Wreq.get(url, timeout: 1) }
+    client = Wreq::Client.new(no_proxy: true)
 
-      assert error.is_timeout
-      assert error.is_request
+    with_hanging_server do |url, _accepted|
+      error = assert_raises(Wreq::TimeoutError) { client.get(url, timeout: 1) }
+
+      assert_predicate error, :timeout?
+      assert_predicate error, :request?
+      assert_equal %i[timeout? request?], active_native_predicates(error)
     end
   end
 
@@ -134,8 +141,8 @@ class ErrorHierarchyTest < Minitest::Test
         assert_equal status, error.status
         assert_equal response.url, error.uri
         assert_predicate error.uri, :frozen?
-        assert error.is_status
-        assert_equal [:is_status], active_native_predicates(error)
+        assert_predicate error, :status?
+        assert_equal [:status?], active_native_predicates(error)
         refute_respond_to error, :kind
         refute_respond_to error, :retryable?
         refute_includes error.message, "response-secret"
@@ -200,7 +207,7 @@ class ErrorHierarchyTest < Minitest::Test
     error = assert_raises(Wreq::BuilderError) { Wreq::Client.new(proxy: "://") }
 
     assert_includes error.message, ":proxy"
-    assert_equal [:is_builder], active_native_predicates(error)
+    assert_equal [:builder?], active_native_predicates(error)
   end
 
   private

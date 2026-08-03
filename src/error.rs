@@ -46,30 +46,51 @@ macro_rules! initialize_exception {
 }
 
 macro_rules! define_error_mapping {
-    ($($predicate:ident: $method:ident => $class:ident $(($ruby_name:literal))?),+ $(,)?) => {
-        /// Native predicates ordered by Ruby exception class priority.
-        #[derive(Clone, Copy)]
+    (
+        $(
+            $predicate:ident [$role:ident]:
+                $native_method:ident as $ruby_method:ident
+                => $class:ident $(($ruby_name:literal))?
+        ),+ $(,)?
+    ) => {
+        /// How a native predicate participates in Ruby exception classification.
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum ErrorPredicateRole {
+            NativeKind,
+            RequestDetail,
+        }
+
+        /// Predicates captured from a native `wreq::Error`.
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         #[repr(u8)]
         enum ErrorPredicate {
             $($predicate),+
         }
 
         impl ErrorPredicate {
-            const CLASSIFICATION_ORDER: &'static [Self] = &[$(Self::$predicate),+];
+            /// Every predicate retained in Ruby exception metadata.
+            const ALL: &'static [Self] = &[$(Self::$predicate),+];
 
             /// Return this predicate's position in the compact Ruby metadata.
             const fn mask(self) -> ErrorPredicateBits {
                 1 << (self as u8)
             }
 
-            /// Evaluate this predicate before the native error is consumed.
-            fn matches_wreq(self, error: &wreq::Error) -> bool {
+            /// Return whether this is a native kind or a request detail.
+            const fn role(self) -> ErrorPredicateRole {
                 match self {
-                    $(Self::$predicate => error.$method(),)+
+                    $(Self::$predicate => ErrorPredicateRole::$role,)+
                 }
             }
 
-            /// Return the Ruby class selected when this predicate has priority.
+            /// Evaluate this predicate before the native error is consumed.
+            fn matches_wreq(self, error: &wreq::Error) -> bool {
+                match self {
+                    $(Self::$predicate => error.$native_method(),)+
+                }
+            }
+
+            /// Return the Ruby class represented by this predicate.
             fn error_class(self) -> &'static Lazy<ExceptionClass> {
                 match self {
                     $(Self::$predicate => &$class,)+
@@ -78,22 +99,25 @@ macro_rules! define_error_mapping {
         }
 
         const _: () =
-            assert!(ErrorPredicate::CLASSIFICATION_ORDER.len() <= ErrorPredicateBits::BITS as usize);
+            assert!(ErrorPredicate::ALL.len() <= ErrorPredicateBits::BITS as usize);
 
         $(
             $(define_exception!($class, $ruby_name, exception_runtime_error);)?
         )+
 
         $(
-            fn $method(rb_self: RObject) -> Result<bool, MagnusError> {
+            fn $native_method(rb_self: RObject) -> Result<bool, MagnusError> {
                 error_has_predicate(rb_self, ErrorPredicate::$predicate)
             }
         )+
 
-        /// Define the native wreq predicate methods on Wreq::Error.
+        /// Define idiomatic Ruby predicate methods on `Wreq::Error`.
         fn include_error_predicates(class: ExceptionClass) -> Result<(), MagnusError> {
             $(
-                class.define_method(stringify!($method), magnus::method!($method, 0))?;
+                class.define_method(
+                    concat!(stringify!($ruby_method), "?"),
+                    magnus::method!($native_method, 0),
+                )?;
             )+
             Ok(())
         }
@@ -114,20 +138,27 @@ macro_rules! define_error_mapping {
     };
 }
 
-// The first matching entry determines the Ruby exception class.
+// wreq keeps its error kind private. Keep its mutually exclusive kind predicates
+// separate from request details, which inspect the source chain and may overlap.
+// Each entry maps the native method before `as` to the Ruby predicate after it.
+// Entries within each role are classified from top to bottom.
 define_error_mapping! {
-    Builder: is_builder => BUILDER_ERROR("BuilderError"),
-    Body: is_body => BODY_ERROR("BodyError"),
-    Tls: is_tls => TLS_ERROR("TlsError"),
-    ConnectionReset: is_connection_reset => CONNECTION_RESET_ERROR("ConnectionResetError"),
-    Connect: is_connect => CONNECTION_ERROR("ConnectionError"),
-    ProxyConnect: is_proxy_connect => PROXY_CONNECTION_ERROR("ProxyConnectionError"),
-    Decode: is_decode => DECODING_ERROR("DecodingError"),
-    Redirect: is_redirect => REDIRECT_ERROR("RedirectError"),
-    Timeout: is_timeout => TIMEOUT_ERROR("TimeoutError"),
-    Status: is_status => STATUS_ERROR("StatusError"),
-    Request: is_request => REQUEST_ERROR("RequestError"),
-    Upgrade: is_upgrade => WREQ_ERROR,
+    Builder [NativeKind]: is_builder as builder => BUILDER_ERROR("BuilderError"),
+    Body [NativeKind]: is_body as body => BODY_ERROR("BodyError"),
+    Tls [NativeKind]: is_tls as tls => TLS_ERROR("TlsError"),
+    Decode [NativeKind]: is_decode as decoding => DECODING_ERROR("DecodingError"),
+    Redirect [NativeKind]: is_redirect as redirect => REDIRECT_ERROR("RedirectError"),
+    Status [NativeKind]: is_status as status => STATUS_ERROR("StatusError"),
+    Upgrade [NativeKind]: is_upgrade as upgrade => WREQ_ERROR,
+    Request [NativeKind]: is_request as request => REQUEST_ERROR("RequestError"),
+    ConnectionReset [RequestDetail]:
+        is_connection_reset as connection_reset
+        => CONNECTION_RESET_ERROR("ConnectionResetError"),
+    Timeout [RequestDetail]: is_timeout as timeout => TIMEOUT_ERROR("TimeoutError"),
+    ProxyConnect [RequestDetail]:
+        is_proxy_connect as proxy_connect
+        => PROXY_CONNECT_ERROR("ProxyConnectError"),
+    Connect [RequestDetail]: is_connect as connect => CONNECT_ERROR("ConnectError"),
 }
 
 /// Native predicates retained after consuming a wreq error.
@@ -158,12 +189,35 @@ impl ErrorPredicates {
         }
         self
     }
+
+    /// Select one Ruby exception class without treating all predicates as peers.
+    ///
+    /// Native kinds are mutually exclusive. Connection and timeout predicates
+    /// only refine the request kind because they inspect the error source chain.
+    fn classifying_predicate(self) -> Option<ErrorPredicate> {
+        let kind = ErrorPredicate::ALL.iter().copied().find(|predicate| {
+            predicate.role() == ErrorPredicateRole::NativeKind && self.contains(*predicate)
+        })?;
+
+        if kind == ErrorPredicate::Request {
+            ErrorPredicate::ALL
+                .iter()
+                .copied()
+                .find(|predicate| {
+                    predicate.role() == ErrorPredicateRole::RequestDetail
+                        && self.contains(*predicate)
+                })
+                .or(Some(kind))
+        } else {
+            Some(kind)
+        }
+    }
 }
 
 impl From<&wreq::Error> for ErrorPredicates {
     /// Snapshot every native predicate before consuming the wreq error.
     fn from(error: &wreq::Error) -> Self {
-        ErrorPredicate::CLASSIFICATION_ORDER
+        ErrorPredicate::ALL
             .iter()
             .copied()
             .fold(Self::default(), |predicates, predicate| {
@@ -328,13 +382,10 @@ pub fn type_error(ruby: &Ruby, message: impl Into<Cow<'static, str>>) -> MagnusE
 
 /// Select the most specific Ruby exception class for native predicates.
 fn wreq_error_class(ruby: &Ruby, predicates: ErrorPredicates) -> ExceptionClass {
-    for &predicate in ErrorPredicate::CLASSIFICATION_ORDER {
-        if predicates.contains(predicate) {
-            return ruby.get_inner(predicate.error_class());
-        }
-    }
-
-    ruby.get_inner(&WREQ_ERROR)
+    predicates.classifying_predicate().map_or_else(
+        || ruby.get_inner(&WREQ_ERROR),
+        |predicate| ruby.get_inner(predicate.error_class()),
+    )
 }
 
 /// Read one native predicate from a Ruby error, defaulting to false.
@@ -417,9 +468,18 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), MagnusError> {
 mod tests {
     use super::{ErrorPredicate, ErrorPredicates};
 
+    fn predicates(entries: &[ErrorPredicate]) -> ErrorPredicates {
+        entries
+            .iter()
+            .copied()
+            .fold(ErrorPredicates::default(), |predicates, predicate| {
+                predicates.include_if(predicate, true)
+            })
+    }
+
     #[test]
     fn error_predicate_bits_are_unique_and_round_trip() {
-        let predicates = ErrorPredicate::CLASSIFICATION_ORDER.iter().copied().fold(
+        let predicates = ErrorPredicate::ALL.iter().copied().fold(
             ErrorPredicates::default(),
             |predicates, predicate| {
                 assert!(!predicates.contains(predicate));
@@ -428,13 +488,74 @@ mod tests {
         );
 
         assert_eq!(
-            ErrorPredicate::CLASSIFICATION_ORDER.len(),
+            ErrorPredicate::ALL.len(),
             predicates.bits().count_ones() as usize
         );
 
         let restored = ErrorPredicates::from_bits(predicates.bits());
-        for &predicate in ErrorPredicate::CLASSIFICATION_ORDER {
+        for &predicate in ErrorPredicate::ALL {
             assert!(restored.contains(predicate));
+        }
+    }
+
+    #[test]
+    fn error_classification_separates_native_kinds_from_request_details() {
+        let cases: &[(&[ErrorPredicate], Option<ErrorPredicate>)] = &[
+            (&[], None),
+            (&[ErrorPredicate::Upgrade], Some(ErrorPredicate::Upgrade)),
+            (&[ErrorPredicate::Request], Some(ErrorPredicate::Request)),
+            (
+                &[ErrorPredicate::Request, ErrorPredicate::Connect],
+                Some(ErrorPredicate::Connect),
+            ),
+            (
+                &[ErrorPredicate::Request, ErrorPredicate::ProxyConnect],
+                Some(ErrorPredicate::ProxyConnect),
+            ),
+            (
+                &[ErrorPredicate::Request, ErrorPredicate::Timeout],
+                Some(ErrorPredicate::Timeout),
+            ),
+            (
+                &[
+                    ErrorPredicate::Request,
+                    ErrorPredicate::Connect,
+                    ErrorPredicate::Timeout,
+                ],
+                Some(ErrorPredicate::Timeout),
+            ),
+            (
+                &[
+                    ErrorPredicate::Request,
+                    ErrorPredicate::ProxyConnect,
+                    ErrorPredicate::Timeout,
+                ],
+                Some(ErrorPredicate::Timeout),
+            ),
+            (
+                &[
+                    ErrorPredicate::Request,
+                    ErrorPredicate::ConnectionReset,
+                    ErrorPredicate::Timeout,
+                ],
+                Some(ErrorPredicate::ConnectionReset),
+            ),
+            (
+                &[
+                    ErrorPredicate::Body,
+                    ErrorPredicate::Request,
+                    ErrorPredicate::Timeout,
+                ],
+                Some(ErrorPredicate::Body),
+            ),
+        ];
+
+        for &(entries, expected) in cases {
+            assert_eq!(
+                expected,
+                predicates(entries).classifying_predicate(),
+                "predicates: {entries:?}"
+            );
         }
     }
 }
