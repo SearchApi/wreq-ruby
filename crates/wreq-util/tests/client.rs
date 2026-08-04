@@ -95,26 +95,20 @@ async fn assert_emulation_headers(profile: Profile, expected: &'static [&'static
 #[tokio::test]
 async fn test_client_emulation_device() {
     let server = server::http(move |req| async move {
-        for (name, value) in req.headers() {
-            if name == "user-agent" {
-                assert_eq!(
-                    value,
-                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
-                );
-            }
-            if name == "sec-ch-ua" {
-                assert_eq!(
-                    value,
-                    r#""Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133""#
-                );
-            }
-            if name == "sec-ch-ua-mobile" {
-                assert_eq!(value, "?0");
-            }
-            if name == "sec-ch-ua-platform" {
-                assert_eq!(value, "\"Linux\"");
-            }
-        }
+        let header = |name| req.headers().get(name).and_then(|value| value.to_str().ok());
+
+        assert_eq!(
+            header("user-agent"),
+            Some(
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+            )
+        );
+        assert_eq!(
+            header("sec-ch-ua"),
+            Some(r#""Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151""#)
+        );
+        assert_eq!(header("sec-ch-ua-mobile"), Some("?0"));
+        assert_eq!(header("sec-ch-ua-platform"), Some("\"Linux\""));
         http::Response::default()
     });
 
@@ -122,7 +116,7 @@ async fn test_client_emulation_device() {
     let res = Client::builder()
         .emulation(
             Emulation::builder()
-                .profile(Emulation::Chrome133)
+                .profile(Emulation::Chrome151)
                 .platform(Platform::Linux)
                 .http2(true)
                 .build(),

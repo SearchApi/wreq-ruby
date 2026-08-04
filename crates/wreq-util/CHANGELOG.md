@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- *(emulate)* Add Chrome 151 profile.
+
 ## [3.0.0-rc.14](https://github.com/0x676e67/wreq-util/compare/v3.0.0-rc.13...v3.0.0-rc.14) - 2026-07-04
 
 ### Fixed

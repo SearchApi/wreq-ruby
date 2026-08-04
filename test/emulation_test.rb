@@ -11,6 +11,13 @@ class EmulationTest < Minitest::Test
     end
   end
 
+  def test_chrome151_profile_is_available
+    profile = Wreq::Profile::Chrome151
+
+    assert_equal "Chrome151", profile.to_s
+    assert_instance_of Wreq::Emulation, Wreq::Emulation.new(profile: profile)
+  end
+
   def test_all_emulation_os_constants_are_non_nil
     Wreq::Platform.constants.each do |name|
       const = Wreq::Platform.const_get(name)
