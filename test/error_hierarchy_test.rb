@@ -73,14 +73,32 @@ class ErrorHierarchyTest < Minitest::Test
     assert_empty active_native_predicates(error)
   end
 
-  def test_native_error_predicates_are_not_mutually_exclusive
+  def test_upstream_request_error_contract
     client = Wreq::Client.new(no_proxy: true)
+
+    with_invalid_tls_server do |url|
+      error = assert_raises(Wreq::ConnectError) do
+        client.get(url, timeout: 1)
+      end
+
+      assert_equal %i[request? connect?], active_native_predicates(error)
+    end
+
+    with_status_server(502) do |proxy|
+      error = assert_raises(Wreq::ProxyConnectError) do
+        Wreq.get(
+          "https://contract.invalid/",
+          proxy:,
+          timeout: 1
+        )
+      end
+
+      assert_equal %i[request? proxy_connect?], active_native_predicates(error)
+    end
 
     with_hanging_server do |url, _accepted|
       error = assert_raises(Wreq::TimeoutError) { client.get(url, timeout: 1) }
 
-      assert_predicate error, :timeout?
-      assert_predicate error, :request?
       assert_equal %i[timeout? request?], active_native_predicates(error)
     end
   end
@@ -223,6 +241,31 @@ class ErrorHierarchyTest < Minitest::Test
     server&.close
   end
 
+  def with_invalid_tls_server
+    server = TCPServer.new("127.0.0.1", 0)
+    thread = Thread.new do
+      socket = server.accept
+      header = socket.read(5)
+      payload_size = header.byteslice(3, 2).unpack1("n")
+      socket.read(payload_size)
+
+      # Reply to the ClientHello with a fatal handshake_failure alert.
+      # https://www.rfc-editor.org/rfc/rfc8446#section-6
+      socket.write [0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x28].pack("C*")
+      socket.close_write
+    rescue IOError, SystemCallError
+      nil
+    ensure
+      socket&.close unless socket&.closed?
+    end
+    thread.report_on_exception = false
+
+    yield "https://127.0.0.1:#{server.addr[1]}/"
+  ensure
+    server&.close unless server&.closed?
+    thread&.join(1)
+  end
+
   def with_hanging_server
     server = TCPServer.new("127.0.0.1", 0)
     accepted = Queue.new
@@ -250,6 +293,7 @@ class ErrorHierarchyTest < Minitest::Test
       204 => "No Content",
       302 => "Found",
       404 => "Not Found",
+      502 => "Bad Gateway",
       503 => "Service Unavailable"
     }.fetch(status)
     server = TCPServer.new("127.0.0.1", 0)
