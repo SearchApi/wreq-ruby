@@ -40,7 +40,11 @@ class TlsInfoTest < Minitest::Test
       assert_equal [certificate_der], chain
       assert_equal Encoding::BINARY, chain.first.encoding
       assert_predicate chain, :frozen?
-      assert_empty Wreq::TlsInfo.instance_methods(false) & %i[inspect to_h to_s]
+      assert_equal(
+        "#<Wreq::TlsInfo peer_certificate=#{certificate_der.bytesize}B peer_certificate_chain=1>",
+        read_tls.inspect
+      )
+      assert_empty Wreq::TlsInfo.instance_methods(false) & %i[to_h to_s]
 
       certificate.clear
       assert_equal certificate_der, read_tls.peer_certificate

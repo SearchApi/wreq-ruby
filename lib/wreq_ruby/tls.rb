@@ -47,3 +47,27 @@ unless defined?(Wreq)
     end
   end
 end
+
+# ======================== Ruby API Extensions ========================
+
+module Wreq
+  class TlsInfo
+    # Return a compact summary for debugging.
+    #
+    # The summary reports the leaf certificate size and the number of
+    # certificates in the chain without printing the DER data.
+    #
+    # @return [String] TLS certificate metadata
+    # @example
+    #   tls_info.inspect
+    #   # => "#<Wreq::TlsInfo peer_certificate=781B peer_certificate_chain=1>"
+    def inspect
+      certificate = peer_certificate
+      chain = peer_certificate_chain
+      certificate_size = certificate ? "#{certificate.bytesize}B" : "nil"
+      chain_size = chain ? chain.length : "nil"
+
+      "#<#{self.class} peer_certificate=#{certificate_size} peer_certificate_chain=#{chain_size}>"
+    end
+  end
+end
