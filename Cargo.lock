@@ -1477,8 +1477,7 @@ dependencies = [
 [[package]]
 name = "wreq"
 version = "6.0.0-rc.29"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f0eba5f5814a94e5f1a99156f187133464e525b66bdbc69a9627d46530af2e1"
+source = "git+https://github.com/0x676e67/wreq?rev=5159279f43e5e61e24643f7639c8f5a74f9ec380#5159279f43e5e61e24643f7639c8f5a74f9ec380"
 dependencies = [
  "btls",
  "btls-sys",

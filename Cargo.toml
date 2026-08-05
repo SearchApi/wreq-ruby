@@ -64,4 +64,5 @@ strip = true
 [patch.crates-io]
 btls = { git = "https://github.com/0x676e67/btls", branch = "demo/merge-upstream-boring-20260616" }
 btls-sys = { git = "https://github.com/0x676e67/btls", branch = "demo/merge-upstream-boring-20260616" }
+wreq = { git = "https://github.com/0x676e67/wreq", rev = "5159279f43e5e61e24643f7639c8f5a74f9ec380" }
 wreq-util = { path = "crates/wreq-util" }
