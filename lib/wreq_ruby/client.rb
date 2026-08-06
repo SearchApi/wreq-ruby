@@ -70,31 +70,40 @@ unless defined?(Wreq)
       #   used to store and retrieve cookies for all requests made by this
       #   client. Typically used together with `cookie_store: true`.
       #
-      # @param timeout [Integer, nil] Overall timeout for the entire request
+      # @param timeout [Numeric, nil] Overall timeout for the entire request
       #   in seconds, including connection establishment, request transmission,
-      #   and response reading. If not set, requests may wait indefinitely.
+      #   and response reading. Fractional seconds are accepted. The value must
+      #   be finite and non-negative; 0 expires immediately. Nil or omission
+      #   leaves the timeout unset.
       #
-      # @param connect_timeout [Integer, nil] Maximum time in seconds to wait
-      #   when establishing a connection to the remote server. This is separate
-      #   from the overall timeout.
+      # @param connect_timeout [Numeric, nil] Maximum time in seconds to wait
+      #   when establishing a connection to the remote server. Fractional seconds
+      #   are accepted. The value must be finite and non-negative; 0 expires
+      #   immediately. Nil or omission leaves the timeout unset.
       #
-      # @param read_timeout [Integer, nil] Maximum time in seconds to wait
-      #   between reading chunks of data from the server. Applies to each
-      #   read operation, not the entire response.
+      # @param read_timeout [Numeric, nil] Maximum time in seconds to wait
+      #   between reading chunks of data from the server. Fractional seconds are
+      #   accepted. The value must be finite and non-negative; 0 expires
+      #   immediately. Nil or omission leaves the timeout unset.
       #
-      # @param tcp_keepalive [Integer, nil] Time in seconds that a connection
-      #   must be idle before TCP keepalive probes are sent. Helps detect
-      #   broken connections.
+      # @param tcp_keepalive [Numeric, nil] Time in seconds that a connection
+      #   must be idle before TCP keepalive probes are sent. Fractional seconds
+      #   are accepted. The value must be finite and non-negative; 0 is passed
+      #   through as a zero duration. Nil or omission leaves the option unset.
       #
-      # @param tcp_keepalive_interval [Integer, nil] Time in seconds between
-      #   individual TCP keepalive probes. Only relevant if tcp_keepalive is set.
+      # @param tcp_keepalive_interval [Numeric, nil] Time in seconds between
+      #   individual TCP keepalive probes. Fractional seconds are accepted. The
+      #   value must be finite and non-negative; 0 is passed through as a zero
+      #   duration. Nil or omission leaves the option unset.
       #
       # @param tcp_keepalive_retries [Integer, nil] Number of failed keepalive
       #   probes before the connection is considered dead and closed.
       #
-      # @param tcp_user_timeout [Integer, nil] Maximum time in seconds that
+      # @param tcp_user_timeout [Numeric, nil] Maximum time in seconds that
       #   transmitted data may remain unacknowledged before the connection is
-      #   forcibly closed. Available on Android, Fuchsia, and Linux only.
+      #   forcibly closed. Fractional seconds are accepted. The value must be
+      #   finite and non-negative; 0 is passed through as a zero duration. Nil or
+      #   omission leaves the option unset. Available on Android, Fuchsia, and Linux only.
       #
       # @param tcp_nodelay [Boolean, nil] Enable TCP_NODELAY socket option,
       #   which disables Nagle's algorithm. When true, small packets are sent
@@ -105,9 +114,10 @@ unless defined?(Wreq)
       #   allowing the reuse of local addresses in TIME_WAIT state. Useful for
       #   reducing port exhaustion in high-throughput scenarios.
       #
-      # @param pool_idle_timeout [Integer, nil] Time in seconds before idle
-      #   connections in the pool are evicted and closed. Helps free up
-      #   resources for long-running applications.
+      # @param pool_idle_timeout [Numeric, nil] Time in seconds before idle
+      #   connections in the pool are evicted and closed. Fractional seconds are
+      #   accepted. The value must be finite and non-negative; 0 expires idle
+      #   entries immediately. Nil or omission leaves the timeout unset.
       #
       # @param pool_max_idle_per_host [Integer, nil] Maximum number of idle
       #   connections to maintain per host in the connection pool. Connections
@@ -270,8 +280,12 @@ unless defined?(Wreq)
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
       # @param zstd [Boolean, nil] Enable Zstandard compression
-      # @param timeout [Integer, nil] Total request timeout (seconds)
-      # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+      # @param timeout [Numeric, nil] Total request timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
+      # @param read_timeout [Numeric, nil] Per-chunk read timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
       # @param proxy [String, nil] Proxy server URI
       # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
       # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -306,8 +320,12 @@ unless defined?(Wreq)
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
       # @param zstd [Boolean, nil] Enable Zstandard compression
-      # @param timeout [Integer, nil] Total request timeout (seconds)
-      # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+      # @param timeout [Numeric, nil] Total request timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
+      # @param read_timeout [Numeric, nil] Per-chunk read timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
       # @param proxy [String, nil] Proxy server URI
       # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
       # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -340,8 +358,12 @@ unless defined?(Wreq)
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
       # @param zstd [Boolean, nil] Enable Zstandard compression
-      # @param timeout [Integer, nil] Total request timeout (seconds)
-      # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+      # @param timeout [Numeric, nil] Total request timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
+      # @param read_timeout [Numeric, nil] Per-chunk read timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
       # @param proxy [String, nil] Proxy server URI
       # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
       # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -374,8 +396,12 @@ unless defined?(Wreq)
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
       # @param zstd [Boolean, nil] Enable Zstandard compression
-      # @param timeout [Integer, nil] Total request timeout (seconds)
-      # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+      # @param timeout [Numeric, nil] Total request timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
+      # @param read_timeout [Numeric, nil] Per-chunk read timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
       # @param proxy [String, nil] Proxy server URI
       # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
       # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -408,8 +434,12 @@ unless defined?(Wreq)
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
       # @param zstd [Boolean, nil] Enable Zstandard compression
-      # @param timeout [Integer, nil] Total request timeout (seconds)
-      # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+      # @param timeout [Numeric, nil] Total request timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
+      # @param read_timeout [Numeric, nil] Per-chunk read timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
       # @param proxy [String, nil] Proxy server URI
       # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
       # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -442,8 +472,12 @@ unless defined?(Wreq)
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
       # @param zstd [Boolean, nil] Enable Zstandard compression
-      # @param timeout [Integer, nil] Total request timeout (seconds)
-      # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+      # @param timeout [Numeric, nil] Total request timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
+      # @param read_timeout [Numeric, nil] Per-chunk read timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
       # @param proxy [String, nil] Proxy server URI
       # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
       # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -476,8 +510,12 @@ unless defined?(Wreq)
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
       # @param zstd [Boolean, nil] Enable Zstandard compression
-      # @param timeout [Integer, nil] Total request timeout (seconds)
-      # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+      # @param timeout [Numeric, nil] Total request timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
+      # @param read_timeout [Numeric, nil] Per-chunk read timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
       # @param proxy [String, nil] Proxy server URI
       # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
       # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -510,8 +548,12 @@ unless defined?(Wreq)
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
       # @param zstd [Boolean, nil] Enable Zstandard compression
-      # @param timeout [Integer, nil] Total request timeout (seconds)
-      # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+      # @param timeout [Numeric, nil] Total request timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
+      # @param read_timeout [Numeric, nil] Per-chunk read timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
       # @param proxy [String, nil] Proxy server URI
       # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
       # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -544,8 +586,12 @@ unless defined?(Wreq)
       # @param brotli [Boolean, nil] Enable Brotli compression
       # @param deflate [Boolean, nil] Enable deflate compression
       # @param zstd [Boolean, nil] Enable Zstandard compression
-      # @param timeout [Integer, nil] Total request timeout (seconds)
-      # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+      # @param timeout [Numeric, nil] Total request timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
+      # @param read_timeout [Numeric, nil] Per-chunk read timeout in seconds.
+      #   Must be finite and non-negative; fractions are accepted, 0 expires
+      #   immediately, and nil leaves it unset.
       # @param proxy [String, nil] Proxy server URI
       # @param local_address [String, nil] Bind the request's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
       # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.

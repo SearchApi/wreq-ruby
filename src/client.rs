@@ -4,7 +4,7 @@ mod query;
 mod req;
 pub mod resp;
 
-use std::{net::IpAddr, time::Duration};
+use std::net::IpAddr;
 
 use ::serde::Deserialize;
 use magnus::{Module, Object, RModule, Ruby, TryConvert, Value, function, method, typed_data::Obj};
@@ -22,6 +22,7 @@ use crate::{
     http::Method,
     options::{NativeOption, Options},
     rt,
+    time::Duration,
 };
 
 /// A builder for `Client`.
@@ -54,31 +55,38 @@ struct Builder {
     cookie_provider: NativeOption<Jar>,
 
     // ========= Timeout options =========
-    /// The timeout to use for the client. (in seconds)
-    timeout: Option<u64>,
-    /// The connect timeout to use for the client. (in seconds)
-    connect_timeout: Option<u64>,
-    /// The read timeout to use for the client. (in seconds)
-    read_timeout: Option<u64>,
+    /// Overall timeout for a request, including connection and response body.
+    #[serde(default)]
+    timeout: NativeOption<Duration>,
+    /// Maximum duration allowed to establish a connection.
+    #[serde(default)]
+    connect_timeout: NativeOption<Duration>,
+    /// Maximum idle duration between response body reads.
+    #[serde(default)]
+    read_timeout: NativeOption<Duration>,
 
     // ========= TCP options =========
-    /// Set that all sockets have `SO_KEEPALIVE` set with the supplied duration. (in seconds)
-    tcp_keepalive: Option<u64>,
-    /// Set the interval between TCP keepalive probes. (in seconds)
-    tcp_keepalive_interval: Option<u64>,
+    /// Idle duration before TCP keepalive probes begin.
+    #[serde(default)]
+    tcp_keepalive: NativeOption<Duration>,
+    /// Interval between TCP keepalive probes.
+    #[serde(default)]
+    tcp_keepalive_interval: NativeOption<Duration>,
     /// Set the number of retries for TCP keepalive.
     tcp_keepalive_retries: Option<u32>,
-    /// Set an optional user timeout for TCP sockets. (in seconds)
+    /// Maximum duration for which transmitted data may remain unacknowledged.
+    #[serde(default)]
     #[allow(dead_code)]
-    tcp_user_timeout: Option<u64>,
+    tcp_user_timeout: NativeOption<Duration>,
     /// Set that all sockets have `NO_DELAY` set.
     tcp_nodelay: Option<bool>,
     /// Set that all sockets have `SO_REUSEADDR` set.
     tcp_reuse_address: Option<bool>,
 
     // ========= Connection pool options =========
-    /// Set an optional timeout for idle sockets being kept-alive. (in seconds)
-    pool_idle_timeout: Option<u64>,
+    /// Maximum idle duration before a pooled connection is evicted.
+    #[serde(default)]
+    pool_idle_timeout: NativeOption<Duration>,
     /// Sets the maximum idle connection per host allowed in the pool.
     pool_max_idle_per_host: Option<usize>,
     /// Sets the maximum number of connections in the pool.
@@ -175,6 +183,16 @@ impl Builder {
             cookie_provider,
             Obj<Jar> => |value| (*value).clone()
         );
+
+        // Duration options.
+        extract_native_option!(options, builder, timeout);
+        extract_native_option!(options, builder, connect_timeout);
+        extract_native_option!(options, builder, read_timeout);
+        extract_native_option!(options, builder, tcp_keepalive);
+        extract_native_option!(options, builder, tcp_keepalive_interval);
+        extract_native_option!(options, builder, tcp_user_timeout);
+        extract_native_option!(options, builder, pool_idle_timeout);
+
         builder
             .proxy
             .set(Extractor::<Proxy>::try_convert(options.as_value())?.into_inner());
@@ -277,18 +295,16 @@ impl Client {
 
             // TCP options.
             apply_option!(
-                set_if_some_map,
+                set_if_some_inner,
                 builder,
                 params.tcp_keepalive,
-                tcp_keepalive,
-                Duration::from_secs
+                tcp_keepalive
             );
             apply_option!(
-                set_if_some_map,
+                set_if_some_inner,
                 builder,
                 params.tcp_keepalive_interval,
-                tcp_keepalive_interval,
-                Duration::from_secs
+                tcp_keepalive_interval
             );
             apply_option!(
                 set_if_some,
@@ -298,11 +314,10 @@ impl Client {
             );
             #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
             apply_option!(
-                set_if_some_map,
+                set_if_some_inner,
                 builder,
                 params.tcp_user_timeout,
-                tcp_user_timeout,
-                Duration::from_secs
+                tcp_user_timeout
             );
             apply_option!(set_if_some, builder, params.tcp_nodelay, tcp_nodelay);
             apply_option!(
@@ -313,35 +328,26 @@ impl Client {
             );
 
             // Timeout options.
+            apply_option!(set_if_some_inner, builder, params.timeout, timeout);
             apply_option!(
-                set_if_some_map,
-                builder,
-                params.timeout,
-                timeout,
-                Duration::from_secs
-            );
-            apply_option!(
-                set_if_some_map,
+                set_if_some_inner,
                 builder,
                 params.connect_timeout,
-                connect_timeout,
-                Duration::from_secs
+                connect_timeout
             );
             apply_option!(
-                set_if_some_map,
+                set_if_some_inner,
                 builder,
                 params.read_timeout,
-                read_timeout,
-                Duration::from_secs
+                read_timeout
             );
 
             // Pool options.
             apply_option!(
-                set_if_some_map,
+                set_if_some_inner,
                 builder,
                 params.pool_idle_timeout,
-                pool_idle_timeout,
-                Duration::from_secs
+                pool_idle_timeout
             );
             apply_option!(
                 set_if_some,

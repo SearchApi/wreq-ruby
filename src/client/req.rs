@@ -1,4 +1,4 @@
-use std::{net::IpAddr, time::Duration};
+use std::net::IpAddr;
 
 use ::serde::Deserialize;
 use http::header;
@@ -17,6 +17,7 @@ use crate::{
     http::{Method, Version},
     options::{NativeOption, Options},
     rt,
+    time::Duration,
 };
 
 /// The parameters for a request.
@@ -38,11 +39,13 @@ pub struct Request {
     #[allow(dead_code)]
     interface: Option<String>,
 
-    /// The timeout to use for the request.
-    timeout: Option<u64>,
+    /// Overall timeout for this request, overriding the client default.
+    #[serde(default)]
+    timeout: NativeOption<Duration>,
 
-    /// The read timeout to use for the request.
-    read_timeout: Option<u64>,
+    /// Maximum idle duration between body reads, overriding the client default.
+    #[serde(default)]
+    read_timeout: NativeOption<Duration>,
 
     /// The HTTP version to use for the request.
     #[serde(default)]
@@ -133,6 +136,8 @@ impl Request {
             Obj<Emulation> => |value| (*value).clone()
         );
         extract_native_option!(options, builder, version);
+        extract_native_option!(options, builder, timeout);
+        extract_native_option!(options, builder, read_timeout);
         extract_native_option!(options, builder, headers);
         extract_native_option!(options, builder, orig_headers);
         extract_native_option!(options, builder, cookies);
@@ -202,19 +207,12 @@ pub fn execute_request<U: AsRef<str>>(
             );
 
             // Timeout options.
+            apply_option!(set_if_some_inner, builder, request.timeout, timeout);
             apply_option!(
-                set_if_some_map,
-                builder,
-                request.timeout,
-                timeout,
-                Duration::from_secs
-            );
-            apply_option!(
-                set_if_some_map,
+                set_if_some_inner,
                 builder,
                 request.read_timeout,
-                read_timeout,
-                Duration::from_secs
+                read_timeout
             );
 
             // Network options.

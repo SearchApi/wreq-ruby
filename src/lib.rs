@@ -15,6 +15,7 @@ mod http;
 mod options;
 mod rt;
 mod serde;
+mod time;
 
 use magnus::{Error, Module, Ruby, Value};
 
