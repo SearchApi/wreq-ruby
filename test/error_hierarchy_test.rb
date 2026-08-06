@@ -64,6 +64,9 @@ class ErrorHierarchyTest < Minitest::Test
     assert_predicate root_error, :builder?
     assert_nil root_error.status
     assert_equal [:builder?], active_native_predicates(root_error)
+    assert_detailed_facts root_error, [:builder]
+    assert_equal root_error.message, root_error.to_s
+    assert_includes root_error.full_message(highlight: false), "\n    wreq: [:builder]\n"
     assert_raises(Wreq::BuilderError) { Wreq.get("not-a-valid-url") }
   end
 
@@ -71,6 +74,7 @@ class ErrorHierarchyTest < Minitest::Test
     error = assert_raises(Wreq::BuilderError) { Wreq::Headers.new(Object.new) }
 
     assert_empty active_native_predicates(error)
+    refute_includes error.detailed_message(highlight: false), "\n    wreq:"
   end
 
   def test_upstream_request_error_contract
@@ -82,6 +86,7 @@ class ErrorHierarchyTest < Minitest::Test
       end
 
       assert_equal %i[request? connect?], active_native_predicates(error)
+      assert_detailed_facts error, %i[connect request]
     end
 
     with_status_server(502) do |proxy|
@@ -94,12 +99,14 @@ class ErrorHierarchyTest < Minitest::Test
       end
 
       assert_equal %i[request? proxy_connect?], active_native_predicates(error)
+      assert_detailed_facts error, %i[proxy_connect request]
     end
 
     with_hanging_server do |url, _accepted|
       error = assert_raises(Wreq::TimeoutError) { client.get(url, timeout: 1) }
 
       assert_equal %i[timeout? request?], active_native_predicates(error)
+      assert_detailed_facts error, %i[timeout request]
     end
   end
 
@@ -165,6 +172,7 @@ class ErrorHierarchyTest < Minitest::Test
         refute_respond_to error, :retryable?
         refute_includes error.message, "response-secret"
         refute_includes error.inspect, "response-secret"
+        assert_detailed_facts error, [:status]
         assert_equal body, response.text
       end
     end
@@ -191,6 +199,13 @@ class ErrorHierarchyTest < Minitest::Test
       assert_includes [true, false], error.public_send(predicate)
     end
 
+    diagnostics = [
+      error.message,
+      error.inspect,
+      error.detailed_message(highlight: false, custom: true),
+      error.full_message(highlight: false)
+    ]
+
     [
       "uri-user",
       "uri-password",
@@ -201,8 +216,7 @@ class ErrorHierarchyTest < Minitest::Test
       "authorization-secret",
       "cookie-secret"
     ].each do |secret|
-      refute_includes error.message, secret
-      refute_includes error.inspect, secret
+      diagnostics.each { |output| refute_includes output, secret }
     end
   end
 
@@ -232,6 +246,13 @@ class ErrorHierarchyTest < Minitest::Test
 
   def active_native_predicates(error)
     NATIVE_ERROR_PREDICATES.select { |predicate| error.public_send(predicate) }
+  end
+
+  def assert_detailed_facts(error, facts)
+    assert_equal(
+      "#{error.message} (#{error.class})\n    wreq: #{facts.inspect}",
+      error.detailed_message(highlight: false)
+    )
   end
 
   def closed_local_port

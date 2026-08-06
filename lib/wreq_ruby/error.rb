@@ -20,13 +20,14 @@ unless defined?(Wreq)
     # Use the predicates when code needs every native fact. Errors created by
     # the binding return false for all of them. New facts may be exposed as
     # predicates without changing the exception class for existing failures.
+    # `detailed_message` includes the active facts, and `full_message` adds the
+    # backtrace and exception causes. Neither method includes `uri`.
     #
     # @example Rescue any wreq-ruby runtime error
     #   begin
     #     Wreq.get("not-a-valid-url")
     #   rescue Wreq::Error => error
-    #     warn "#{error.class}: #{error.message}"
-    #     warn "invalid request" if error.builder?
+    #     warn error.full_message(highlight: false)
     #   end
     class Error < RuntimeError
       # Get the URI recorded by the native error.
@@ -296,5 +297,46 @@ unless defined?(Wreq)
     #     warn "invalid request: #{error.message}"
     #   end
     class BuilderError < Error; end
+  end
+end
+
+# ======================== Ruby API Extensions ========================
+
+module Wreq
+  class Error
+    NATIVE_DETAILS = {
+      builder?: :builder,
+      body?: :body,
+      tls?: :tls,
+      decoding?: :decoding,
+      redirect?: :redirect,
+      status?: :status,
+      upgrade?: :upgrade,
+      connection_reset?: :connection_reset,
+      timeout?: :timeout,
+      proxy_connect?: :proxy_connect,
+      connect?: :connect,
+      request?: :request
+    }.freeze
+    private_constant :NATIVE_DETAILS
+
+    # Return Ruby's detailed exception message with active native error facts.
+    #
+    # More specific facts appear before the connection and request stages.
+    # `full_message` calls this method and adds the backtrace and exception
+    # causes. The recorded URI is deliberately omitted because it may contain
+    # credentials or other sensitive values.
+    #
+    # @param highlight [Boolean] Whether Ruby should add terminal highlighting
+    # @param options [Hash] Additional options accepted by Exception
+    # @return [String] Detailed message suitable for diagnostic output
+    def detailed_message(highlight: false, **options)
+      message = super
+      details = NATIVE_DETAILS.filter_map do |predicate, label|
+        label if public_send(predicate)
+      end
+
+      details.empty? ? message : "#{message}\n    wreq: #{details.inspect}"
+    end
   end
 end
