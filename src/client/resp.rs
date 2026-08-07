@@ -17,6 +17,7 @@ use crate::{
     header::Headers,
     http::{StatusCode, Version},
     rt,
+    tls::TlsInfo,
 };
 
 /// A response from a request.
@@ -180,6 +181,16 @@ impl Response {
         self.remote_addr.map(|addr| addr.to_string())
     }
 
+    /// Return peer certificate data retained for this response.
+    fn tls_info(&self) -> Option<TlsInfo> {
+        self.state
+            .as_ref()
+            .extensions
+            .get::<wreq::tls::TlsInfo>()
+            .cloned()
+            .map(TlsInfo)
+    }
+
     /// Get the response body as bytes.
     pub fn bytes(ruby: &Ruby, rb_self: &Self) -> Result<Bytes, Error> {
         let response = rb_self.response(ruby, false)?;
@@ -258,5 +269,6 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response.define_method("json", magnus::method!(Response::json, 0))?;
     response.define_method("chunks", magnus::method!(Response::chunks, 0))?;
     response.define_method("close", magnus::method!(Response::close, 0))?;
+    response.define_method("tls_info", magnus::method!(Response::tls_info, 0))?;
     Ok(())
 }

@@ -177,6 +177,26 @@ unless defined?(Wreq)
       #   response.close
       def close
       end
+
+      # Return TLS information captured for this response.
+      #
+      # Returns +nil+ when +tls_info: true+ was not enabled, the response used
+      # plain HTTP, or the transport supplied no TLS information. Reading or
+      # closing the response body does not discard captured TLS data.
+      #
+      # @return [Wreq::TlsInfo, nil] TLS information for this response, or +nil+
+      #   when unavailable
+      # @example
+      #   client = Wreq::Client.new(tls_info: true)
+      #   response = client.get("https://example.com")
+      #   tls = response.tls_info
+      #
+      #   if tls
+      #     tls.peer_certificate       # => DER-encoded binary String
+      #     tls.peer_certificate_chain # => frozen Array of DER binary Strings
+      #   end
+      def tls_info
+      end
     end
   end
 end
