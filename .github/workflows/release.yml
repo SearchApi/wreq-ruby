@@ -43,12 +43,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: dtolnay/rust-toolchain@stable
+
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.4"
           bundler-cache: true
 
-      - run: bundle exec rb-sys-dock --ruby-versions 4.0,3.4,3.3 --platform ${{ matrix.platform }} --build
+      - run: bundle exec rb-sys-dock --ruby-versions 4.0,3.4,3.3 --platform ${{ matrix.platform }} --mount-toolchains --build
 
       - uses: actions/upload-artifact@v7
         with:
