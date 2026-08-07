@@ -134,6 +134,11 @@ unless defined?(Wreq)
       #   including self-signed or expired ones. Should only be disabled
       #   for testing purposes.
       #
+      # @param tls_info [Boolean, nil] Retain peer certificate data for HTTPS
+      #   responses. When true, {Wreq::Response#tls_info} may return a
+      #   {Wreq::TlsInfo} object. Disabled by default because retaining
+      #   certificate data uses additional memory.
+      #
       # @param no_proxy [Boolean, nil] Disable use of any configured proxy
       #   for this client, even if proxy settings are detected from the
       #   environment.
