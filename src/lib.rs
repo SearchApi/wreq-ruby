@@ -16,6 +16,7 @@ mod options;
 mod rt;
 mod serde;
 mod time;
+mod tls;
 
 use magnus::{Error, Module, Ruby, Value};
 
@@ -99,6 +100,7 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     http::include(ruby, &gem_module)?;
     header::include(ruby, &gem_module)?;
     cookie::include(ruby, &gem_module)?;
+    tls::include(ruby, &gem_module)?;
     client::include(ruby, &gem_module)?;
     emulate::include(ruby, &gem_module)?;
     #[cfg(unix)]
