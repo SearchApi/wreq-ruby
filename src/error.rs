@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     cell::{BorrowError, BorrowMutError},
+    error::Error as StdError,
     fmt,
 };
 
@@ -282,6 +283,27 @@ struct ErrorMetadata<'a> {
     facts: NativeErrorFacts,
 }
 
+/// Format the native error and every cause omitted from its standard message.
+///
+/// `wreq::Error` already displays its immediate source. Start with that
+/// source's cause so the Ruby message reaches the root error without repeating
+/// the first native layer.
+struct ErrorMessage<'a>(&'a wreq::Error);
+
+impl fmt::Display for ErrorMessage<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.0, formatter)?;
+
+        let mut source = self.0.source().and_then(StdError::source);
+        while let Some(error) = source {
+            write!(formatter, ": {error}")?;
+            source = error.source();
+        }
+
+        Ok(())
+    }
+}
+
 // Stable roots for native errors.
 define_exception!(WREQ_ERROR, "Error", exception_runtime_error);
 
@@ -475,7 +497,8 @@ pub fn wreq_error(ruby: &Ruby, err: wreq::Error) -> MagnusError {
     let class = wreq_error_class(ruby, facts);
     let uri = err.uri().map(ToString::to_string);
     let status = err.status();
-    let message = err.without_uri().to_string();
+    let err = err.without_uri();
+    let message = ErrorMessage(&err).to_string();
 
     error_with_metadata(
         ruby,

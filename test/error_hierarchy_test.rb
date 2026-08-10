@@ -87,6 +87,13 @@ class ErrorHierarchyTest < Minitest::Test
 
       assert_equal %i[request? connect?], active_native_predicates(error)
       assert_detailed_facts error, %i[connect request]
+      assert_match(/client error \(Connect\): .+/m, error.message)
+      assert_equal error.message, error.to_s
+      assert_includes error.inspect, "client error (Connect)"
+      assert_includes error.full_message(highlight: false), error.message
+
+      _stdout, stderr = capture_io { warn error }
+      assert_equal "#{error.message}\n", stderr
     end
 
     with_status_server(502) do |proxy|
@@ -100,6 +107,8 @@ class ErrorHierarchyTest < Minitest::Test
 
       assert_equal %i[request? proxy_connect?], active_native_predicates(error)
       assert_detailed_facts error, %i[proxy_connect request]
+      assert_includes error.message,
+        "client error (ProxyConnect): tunnel error: unsuccessful"
     end
 
     with_hanging_server do |url, _accepted|
@@ -107,6 +116,26 @@ class ErrorHierarchyTest < Minitest::Test
 
       assert_equal %i[timeout? request?], active_native_predicates(error)
       assert_detailed_facts error, %i[timeout request]
+      assert_includes error.message, "operation timed out"
+    end
+  end
+
+  def test_response_body_timeout_contract
+    client = Wreq::Client.new(no_proxy: true)
+    cases = [
+      [{timeout: 1}, Wreq::BodyError, %i[timeout? body?], %i[body timeout]],
+      [{read_timeout: 1}, Wreq::TimeoutError, %i[timeout? request?], %i[timeout request]]
+    ]
+
+    cases.each do |options, error_class, predicates, facts|
+      with_stalled_body_server do |url|
+        response = client.get(url, **options)
+        error = assert_raises(error_class) { response.bytes }
+
+        assert_equal predicates, active_native_predicates(error)
+        assert_detailed_facts error, facts
+        assert_includes error.message, "operation timed out"
+      end
     end
   end
 
@@ -302,6 +331,31 @@ class ErrorHierarchyTest < Minitest::Test
     thread.report_on_exception = false
 
     yield "http://127.0.0.1:#{server.addr[1]}/", accepted
+  ensure
+    server&.close unless server&.closed?
+    thread&.kill
+    thread&.join(1)
+  end
+
+  def with_stalled_body_server
+    server = TCPServer.new("127.0.0.1", 0)
+    thread = Thread.new do
+      socket = server.accept
+      while (line = socket.gets)
+        break if line == "\r\n"
+      end
+      socket.write "HTTP/1.1 200 OK\r\n"
+      socket.write "Content-Length: 1\r\n"
+      socket.write "Connection: close\r\n\r\n"
+      sleep
+    rescue IOError, SystemCallError
+      nil
+    ensure
+      socket&.close unless socket&.closed?
+    end
+    thread.report_on_exception = false
+
+    yield "http://127.0.0.1:#{server.addr[1]}/"
   ensure
     server&.close unless server&.closed?
     thread&.kill
