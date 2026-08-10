@@ -1,11 +1,10 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "socket"
 require_relative "../lib/wreq"
 
 # Run every scenario, or select a few by name:
-#   bundle exec ruby examples/error.rb tls timeout connection-reset
+#   bundle exec ruby examples/error.rb tls timeout reset
 
 $stdout.sync = true
 $stderr.sync = true
@@ -31,8 +30,10 @@ def report_error(error, expected:)
   # The standard message contains the complete native error chain.
   warn "#{error.class}: #{error}"
 
-  facts = ERROR_PREDICATES.select { |predicate| error.public_send(predicate) }
-  warn "native facts: #{facts.join(", ")}" unless facts.empty?
+  warn "native facts:"
+  ERROR_PREDICATES.each do |predicate|
+    warn "  #{predicate}: #{error.public_send(predicate)}"
+  end
   warn "HTTP status: #{error.status}" if error.status
 
   # error.uri can contain credentials or private query parameters. Redact it
@@ -58,34 +59,6 @@ ensure
   response&.close
 end
 
-def unused_local_port
-  server = TCPServer.new("127.0.0.1", 0)
-  server.addr[1]
-ensure
-  server&.close
-end
-
-def with_reset_server
-  server = TCPServer.new("127.0.0.1", 0)
-  port = server.addr[1]
-  thread = Thread.new do
-    connection = server.accept
-    connection.setsockopt(Socket::SOL_SOCKET, Socket::SO_LINGER, [1, 0].pack("ii"))
-  ensure
-    connection&.close
-  end
-  thread.report_on_exception = false
-
-  yield "http://127.0.0.1:#{port}/"
-ensure
-  server&.close
-  thread&.join(1)
-  if thread&.alive?
-    thread.kill
-    thread.join
-  end
-end
-
 def run_scenario(name, client)
   case name
   when "builder"
@@ -105,16 +78,14 @@ def run_scenario(name, client)
       client.get("https://expired.badssl.com/", timeout: 10)
     end
   when "connect"
-    port = unused_local_port
     run_example("Refused destination connection", expected: Wreq::ConnectError) do
-      client.get("http://127.0.0.1:#{port}/", timeout: 5)
+      client.get("http://127.0.0.1:1/", timeout: 5)
     end
   when "proxy"
-    port = unused_local_port
     run_example("Refused proxy connection", expected: Wreq::ProxyConnectError) do
       client.get(
         "https://example.com/",
-        proxy: "http://127.0.0.1:#{port}",
+        proxy: "http://127.0.0.1:1",
         timeout: 5
       )
     end
@@ -122,17 +93,13 @@ def run_scenario(name, client)
     run_example("Slow response", expected: Wreq::TimeoutError) do
       client.get("#{TEST_SERVER}/delay/5", timeout: 1)
     end
-  when "remote-reset"
+  when "reset"
     run_example(
-      "Remote reset after sending a request",
+      "Server resets the connection",
       expected: [Wreq::RequestError, Wreq::ConnectionResetError],
-      note: "The HTTP layer may report an incomplete response before the raw reset is exposed."
+      note: "The HTTP layer may report an incomplete response before exposing the TCP reset."
     ) do
       client.get("#{TEST_SERVER}/error/reset", timeout: 5)
-    end
-  when "connection-reset"
-    run_example("Raw TCP reset", expected: Wreq::ConnectionResetError) do
-      with_reset_server { |url| client.get(url, timeout: 5) }
     end
   end
 end
@@ -144,8 +111,7 @@ scenarios = %w[
   connect
   proxy
   timeout
-  remote-reset
-  connection-reset
+  reset
 ].freeze
 selected = ARGV.empty? ? scenarios : ARGV
 unknown = selected - scenarios

@@ -220,20 +220,21 @@ output includes `error.uri`.
 [`examples/error.rb`](../examples/error.rb) contains runnable cases for each
 common transport failure. It uses [badssl.com](https://badssl.com/) for a
 rejected certificate and [testserver.host](https://testserver.host/) for HTTP
-status, delay, and remote reset responses. The connect, proxy, and raw TCP reset
-cases use local sockets, so they do not depend on an external failure staying
-available.
+status, delay, and reset responses. The connect and proxy cases use
+`127.0.0.1:1`, which normally has no listening service.
 
 Run every case, or choose individual cases:
 
 ```console
 bundle exec ruby examples/error.rb
-bundle exec ruby examples/error.rb tls timeout connection-reset
+bundle exec ruby examples/error.rb tls timeout reset
 ```
 
 The `tls` case demonstrates that a rejected remote certificate belongs to the
-Connect stage. The local `connection-reset` case sends a TCP RST directly so
-the operating-system reset remains in the native source chain.
+Connect stage. The public `reset` endpoint sends a TCP RST after receiving the
+request. The HTTP layer may turn that into an incomplete-response error before
+wreq sees the operating-system reset. In that case, the example raises
+`RequestError` and `connection_reset?` returns false.
 
 These public endpoints are useful for manual checks, but they should not be CI
 fixtures. They may be unavailable, and a system TLS proxy can change the
