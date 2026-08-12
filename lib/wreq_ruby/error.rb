@@ -5,30 +5,35 @@ unless defined?(Wreq)
     # Base class for wreq-ruby runtime errors.
     #
     # Error remains a RuntimeError so existing rescue handlers keep working.
-    # Its subclass records one primary category. Predicate methods retain every
-    # classification reported by the native `wreq::Error`, so more than one can
-    # be true. For example, a request timeout raises TimeoutError while both
-    # `timeout?` and `request?` return true.
+    # A native `wreq::Error` has one top-level kind and may contain a chain of
+    # lower-level causes. The builder, body, TLS, decoding, redirect, status,
+    # upgrade, and request predicates report that top-level kind. Timeout,
+    # connection reset, proxy connection, and destination connection predicates
+    # inspect the cause chain and may overlap with the request kind.
     #
-    # wreq-ruby records the native checks as facts, then chooses the exception
-    # class using its own rules. Native body, TLS, and status kinds take
-    # precedence over details found in their cause chains. The remaining errors
-    # are classified as connection reset, timeout, proxy connect failure,
-    # destination connect failure, or RequestError, in that order. These
-    # transport details do not depend on `request?` also being true.
+    # The subclass records one primary category. For example, a destination
+    # connection timeout normally raises TimeoutError while `timeout?`,
+    # `connect?`, and `request?` can all return true. Top-level native kinds take
+    # precedence over cause-chain details. Other failures use connection reset,
+    # timeout, proxy connection, destination connection, then RequestError.
     #
     # Use the predicates when code needs every native fact. Errors created by
     # the binding return false for all of them. New facts may be exposed as
     # predicates without changing the exception class for existing failures.
-    # `detailed_message` includes the active facts, and `full_message` adds the
-    # backtrace and exception causes. Neither method includes `uri`.
+    # The standard error message includes the native cause chain, so `warn`,
+    # `message`, `to_s`, and uncaught exception output show the underlying
+    # network error. `detailed_message` also includes the active facts, and
+    # `full_message` adds the backtrace and Ruby exception causes. None of these
+    # outputs includes `uri`.
     #
     # @example Rescue any wreq-ruby runtime error
     #   begin
     #     Wreq.get("not-a-valid-url")
     #   rescue Wreq::Error => error
-    #     warn error.full_message(highlight: false)
+    #     warn error
     #   end
+    #
+    # @see https://github.com/SearchApi/wreq-ruby/blob/main/docs/errors.md
     class Error < RuntimeError
       # Get the URI recorded by the native error.
       #
@@ -44,59 +49,85 @@ unless defined?(Wreq)
       # @return [Integer, nil] HTTP status code, if one was recorded
       attr_reader :status
 
-      # @return [Boolean] Whether the native error came from a builder
+      # This checks the top-level native error kind. Binding-side validation can
+      # also raise BuilderError without setting this predicate.
+      #
+      # @return [Boolean] Whether the top-level native kind is Builder
       def builder?
       end
 
-      # @return [Boolean] Whether the native error came from redirect handling
+      # @return [Boolean] Whether the top-level native kind is Redirect
       def redirect?
       end
 
-      # @return [Boolean] Whether the native error represents an HTTP status
+      # @return [Boolean] Whether the top-level native kind is Status
       def status?
       end
 
-      # A request timeout uses TimeoutError even when this is also a connection
-      # or proxy connection error.
+      # This scans the native cause chain for wreq's timeout marker, a protocol
+      # timeout, or an operating-system timed-out error. A timeout can therefore
+      # also be a connection, proxy connection, request, or body failure.
       #
-      # @return [Boolean] Whether the native error is related to a timeout
+      # @return [Boolean] Whether the native cause chain contains a timeout
       def timeout?
       end
 
-      # This may be true on connection and timeout subclasses because those
-      # errors occur while sending a request.
+      # This checks the top-level native kind, not every operation performed for
+      # a request. It is commonly true on connection and timeout subclasses
+      # because wreq wraps client-layer failures in a Request error.
       #
-      # @return [Boolean] Whether the native error is related to a request
+      # @return [Boolean] Whether the top-level native kind is Request
       def request?
       end
 
-      # @return [Boolean] Whether the native error occurred while acquiring a
-      #   connection to the destination
+      # This scans the cause chain for wreq's destination Connect stage. The
+      # root cause can be DNS, TCP, TLS handshake, or connection-pool failure.
+      #
+      # @return [Boolean] Whether the native chain contains a destination
+      #   connection failure
       def connect?
       end
 
-      # @return [Boolean] Whether the native error occurred while connecting
-      #   through a proxy
+      # This scans the cause chain for proxy TCP, HTTP CONNECT tunnel, or SOCKS
+      # negotiation failures. Errors after a tunnel is established may instead
+      # belong to the destination Connect stage.
+      #
+      # @return [Boolean] Whether the native chain contains a proxy connection
+      #   failure
       def proxy_connect?
       end
 
-      # @return [Boolean] Whether the native error is a connection reset
+      # A clean EOF or an HTTP "connection closed before message completed"
+      # error is not sufficient. The chain must retain an operating-system
+      # ConnectionReset error.
+      #
+      # @return [Boolean] Whether the native chain contains a connection reset
       def connection_reset?
       end
 
-      # @return [Boolean] Whether the native error is related to a body
+      # This is narrower than any failure encountered while reading or writing a
+      # body. It checks wreq's top-level Body kind.
+      #
+      # @return [Boolean] Whether the top-level native kind is Body
       def body?
       end
 
-      # @return [Boolean] Whether the native error is related to TLS
+      # This reports TLS client setup, such as connector, trust store, identity,
+      # or TLS option configuration. Certificate verification and TLS alerts
+      # during a remote handshake normally appear under the Connect stage.
+      #
+      # @return [Boolean] Whether the top-level native kind is TLS
       def tls?
       end
 
-      # @return [Boolean] Whether the native error is related to decoding
+      # The native Decode kind covers value parsing and response-body errors
+      # that wreq maps through its decoder. It does not mean JSON parsing only.
+      #
+      # @return [Boolean] Whether the top-level native kind is Decode
       def decoding?
       end
 
-      # @return [Boolean] Whether the native error is related to an upgrade
+      # @return [Boolean] Whether the top-level native kind is Upgrade
       def upgrade?
       end
     end
@@ -143,13 +174,14 @@ unless defined?(Wreq)
     # @see https://github.com/SearchApi/wreq-ruby/blob/main/docs/fork-safety.md
     class ForkError < Error; end
 
-    # Raised when the client cannot acquire a usable connection to the
-    # destination server.
+    # Raised when the native cause chain contains a destination Connect stage
+    # and no higher-priority category applies.
     #
-    # If the native error reports both a destination connection failure and a
-    # timeout, Wreq::TimeoutError is raised and `connect?` remains true. A
-    # system proxy or VPN that accepts the connection but never responds may
-    # instead appear as a general request timeout.
+    # The root cause can be DNS resolution, TCP connection, connection-pool
+    # acquisition, TLS negotiation, or certificate verification. Inspect the
+    # complete error message for that root cause. A timeout raises TimeoutError
+    # and keeps `connect?` true; a retained operating-system reset raises
+    # ConnectionResetError instead.
     #
     # @example Handle a destination connection failure
     #   client = Wreq::Client.new(no_proxy: true)
@@ -160,12 +192,14 @@ unless defined?(Wreq)
     #   end
     class ConnectError < Error; end
 
-    # Raised when the client cannot establish a connection through the
-    # configured proxy. This includes failures while connecting to the proxy or
-    # negotiating a proxy tunnel.
+    # Raised when the cause chain identifies a proxy connection stage and no
+    # higher-priority category applies.
     #
-    # If the native error reports both a proxy connection failure and a timeout,
-    # Wreq::TimeoutError is raised and `proxy_connect?` remains true.
+    # This includes connecting to the proxy, negotiating an HTTP CONNECT tunnel,
+    # and SOCKS negotiation. Once a tunnel is established, destination TLS or
+    # connection failures can raise ConnectError instead. A timeout raises
+    # TimeoutError while `proxy_connect?` remains true when wreq preserves the
+    # proxy stage in its cause chain.
     #
     # @example Handle a proxy connection failure
     #   begin
@@ -178,7 +212,12 @@ unless defined?(Wreq)
     #   end
     class ProxyConnectError < Error; end
 
-    # Raised when a peer resets the connection.
+    # Raised when the native cause chain retains an operating-system connection
+    # reset and no top-level native kind takes precedence.
+    #
+    # An EOF, graceful close, or incomplete HTTP message is not necessarily a
+    # connection reset. Those failures can raise RequestError or DecodingError
+    # when no `io::ErrorKind::ConnectionReset` remains in the chain.
     #
     # @example Handle a reset while streaming a response
     #   response = Wreq.get("https://example.com")
@@ -191,16 +230,19 @@ unless defined?(Wreq)
     #   end
     class ConnectionResetError < Error; end
 
-    # Raised when native TLS setup fails while constructing a client.
+    # Raised when wreq records a top-level TLS setup error.
     #
-    # The current Ruby API does not expose certificate or identity inputs that
-    # can deliberately trigger this error. TLS handshake and certificate
-    # verification failures happen while connecting and normally raise
-    # Wreq::ConnectError instead.
+    # This covers creating the TLS connector and configuring trust stores,
+    # identities, certificate compression, key logging, or TLS options. The
+    # current Ruby API does not expose certificate or identity inputs that can
+    # deliberately trigger every setup path. Remote handshake alerts and
+    # certificate verification failures normally raise ConnectError because
+    # they occur after setup while acquiring a connection.
     #
     # @example Distinguish TLS setup errors from connection errors
+    #   client = Wreq::Client.new(no_proxy: true, verify: true)
     #   begin
-    #     Wreq::Client.new(verify: true).get("https://example.com")
+    #     client.get("https://expired.badssl.com/")
     #   rescue Wreq::TlsError => error
     #     warn "TLS setup failed: #{error.message}"
     #   rescue Wreq::ConnectError => error
@@ -208,12 +250,14 @@ unless defined?(Wreq)
     #   end
     class TlsError < Error; end
 
-    # Raised for a request failure without a more specific error subclass.
+    # Raised for a top-level native Request error when its cause chain has no
+    # more specific transport category.
     #
-    # Connection reset and timeout causes use their corresponding subclasses
-    # first. A reset takes precedence if both predicates are present. Other
-    # proxy and destination connection failures use their connection subclasses
-    # before this fallback.
+    # Typical causes include a request rejected by the HTTP client, a send
+    # failure, an incomplete response, or a closed connection represented as a
+    # protocol error rather than an operating-system reset. Connection reset,
+    # timeout, proxy connection, and destination connection causes use their
+    # corresponding subclasses before this fallback.
     #
     # @example Rescue the native fallback request category
     #   client = Wreq::Client.new
@@ -227,18 +271,21 @@ unless defined?(Wreq)
     # Raised when Response#raise_for_status! sees a 4xx or 5xx response.
     #
     # Requests return error responses normally until this opt-in check is made.
-    # The inherited `status` reader returns the integer HTTP status.
+    # The native Status kind has no lower-level source. The inherited `status`
+    # reader returns the integer HTTP status.
     #
     # @example
-    #   client = Wreq::Client.new
+    #   client = Wreq::Client.new(no_proxy: true)
     #   begin
-    #     client.get("https://httpbin.io/status/404").raise_for_status!
+    #     client.get("https://example.testserver.host/status/404").raise_for_status!
     #   rescue Wreq::StatusError => error
     #     warn "HTTP #{error.status}: #{error.message}"
     #   end
     class StatusError < Error; end
 
-    # Raised when redirect handling fails, such as after too many redirects.
+    # Raised when wreq records a top-level redirect policy error, such as after
+    # too many redirects. `uri` contains the last redirect target when wreq
+    # recorded one.
     #
     # @example Limit the number of redirects
     #   client = Wreq::Client.new(allow_redirects: true, max_redirects: 3)
@@ -249,22 +296,32 @@ unless defined?(Wreq)
     #   end
     class RedirectError < Error; end
 
-    # Raised when a request operation exceeds its timeout.
+    # Raised when the cause chain contains a timeout and no top-level native kind
+    # or connection reset takes precedence.
     #
-    # This includes timeouts while connecting to the destination or proxy. Check
-    # `connect?` or `proxy_connect?` to see whether the native error also
-    # identifies the connect phase. `request?` can be true on the same error.
+    # wreq recognizes its own timeout marker, protocol timeouts, and
+    # `io::ErrorKind::TimedOut`. This includes overall request, response read,
+    # destination connection, and proxy connection timeouts. Check `connect?`,
+    # `proxy_connect?`, `request?`, and `body?` for the retained stage. A native
+    # Body timeout raises BodyError because the top-level Body kind wins.
     #
     # @example Handle a request timeout
-    #   client = Wreq::Client.new(timeout: 1)
+    #   client = Wreq::Client.new(no_proxy: true, timeout: 1)
     #   begin
-    #     client.get("https://httpbin.io/delay/10")
+    #     client.get("https://example.testserver.host/delay/5")
     #   rescue Wreq::TimeoutError => error
     #     warn "request timed out: #{error.message}"
     #   end
     class TimeoutError < Error; end
 
-    # Raised while sending, reading, or streaming an HTTP body.
+    # Raised for wreq's top-level Body kind or a binding-side body sender state
+    # error.
+    #
+    # This is not the class for every failure encountered while transferring a
+    # body. In the current wreq version, a total timeout while consuming a
+    # response body uses the Body kind, while read timeouts and protocol errors
+    # can use TimeoutError, RequestError, or DecodingError. Binding-side errors
+    # do not set `body?` because they have no native wreq error.
     #
     # @example Handle a body error while streaming
     #   response = Wreq.get("https://example.com")
@@ -277,7 +334,13 @@ unless defined?(Wreq)
     #   end
     class BodyError < Error; end
 
-    # Raised when a response body cannot be decoded or parsed.
+    # Raised when wreq cannot decode or parse a value, or when it wraps a
+    # response-body transport or protocol failure in its Decode kind.
+    #
+    # The complete message identifies whether the root cause is JSON, character
+    # or cookie parsing, decompression, an HTTP body failure, or another decoder.
+    # A timeout or connection reset can remain visible through its predicate
+    # even when the primary class is DecodingError.
     #
     # @example Fall back to bytes when a response is not valid JSON
     #   response = Wreq.get("https://example.com")
@@ -288,7 +351,13 @@ unless defined?(Wreq)
     #   end
     class DecodingError < Error; end
 
-    # Raised when client, request, header, or body configuration is invalid.
+    # Raised for wreq's top-level Builder kind or binding-side validation that
+    # cannot initialize the native runtime or construct a client, request, URL,
+    # header, or JSON body.
+    #
+    # Binding-generated BuilderError instances have no native source chain, so
+    # `builder?` returns false for them. The exception message still describes
+    # the rejected value.
     #
     # @example Handle an invalid request URL
     #   begin
