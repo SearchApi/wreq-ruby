@@ -303,6 +303,7 @@ class StreamTest < Minitest::Test
       error_raised = true
       assert_instance_of Wreq::MemoryError, e,
         "Second chunks call should raise MemoryError, got #{e.class}: #{e.message}"
+      assert_equal "response body is unavailable for this operation", e.message
     end
 
     assert error_raised, "Second chunks call should raise an error"
@@ -320,6 +321,7 @@ class StreamTest < Minitest::Test
       error_raised = true
       assert_instance_of Wreq::MemoryError, e,
         "Calling text after chunks should raise MemoryError, got #{e.class}: #{e.message}"
+      assert_equal "response body is unavailable for this operation", e.message
     end
 
     assert error_raised, "Calling text after chunks should raise an error"

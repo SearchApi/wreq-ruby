@@ -12,7 +12,7 @@ use crate::{
     arch::ProcessLocal,
     client::body::{json::Json, stream::BodyReceiver},
     cookie::Cookie,
-    error::{memory_error, no_block_given_error, wreq_error},
+    error::{no_block_given_error, response_body_unavailable_error, wreq_error},
     gvl,
     header::Headers,
     http::{StatusCode, Version},
@@ -126,7 +126,7 @@ impl Response {
             };
         }
 
-        Err(memory_error(ruby))
+        Err(response_body_unavailable_error(ruby))
     }
 }
 

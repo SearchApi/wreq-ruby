@@ -122,6 +122,8 @@ unless defined?(Wreq)
 
       # Get the response bytes as a binary string.
       # @return [String] Response body as binary data
+      # @raise [Wreq::MemoryError] if another body operation is active, or the
+      #   body was streamed or closed
       # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example
       #   binary_data = response.bytes
@@ -137,6 +139,8 @@ unless defined?(Wreq)
       # @example
       #   html = response.text("ISO-8859-1")
       #   puts html
+      # @raise [Wreq::MemoryError] if another body operation is active, or the
+      #   body was streamed or closed
       # @raise [Wreq::DecodingError] if body cannot be decoded with the specified encoding
       # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def text(default_encoding = "UTF-8")
@@ -148,6 +152,8 @@ unless defined?(Wreq)
       # values. Fractional and exponent-form numbers are returned as Float values.
       #
       # @return [Object] Parsed JSON (Hash, Array, String, Integer, Float, Boolean, nil)
+      # @raise [Wreq::MemoryError] if another body operation is active, or the
+      #   body was streamed or closed
       # @raise [Wreq::DecodingError] if body is not valid JSON
       # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example
@@ -165,6 +171,8 @@ unless defined?(Wreq)
       # @return [nil]
       # @yield [chunk] Each chunk of the response body as a binary String
       # @raise [LocalJumpError] if called without a block
+      # @raise [Wreq::MemoryError] if another body operation is active, or the
+      #   body was already read, streamed, or closed
       # @raise [Wreq::TimeoutError, Wreq::BodyError, Wreq::ConnectionResetError, Wreq::RequestError]
       #   if streaming fails while reading the response body
       # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent

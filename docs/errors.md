@@ -98,13 +98,19 @@ RuntimeError
 | `Wreq::DecodingError` | The top-level kind is Decode. It covers parsing values, decoding response data, and response-body transport or protocol failures that wreq wraps as Decode. |
 | `Wreq::RedirectError` | The top-level kind is Redirect, usually because redirect policy rejected the next hop or the limit was exceeded. |
 | `Wreq::StatusError` | `Response#raise_for_status!` created a Status error for a 4xx or 5xx response. It has a status and no lower-level native cause. |
-| `Wreq::MemoryError` | Single-use native state was consumed already or is currently borrowed. |
+| `Wreq::MemoryError` | A response body operation cannot proceed, or a `BodySender` was already used for a request. This is the compatibility error for the current one-shot APIs. |
 | `Wreq::ForkError` | A forked child attempted to use native state inherited from its parent. See [Fork safety](fork-safety.md). |
 | `Wreq::InterruptError` | Ruby interrupted a native request wait. This inherits from `Interrupt`, outside the hierarchy above. |
 
 Errors created by the binding rather than by wreq have no active native
 predicates. The exception class still identifies the binding operation that
 failed.
+
+`Wreq::MemoryError` does not report system memory exhaustion. It preserves the
+current error class for one-shot APIs: a response cannot be read after it was
+streamed or closed, only one response body operation can run at a time, and a
+`BodySender` cannot be attached to a second request. Callers should rescue the
+class instead of matching its message.
 
 ## Predicates
 
