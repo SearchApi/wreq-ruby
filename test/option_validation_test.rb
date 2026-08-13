@@ -116,7 +116,8 @@ class OptionValidationTest < Minitest::Test
       Wreq.post(INVALID_URL, body: sender)
     end
 
-    assert_includes error.message, ":body"
+    assert_equal "invalid value for :body: body sender has already been used for a request",
+      error.message
   ensure
     sender&.close
   end

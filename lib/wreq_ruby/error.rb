@@ -149,7 +149,12 @@ unless defined?(Wreq)
     # never swallows a Ruby interrupt.
     class InterruptError < Interrupt; end
 
-    # Raised when single-use native state was already consumed or is borrowed.
+    # Raised when a response body operation cannot proceed or a one-shot
+    # request-body sender cannot be used again.
+    #
+    # This compatibility error covers the current response and BodySender APIs.
+    # Its message describes the Ruby object state without exposing native
+    # ownership or borrowing details.
     #
     # @example A closed response no longer has a readable body
     #   response = Wreq.get("https://example.com")

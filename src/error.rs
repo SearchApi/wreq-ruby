@@ -14,20 +14,6 @@ use tokio::sync::mpsc::error::SendError;
 const ERROR_PREDICATES_IVAR: &str = "wreq_error_predicates";
 type ErrorPredicateBits = u64;
 
-const RACE_CONDITION_ERROR_MSG: &str = r#"Due to Rust's memory management with borrowing,
-you cannot use certain instances multiple times as they may be consumed.
-
-This error can occur in the following cases:
-1) You passed a non-clonable instance to a function that requires ownership.
-2) You attempted to use a method that consumes ownership more than once (e.g., reading a response body twice).
-3) You tried to reference an instance after it was borrowed.
-
-Potential solutions:
-1) Avoid sharing instances; create a new instance each time you use it.
-2) Refrain from performing actions that consume ownership multiple times.
-3) Change the order of operations to reference the instance before borrowing it.
-"#;
-
 macro_rules! define_exception {
     ($name:ident, $ruby_name:literal, $parent_method:ident) => {
         static $name: Lazy<ExceptionClass> = Lazy::new(|ruby| {
@@ -315,9 +301,23 @@ define_exception!(INTERRUPT_ERROR, "InterruptError", exception_interrupt);
 define_exception!(MEMORY, "MemoryError", exception_runtime_error);
 define_exception!(FORK_ERROR, "ForkError", exception_runtime_error);
 
-/// Memory error constant
-pub fn memory_error(ruby: &Ruby) -> MagnusError {
-    MagnusError::new(ruby.get_inner(&MEMORY), RACE_CONDITION_ERROR_MSG)
+// Keep these constructors separate even though both currently use MemoryError.
+// A future Ruby body API can change either state error without inspecting or
+// coupling itself to the native storage mechanism.
+/// Build the compatibility error used when a response body operation cannot proceed.
+pub fn response_body_unavailable_error(ruby: &Ruby) -> MagnusError {
+    MagnusError::new(
+        ruby.get_inner(&MEMORY),
+        "response body is unavailable for this operation",
+    )
+}
+
+/// Build the compatibility error used when a sender is reused for another request.
+pub fn body_sender_reused_error(ruby: &Ruby) -> MagnusError {
+    MagnusError::new(
+        ruby.get_inner(&MEMORY),
+        "body sender has already been used for a request",
+    )
 }
 
 /// Create a `Wreq::InterruptError` when Ruby interrupts a request.
@@ -371,19 +371,19 @@ pub fn body_sender_send_error<T>(ruby: &Ruby, err: SendError<T>) -> MagnusError 
     )
 }
 
-/// Map an immutable sender-state borrow failure to `Wreq::BodyError`.
-pub fn body_sender_borrow_error(ruby: &Ruby, err: BorrowError) -> MagnusError {
+/// Map an immutable sender-state access conflict to `Wreq::BodyError`.
+pub fn body_sender_borrow_error(ruby: &Ruby, _err: BorrowError) -> MagnusError {
     MagnusError::new(
         ruby.get_inner(&BODY_ERROR),
-        format!("body sender state is unavailable: {err}"),
+        "body sender is currently in use",
     )
 }
 
-/// Map a mutable sender-state borrow failure to `Wreq::BodyError`.
-pub fn body_sender_borrow_mut_error(ruby: &Ruby, err: BorrowMutError) -> MagnusError {
+/// Map a mutable sender-state access conflict to `Wreq::BodyError`.
+pub fn body_sender_borrow_mut_error(ruby: &Ruby, _err: BorrowMutError) -> MagnusError {
     MagnusError::new(
         ruby.get_inner(&BODY_ERROR),
-        format!("body sender state is unavailable: {err}"),
+        "body sender is currently in use",
     )
 }
 

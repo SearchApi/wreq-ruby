@@ -17,6 +17,7 @@ unless defined?(Wreq)
     #
     # A sender can be attached to one request. Closing it prevents further writes but
     # retains queued chunks so a request attached afterward can still drain them.
+    # Attaching the same sender to another request raises Wreq::MemoryError.
     # Creating or using a sender raises Wreq::ForkError if the child inherited
     # wreq-ruby from its parent.
     class BodySender

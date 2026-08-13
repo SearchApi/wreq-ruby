@@ -16,7 +16,8 @@ use crate::{
     arch::ProcessLocal,
     error::{
         argument_error, body_sender_borrow_error, body_sender_borrow_mut_error,
-        body_sender_send_error, closed_body_sender_error, memory_error, type_error, wreq_error,
+        body_sender_reused_error, body_sender_send_error, closed_body_sender_error, type_error,
+        wreq_error,
     },
     rt,
 };
@@ -140,7 +141,7 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `Wreq::ForkError` before reading an inherited channel, or
-    /// `Wreq::BodyError` if the internal state is already borrowed.
+    /// `Wreq::BodyError` if the internal state is already in use.
     pub fn close(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
         rt::ensure_current(ruby)?;
         let mut inner = rb_self.write_inner(ruby)?;
@@ -153,7 +154,7 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `Wreq::ForkError` before reading an inherited channel, or
-    /// `Wreq::BodyError` if the internal state is already borrowed.
+    /// `Wreq::BodyError` if the internal state is already in use.
     pub fn is_closed(ruby: &Ruby, rb_self: &Self) -> Result<bool, Error> {
         rt::ensure_current(ruby)?;
         rb_self.read_inner(ruby).map(|r| r.is_closed())
@@ -179,15 +180,15 @@ impl BodySender {
     ///
     /// # Errors
     ///
-    /// Returns `Wreq::MemoryError` if the receiver was already consumed, or
-    /// `Wreq::BodyError` if Ruby re-enters while the state is borrowed.
+    /// Returns `Wreq::MemoryError` if the sender was already used for a request, or
+    /// `Wreq::BodyError` if Ruby re-enters while the state is in use.
     pub(super) fn take_receiver(&self, ruby: &Ruby) -> Result<ReceiverStream<Bytes>, Error> {
         rt::ensure_current(ruby)?;
         self.write_inner(ruby)?
             .rx
             .take()
             .map(ReceiverStream::new)
-            .ok_or_else(|| memory_error(ruby))
+            .ok_or_else(|| body_sender_reused_error(ruby))
     }
 }
 
