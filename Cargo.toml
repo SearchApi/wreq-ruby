@@ -5,7 +5,7 @@ authors = ["SearchApi <support@searchapi.io>"]
 homepage = "https://github.com/SearchApi/wreq-ruby"
 repository = "https://github.com/SearchApi/wreq-ruby"
 edition = "2024"
-version = "1.2.11"
+version = "1.2.12"
 rust-version = "1.95"
 
 [lib]
@@ -64,7 +64,8 @@ opt-level = 3
 strip = true
 
 [patch.crates-io]
+http2 = { git = "https://github.com/0x676e67/http2", rev = "b413a92b2e1fe7e2ea1b7be78e75b872386fdfa0" }
 btls = { git = "https://github.com/0x676e67/btls", branch = "demo/merge-upstream-boring-20260616" }
 btls-sys = { git = "https://github.com/0x676e67/btls", branch = "demo/merge-upstream-boring-20260616" }
-wreq = { git = "https://github.com/0x676e67/wreq", rev = "5159279f43e5e61e24643f7639c8f5a74f9ec380" }
+wreq = { git = "https://github.com/0x676e67/wreq", rev = "12ccf64bb00e79db6eabd4bc3ccf82871d3eb5a5" }
 wreq-util = { path = "crates/wreq-util" }
