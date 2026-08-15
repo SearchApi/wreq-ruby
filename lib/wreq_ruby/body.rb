@@ -17,6 +17,8 @@ unless defined?(Wreq)
     #
     # A sender can be attached to one request. Closing it prevents further writes but
     # retains queued chunks so a request attached afterward can still drain them.
+    # Creating or using a sender raises Wreq::ForkError if the child inherited
+    # wreq-ruby from its parent.
     class BodySender
       # Create a bounded request-body sender.
       #
@@ -25,6 +27,7 @@ unless defined?(Wreq)
       # @return [Wreq::BodySender] A streaming request body sender
       # @raise [ArgumentError] if capacity is zero, negative, or too large
       # @raise [TypeError] if capacity is not an Integer
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def self.new(capacity = 8)
       end
 
@@ -33,6 +36,7 @@ unless defined?(Wreq)
       # @param data [String] binary chunk
       # @return [nil]
       # @raise [IOError] if the sender or receiving side is closed
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def push(data)
       end
 
@@ -41,6 +45,7 @@ unless defined?(Wreq)
       # This operation is idempotent.
       #
       # @return [nil]
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def close
       end
 
@@ -50,6 +55,7 @@ unless defined?(Wreq)
       # the receiving side.
       #
       # @return [Boolean]
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def closed?
       end
     end

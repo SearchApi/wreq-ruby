@@ -9,6 +9,7 @@ use magnus::{Error, Module, RArray, RModule, Ruby, Value, scan_args::scan_args};
 use wreq::Uri;
 
 use crate::{
+    arch::ProcessLocal,
     client::body::{json::Json, stream::BodyReceiver},
     cookie::Cookie,
     error::{memory_error, no_block_given_error, wreq_error},
@@ -16,6 +17,7 @@ use crate::{
     header::Headers,
     http::{StatusCode, Version},
     rt,
+    tls::TlsInfo,
 };
 
 /// A response from a request.
@@ -28,8 +30,7 @@ pub struct Response {
     headers: HeaderMap,
     local_addr: Option<SocketAddr>,
     remote_addr: Option<SocketAddr>,
-    body: ArcSwapOption<Body>,
-    extensions: Extensions,
+    state: ProcessLocal<NativeResponseState>,
 }
 
 /// Represents the state of the HTTP response body.
@@ -38,6 +39,12 @@ enum Body {
     Streamable(wreq::Body),
     /// The body has been fully read into memory and can be reused.
     Reusable(Bytes),
+}
+
+/// Response state that may contain handles owned by the native runtime.
+struct NativeResponseState {
+    body: ArcSwapOption<Body>,
+    extensions: Extensions,
 }
 
 impl Response {
@@ -55,26 +62,31 @@ impl Response {
             local_addr,
             remote_addr,
             content_length,
-            extensions: parts.extensions,
             version: Version::from_ffi(parts.version),
             status: StatusCode::from(parts.status),
             headers: parts.headers,
-            body: ArcSwapOption::from_pointee(Body::Streamable(body)),
+            state: ProcessLocal::new(NativeResponseState {
+                body: ArcSwapOption::from_pointee(Body::Streamable(body)),
+                extensions: parts.extensions,
+            }),
         }
     }
 
     /// Internal method to get the wreq::Response, optionally streaming the body.
     fn response(&self, ruby: &Ruby, stream: bool) -> Result<wreq::Response, Error> {
+        rt::ensure_current(ruby)?;
+        let state = self.state.as_ref();
+
         let build_response = |body: wreq::Body| -> wreq::Response {
             let mut response = HttpResponse::new(body);
             *response.version_mut() = self.version.into_ffi();
             *response.status_mut() = self.status.0;
             *response.headers_mut() = self.headers.clone();
-            *response.extensions_mut() = self.extensions.clone();
+            *response.extensions_mut() = state.extensions.clone();
             wreq::Response::from(response)
         };
 
-        if let Some(arc) = self.body.swap(None) {
+        if let Some(arc) = state.body.swap(None) {
             match Arc::try_unwrap(arc) {
                 Ok(Body::Streamable(body)) => {
                     return if stream {
@@ -86,14 +98,16 @@ impl Response {
                             wreq_error,
                         )?;
 
-                        self.body
+                        state
+                            .body
                             .store(Some(Arc::new(Body::Reusable(bytes.clone()))));
 
                         Ok(build_response(wreq::Body::from(bytes)))
                     };
                 }
                 Ok(Body::Reusable(bytes)) => {
-                    self.body
+                    state
+                        .body
                         .store(Some(Arc::new(Body::Reusable(bytes.clone()))));
 
                     if !stream {
@@ -167,6 +181,16 @@ impl Response {
         self.remote_addr.map(|addr| addr.to_string())
     }
 
+    /// Return peer certificate data retained for this response.
+    fn tls_info(&self) -> Option<TlsInfo> {
+        self.state
+            .as_ref()
+            .extensions
+            .get::<wreq::tls::TlsInfo>()
+            .cloned()
+            .map(TlsInfo)
+    }
+
     /// Get the response body as bytes.
     pub fn bytes(ruby: &Ruby, rb_self: &Self) -> Result<Bytes, Error> {
         let response = rb_self.response(ruby, false)?;
@@ -175,6 +199,7 @@ impl Response {
 
     ///  Get the full response text given a specific encoding.
     pub fn text(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<String, Error> {
+        rt::ensure_current(ruby)?;
         let args = scan_args::<(), (Option<String>,), (), (), (), ()>(args)?;
         let response = rb_self.response(ruby, false)?;
         match args.optional.0 {
@@ -194,6 +219,8 @@ impl Response {
 
     /// Yield response body chunks to the given Ruby block.
     pub fn chunks(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
+        rt::ensure_current(ruby)?;
+
         if !ruby.block_given() {
             return Err(no_block_given_error(ruby));
         }
@@ -211,16 +238,15 @@ impl Response {
     }
 
     /// Close the response body, dropping any resources.
-    #[inline]
-    pub fn close(&self) {
-        gvl::nogvl(|| self.body.swap(None));
-    }
-}
-
-impl Drop for Response {
-    fn drop(&mut self) {
-        // Ensure body is dropped in GVL
-        self.body.swap(None);
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::ForkError` before touching a body inherited from the
+    /// parent process.
+    pub fn close(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
+        rt::ensure_current(ruby)?;
+        gvl::nogvl(|| rb_self.state.as_ref().body.swap(None));
+        Ok(())
     }
 }
 
@@ -243,5 +269,6 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), Error> {
     response.define_method("json", magnus::method!(Response::json, 0))?;
     response.define_method("chunks", magnus::method!(Response::chunks, 0))?;
     response.define_method("close", magnus::method!(Response::close, 0))?;
+    response.define_method("tls_info", magnus::method!(Response::tls_info, 0))?;
     Ok(())
 }

@@ -8,6 +8,9 @@ unless defined?(Wreq)
     # access to HTTP response data including status codes, headers, body
     # content, and streaming capabilities.
     #
+    # Body methods raise Wreq::ForkError if the child inherited wreq-ruby from
+    # its parent.
+    #
     # @example Basic response handling
     #   response = client.get("https://api.example.com")
     #   puts response.status.as_int  # => 200
@@ -107,6 +110,7 @@ unless defined?(Wreq)
 
       # Get the response bytes as a binary string.
       # @return [String] Response body as binary data
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example
       #   binary_data = response.bytes
       #   puts binary_data.size  # => 1024
@@ -122,6 +126,7 @@ unless defined?(Wreq)
       #   html = response.text("ISO-8859-1")
       #   puts html
       # @raise [Wreq::DecodingError] if body cannot be decoded with the specified encoding
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def text(default_encoding = "UTF-8")
       end
 
@@ -132,6 +137,7 @@ unless defined?(Wreq)
       #
       # @return [Object] Parsed JSON (Hash, Array, String, Integer, Float, Boolean, nil)
       # @raise [Wreq::DecodingError] if body is not valid JSON
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example
       #   data = response.json
       #   puts data["key"]
@@ -149,6 +155,7 @@ unless defined?(Wreq)
       # @raise [LocalJumpError] if called without a block
       # @raise [Wreq::TimeoutError, Wreq::BodyError, Wreq::ConnectionResetError, Wreq::RequestError]
       #   if streaming fails while reading the response body
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example Save response to file
       #   File.open("output.bin", "wb") do |f|
       #     response.chunks { |chunk| f.write(chunk) }
@@ -165,9 +172,30 @@ unless defined?(Wreq)
       # Close the response and free associated resources.
       #
       # @return [void]
+      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       # @example
       #   response.close
       def close
+      end
+
+      # Return TLS information captured for this response.
+      #
+      # Returns +nil+ when +tls_info: true+ was not enabled, the response used
+      # plain HTTP, or the transport supplied no TLS information. Reading or
+      # closing the response body does not discard captured TLS data.
+      #
+      # @return [Wreq::TlsInfo, nil] TLS information for this response, or +nil+
+      #   when unavailable
+      # @example
+      #   client = Wreq::Client.new(tls_info: true)
+      #   response = client.get("https://example.com")
+      #   tls = response.tls_info
+      #
+      #   if tls
+      #     tls.peer_certificate       # => DER-encoded binary String
+      #     tls.peer_certificate_chain # => frozen Array of DER binary Strings
+      #   end
+      def tls_info
       end
     end
   end
