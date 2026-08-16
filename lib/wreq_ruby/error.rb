@@ -11,15 +11,17 @@ unless defined?(Wreq)
     # Memory allocation failed.
     class MemoryError < StandardError; end
 
-    # The child process inherited wreq-ruby from its parent.
+    # The child process tried to use native state created by its parent.
     #
-    # Tokio worker threads do not survive fork, and inherited pooled
-    # connections are not safe to reuse. This error is raised before a child
-    # can access that state.
+    # Tokio worker threads do not survive fork. Inherited connection pools,
+    # locks, channels, and response state are also unsafe to use. wreq-ruby
+    # raises this error before exposing them. Loading the gem before fork is
+    # supported, but native-backed objects must be created in each worker.
     #
     # @example
+    #   client = Wreq::Client.new
     #   Process.fork do
-    #     Wreq::Client.new # Raises if the parent loaded wreq-ruby.
+    #     client.get("https://example.com") # Raises in the child.
     #   end
     # @see https://github.com/SearchApi/wreq-ruby/blob/main/docs/fork-safety.md
     class ForkError < RuntimeError; end

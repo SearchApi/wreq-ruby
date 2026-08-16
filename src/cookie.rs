@@ -18,6 +18,7 @@ use magnus::{
 use wreq::header::{self, HeaderMap, HeaderValue};
 
 use crate::{
+    arch::ProcessLocal,
     error::{header_value_error, type_error},
     gvl,
     options::{NativeOption, Options},
@@ -78,9 +79,14 @@ struct Builder {
 /// A cookie jar that can be shared with a Ruby `Wreq::Client`.
 ///
 /// Pass a populated jar as the client's `cookie_provider` option.
-#[derive(Clone, Default)]
 #[magnus::wrap(class = "Wreq::Jar", free_immediately, size)]
-pub struct Jar(pub Arc<wreq::cookie::Jar>);
+pub struct Jar(ProcessLocal<Arc<wreq::cookie::Jar>>);
+
+impl Default for Jar {
+    fn default() -> Self {
+        Self(ProcessLocal::new(Arc::new(wreq::cookie::Jar::default())))
+    }
+}
 
 // ===== impl Builder =====
 
@@ -309,13 +315,18 @@ impl TryConvert for Cookies {
 impl Jar {
     /// Create a new [`Jar`] with an empty cookie store.
     pub fn new() -> Self {
-        Self(Arc::new(wreq::cookie::Jar::default()))
+        Self::default()
     }
 
     /// Get all cookies.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::ForkError` when the jar belongs to a parent process.
     pub fn get_all(ruby: &Ruby, rb_self: &Self) -> Result<Value, Error> {
         let cookies: Vec<Cookie> = rb_self
             .0
+            .get(ruby)?
             .get_all()
             .map(RawCookie::from)
             .map(Cookie)
@@ -331,28 +342,53 @@ impl Jar {
     ///
     /// # Errors
     ///
-    /// Returns `TypeError` when `cookie` is neither a [`Cookie`] nor a String.
+    /// Returns `Wreq::ForkError` when the jar belongs to a parent process, or
+    /// `TypeError` when `cookie` is neither a [`Cookie`] nor a String.
     pub fn add(&self, cookie: Value, url: String) -> Result<(), Error> {
+        let ruby = Ruby::get_with(cookie);
+        let jar = self.0.get(&ruby)?;
+
         if let Ok(cookie) = Obj::<Cookie>::try_convert(cookie) {
-            gvl::nogvl(|| self.0.add(cookie.clone_for_jar(), &url));
+            gvl::nogvl(|| jar.add(cookie.clone_for_jar(), &url));
             return Ok(());
         }
 
-        let ruby = Ruby::get_with(cookie);
         let cookie = String::try_convert(cookie)
             .map_err(|_| type_error(&ruby, "cookie must be a Wreq::Cookie or String"))?;
-        gvl::nogvl(|| self.0.add(cookie.as_ref(), &url));
+        gvl::nogvl(|| jar.add(cookie.as_ref(), &url));
         Ok(())
     }
 
     /// Remove a cookie from this jar by name and URL.
-    pub fn remove(&self, name: String, url: String) {
-        gvl::nogvl(|| self.0.remove(name, &url))
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::ForkError` when the jar belongs to a parent process.
+    pub fn remove(ruby: &Ruby, rb_self: &Self, name: String, url: String) -> Result<(), Error> {
+        let jar = rb_self.0.get(ruby)?;
+        gvl::nogvl(|| jar.remove(name, &url));
+        Ok(())
     }
 
     /// Clear all cookies in this jar.
-    pub fn clear(&self) {
-        gvl::nogvl(|| self.0.clear())
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::ForkError` when the jar belongs to a parent process.
+    pub fn clear(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
+        let jar = rb_self.0.get(ruby)?;
+        gvl::nogvl(|| jar.clear());
+        Ok(())
+    }
+
+    /// Clone the shared native store in the process that created this jar.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::ForkError` when the jar was inherited from a parent
+    /// process.
+    pub(crate) fn clone_store(&self, ruby: &Ruby) -> Result<Arc<wreq::cookie::Jar>, Error> {
+        self.0.get(ruby).cloned()
     }
 }
 

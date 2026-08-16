@@ -102,7 +102,5 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     tls::include(ruby, &gem_module)?;
     client::include(ruby, &gem_module)?;
     emulate::include(ruby, &gem_module)?;
-    #[cfg(unix)]
-    rt::initialize(ruby)?;
     Ok(())
 }
