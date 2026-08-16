@@ -155,8 +155,8 @@ unless defined?(Wreq)
       # @param ca_pem [String, nil] Raw PEM-encoded certificate content that
       #   **replaces** the default system trust store. Useful when certificate
       #   material comes from a secret store or environment variable rather
-      #   than a file on disk. Must contain at least one
-      #   +-----BEGIN CERTIFICATE-----+ block.
+      #   than a file on disk. Invalid PEM that the native store rejects raises
+      #   {Wreq::TlsError} during client construction.
       #   Mutually exclusive with +ca_file+, +additional_ca_file+, and
       #   +additional_ca_pem+.
       #
@@ -164,12 +164,15 @@ unless defined?(Wreq)
       #   CA bundle loaded **alongside** the default system trust store.
       #   Public roots remain available; the supplied certificates are added
       #   on top. Accepts any object responding to +to_path+ (e.g. +Pathname+).
-      #   Mutually exclusive with +ca_file+, +ca_pem+, and +additional_ca_pem+.
+      #   The file is read during client construction; a missing or unreadable
+      #   file raises immediately. Mutually exclusive with +ca_file+, +ca_pem+, 
+      #   and +additional_ca_pem+.
       #
       # @param additional_ca_pem [String, nil] Raw PEM-encoded certificate
       #   content loaded **alongside** the default system trust store. Public
       #   roots remain available; the supplied certificates are added on top.
-      #   Must contain at least one +-----BEGIN CERTIFICATE-----+ block.
+      #   Invalid PEM that the native store rejects raises
+      #   {Wreq::TlsError} during client construction.
       #   Mutually exclusive with +ca_file+, +ca_pem+, and
       #   +additional_ca_file+.
       #
