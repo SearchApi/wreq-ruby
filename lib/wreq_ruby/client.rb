@@ -17,9 +17,14 @@ unless defined?(Wreq)
     # native conversion, such as TypeError or Wreq::BuilderError. Request
     # validation finishes before network I/O.
     #
-    # A child process cannot create or use a client if it inherited wreq-ruby
-    # from its parent. These calls raise Wreq::ForkError before accessing the
-    # native runtime. Require wreq after the worker has been forked.
+    # A client belongs to the process that created it. An inherited client
+    # raises Wreq::ForkError before its connection pool is accessed. Loading
+    # the gem before fork is supported, but clients must be created inside the
+    # worker. If the parent already started the runtime, new clients can be
+    # constructed in the child but cannot send requests.
+    #
+    # @note Fork safety Create each client in the worker that uses it. An
+    #   inherited client is never rebuilt automatically.
     #
     # @example Basic usage
     #   client = Wreq::Client.new
@@ -174,8 +179,7 @@ unless defined?(Wreq)
       #   value cannot be converted or validated.
       # @raise [Wreq::BuilderError, Wreq::TlsError] if the native client cannot
       #   be initialized.
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
-      #
+      # @raise [Wreq::ForkError] if :cookie_provider belongs to a parent process.
       # @example Minimal client
       #   client = Wreq::Client.new
       #
@@ -290,7 +294,7 @@ unless defined?(Wreq)
       #   or unavailable on the current platform
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the client or runtime belongs to the parent process
       def request(method, url, **options)
       end
 
@@ -324,7 +328,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the client or runtime belongs to the parent process
       def get(url, **options)
       end
 
@@ -358,7 +362,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the client or runtime belongs to the parent process
       def head(url, **options)
       end
 
@@ -392,7 +396,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the client or runtime belongs to the parent process
       def post(url, **options)
       end
 
@@ -426,7 +430,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the client or runtime belongs to the parent process
       def put(url, **options)
       end
 
@@ -460,7 +464,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the client or runtime belongs to the parent process
       def delete(url, **options)
       end
 
@@ -494,7 +498,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the client or runtime belongs to the parent process
       def options(url, **options)
       end
 
@@ -528,7 +532,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the client or runtime belongs to the parent process
       def trace(url, **options)
       end
 
@@ -562,7 +566,7 @@ unless defined?(Wreq)
       # @return [Wreq::Response] HTTP response
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted, validated, or built
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the client or runtime belongs to the parent process
       def patch(url, **options)
       end
     end
