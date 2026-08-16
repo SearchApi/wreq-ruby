@@ -21,7 +21,6 @@ use crate::{
     header::{Headers, OrigHeaders, UserAgent},
     http::Method,
     options::{NativeOption, Options},
-    rt,
 };
 
 /// A builder for `Client`.
@@ -51,7 +50,7 @@ struct Builder {
     cookie_store: Option<bool>,
     /// Whether to use cookie store provider.
     #[serde(default)]
-    cookie_provider: NativeOption<Jar>,
+    cookie_provider: NativeOption<Obj<Jar>>,
 
     // ========= Timeout options =========
     /// The timeout to use for the client. (in seconds)
@@ -121,7 +120,6 @@ struct Builder {
     zstd: Option<bool>,
 }
 
-#[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Client", free_immediately, size)]
 pub struct Client(ProcessLocal<wreq::Client>);
 
@@ -171,12 +169,7 @@ impl Builder {
         extract_native_option!(options, builder, user_agent);
         extract_native_option!(options, builder, headers);
         extract_native_option!(options, builder, orig_headers);
-        extract_native_option!(
-            options,
-            builder,
-            cookie_provider,
-            Obj<Jar> => |value| (*value).clone()
-        );
+        extract_native_option!(options, builder, cookie_provider);
         builder
             .proxy
             .set(Extractor::<Proxy>::try_convert(options.as_value())?.into_inner());
@@ -193,11 +186,9 @@ impl Client {
     /// # Errors
     ///
     /// Returns Ruby configuration errors from [`Builder::from_options`] or the
-    /// native fallible client builder. Extra positional arguments return
-    /// `ArgumentError`.
+    /// native fallible client builder. An inherited cookie provider returns
+    /// `Wreq::ForkError`, and extra positional arguments return `ArgumentError`.
     pub fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, magnus::Error> {
-        rt::ensure_current(ruby)?;
-
         Options::from_args(ruby, args, "client")?
             .map(Builder::from_options)
             .transpose()
@@ -221,12 +212,15 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns `Wreq::ForkError` before touching native client state when the
-    /// extension was inherited from a parent process. Maps native build
-    /// failures only after the GVL has been reacquired.
+    /// Returns `Wreq::ForkError` if the cookie provider belongs to a parent
+    /// process. Native build failures are mapped only after the GVL has been
+    /// reacquired.
     fn build(ruby: &Ruby, mut params: Builder) -> Result<wreq::Client, magnus::Error> {
-        rt::ensure_current(ruby)?;
-
+        let mut cookie_provider = params
+            .cookie_provider
+            .take()
+            .map(|jar| jar.clone_store(ruby))
+            .transpose()?;
         let result = gvl::nogvl(|| {
             let mut builder = wreq::Client::builder();
 
@@ -270,12 +264,7 @@ impl Client {
 
             // Cookie options.
             apply_option!(set_if_some, builder, params.cookie_store, cookie_store);
-            apply_option!(
-                set_if_some_inner,
-                builder,
-                params.cookie_provider,
-                cookie_provider
-            );
+            apply_option!(set_if_some, builder, cookie_provider, cookie_provider);
 
             // TCP options.
             apply_option!(
@@ -393,9 +382,14 @@ impl Client {
         result.map_err(|err| wreq_error(ruby, err))
     }
 
-    /// Clone the native client handle for a request future.
-    fn native_client(&self) -> wreq::Client {
-        self.0.as_ref().clone()
+    /// Clone the native client handle in the process that created it.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Wreq::ForkError` when the client was inherited from a parent
+    /// process.
+    fn native_client(&self, ruby: &Ruby) -> Result<wreq::Client, magnus::Error> {
+        self.0.get(ruby).cloned()
     }
 }
 
@@ -431,63 +425,111 @@ impl Client {
     #[inline]
     pub fn request(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((method, url), request) = extract_request!(ruby, args, (Obj<Method>, String));
-        execute_request(ruby, rb_self.native_client(), *method, url, request)
+        execute_request(ruby, rb_self.native_client(ruby)?, *method, url, request)
     }
 
     /// Send a GET request.
     #[inline]
     pub fn get(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(ruby, rb_self.native_client(), Method::GET, url, request)
+        execute_request(
+            ruby,
+            rb_self.native_client(ruby)?,
+            Method::GET,
+            url,
+            request,
+        )
     }
 
     /// Send a POST request.
     #[inline]
     pub fn post(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(ruby, rb_self.native_client(), Method::POST, url, request)
+        execute_request(
+            ruby,
+            rb_self.native_client(ruby)?,
+            Method::POST,
+            url,
+            request,
+        )
     }
 
     /// Send a PUT request.
     #[inline]
     pub fn put(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(ruby, rb_self.native_client(), Method::PUT, url, request)
+        execute_request(
+            ruby,
+            rb_self.native_client(ruby)?,
+            Method::PUT,
+            url,
+            request,
+        )
     }
 
     /// Send a DELETE request.
     #[inline]
     pub fn delete(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(ruby, rb_self.native_client(), Method::DELETE, url, request)
+        execute_request(
+            ruby,
+            rb_self.native_client(ruby)?,
+            Method::DELETE,
+            url,
+            request,
+        )
     }
 
     /// Send a HEAD request.
     #[inline]
     pub fn head(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(ruby, rb_self.native_client(), Method::HEAD, url, request)
+        execute_request(
+            ruby,
+            rb_self.native_client(ruby)?,
+            Method::HEAD,
+            url,
+            request,
+        )
     }
 
     /// Send an OPTIONS request.
     #[inline]
     pub fn options(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(ruby, rb_self.native_client(), Method::OPTIONS, url, request)
+        execute_request(
+            ruby,
+            rb_self.native_client(ruby)?,
+            Method::OPTIONS,
+            url,
+            request,
+        )
     }
 
     /// Send a TRACE request.
     #[inline]
     pub fn trace(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(ruby, rb_self.native_client(), Method::TRACE, url, request)
+        execute_request(
+            ruby,
+            rb_self.native_client(ruby)?,
+            Method::TRACE,
+            url,
+            request,
+        )
     }
 
     /// Send a PATCH request.
     #[inline]
     pub fn patch(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(ruby, rb_self.native_client(), Method::PATCH, url, request)
+        execute_request(
+            ruby,
+            rb_self.native_client(ruby)?,
+            Method::PATCH,
+            url,
+            request,
+        )
     }
 }
 

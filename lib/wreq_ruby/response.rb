@@ -8,8 +8,12 @@ unless defined?(Wreq)
     # access to HTTP response data including status codes, headers, body
     # content, and streaming capabilities.
     #
-    # Body methods raise Wreq::ForkError if the child inherited wreq-ruby from
-    # its parent.
+    # A response belongs to the process that received it. Accessing its metadata
+    # or body after inheriting it from a parent raises Wreq::ForkError.
+    #
+    # @note Fork safety Keep each response in the process that received it.
+    #   Issue a new request in the worker instead of carrying a response through
+    #   `fork`.
     #
     # @example Basic response handling
     #   response = client.get("https://api.example.com")
@@ -29,6 +33,7 @@ unless defined?(Wreq)
       # Get the HTTP status code as an integer.
       #
       # @return [Integer] Status code (e.g., 200, 404, 500)
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   response.code  # => 200
       def code
@@ -37,6 +42,7 @@ unless defined?(Wreq)
       # Get the HTTP status code object.
       #
       # @return [Wreq::StatusCode] Status code wrapper with helper methods
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   status = response.status
       #   status.success?  # => true
@@ -46,6 +52,7 @@ unless defined?(Wreq)
       # Get the HTTP protocol version used.
       #
       # @return [Wreq::Version] HTTP version (HTTP/1.1, HTTP/2, etc.)
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   response.version  # => Wreq::Version::HTTP_11
       def version
@@ -54,6 +61,7 @@ unless defined?(Wreq)
       # Get the final URL after redirects.
       #
       # @return [String] The final URL
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   response.url  # => "https://example.com/final-page"
       def url
@@ -62,6 +70,7 @@ unless defined?(Wreq)
       # Get the content length if known.
       #
       # @return [Integer, nil] Content length in bytes, or nil if unknown
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   response.content_length  # => 1024
       def content_length
@@ -75,6 +84,7 @@ unless defined?(Wreq)
       # response or a later snapshot, and object identity is not guaranteed.
       #
       # @return [Wreq::Headers] Response headers
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   response.headers.get("content-type")  # => "application/json"
       def headers
@@ -83,6 +93,7 @@ unless defined?(Wreq)
       # Get the local socket address.
       #
       # @return [String, nil] Local address (e.g., "127.0.0.1:54321"), or nil
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   response.local_addr  # => "192.168.1.100:54321"
       def local_addr
@@ -91,6 +102,7 @@ unless defined?(Wreq)
       # Get the remote socket address.
       #
       # @return [String, nil] Remote address (e.g., "93.184.216.34:443"), or nil
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   response.remote_addr  # => "93.184.216.34:443"
       def remote_addr
@@ -101,6 +113,7 @@ unless defined?(Wreq)
       # Invalid `Set-Cookie` values are skipped.
       #
       # @return [Array<Wreq::Cookie>] Parsed response cookies
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   response.cookies.each do |cookie|
       #     puts "#{cookie.name}=#{cookie.value}"
@@ -110,7 +123,7 @@ unless defined?(Wreq)
 
       # Get the response bytes as a binary string.
       # @return [String] Response body as binary data
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   binary_data = response.bytes
       #   puts binary_data.size  # => 1024
@@ -126,7 +139,7 @@ unless defined?(Wreq)
       #   html = response.text("ISO-8859-1")
       #   puts html
       # @raise [Wreq::DecodingError] if body cannot be decoded with the specified encoding
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       def text(default_encoding = "UTF-8")
       end
 
@@ -137,7 +150,7 @@ unless defined?(Wreq)
       #
       # @return [Object] Parsed JSON (Hash, Array, String, Integer, Float, Boolean, nil)
       # @raise [Wreq::DecodingError] if body is not valid JSON
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   data = response.json
       #   puts data["key"]
@@ -155,7 +168,7 @@ unless defined?(Wreq)
       # @raise [LocalJumpError] if called without a block
       # @raise [Wreq::TimeoutError, Wreq::BodyError, Wreq::ConnectionResetError, Wreq::RequestError]
       #   if streaming fails while reading the response body
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example Save response to file
       #   File.open("output.bin", "wb") do |f|
       #     response.chunks { |chunk| f.write(chunk) }
@@ -172,7 +185,7 @@ unless defined?(Wreq)
       # Close the response and free associated resources.
       #
       # @return [void]
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   response.close
       def close
@@ -186,6 +199,7 @@ unless defined?(Wreq)
       #
       # @return [Wreq::TlsInfo, nil] TLS information for this response, or +nil+
       #   when unavailable
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   client = Wreq::Client.new(tls_info: true)
       #   response = client.get("https://example.com")
@@ -208,6 +222,7 @@ module Wreq
     # Returns the response body as a string.
     #
     # @return [String] Response body text
+    # @raise [Wreq::ForkError] if the response belongs to the parent process
     # @example
     #   puts response.to_s
     #   puts response
@@ -221,6 +236,7 @@ module Wreq
     # Format: #<Wreq::Response STATUS content-type="..." body=SIZE>
     #
     # @return [String] Compact formatted response information
+    # @raise [Wreq::ForkError] if the response belongs to the parent process
     # @example
     #   p response
     #   # => #<Wreq::Response 200 content-type="application/json" body=456B>
