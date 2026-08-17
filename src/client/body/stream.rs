@@ -66,17 +66,14 @@ impl BodyReceiver {
 
     /// Read the next body chunk, converting stream errors into Ruby errors.
     pub fn next(&self, ruby: &Ruby) -> Result<Option<Bytes>, Error> {
-        rt::try_block_on(
-            ruby,
-            async {
-                match self.0.lock().await.as_mut().next().await {
-                    Some(Ok(data)) => Ok(Some(data)),
-                    Some(Err(err)) => Err(err),
-                    None => Ok(None),
-                }
-            },
-            wreq_error,
-        )
+        rt::block_on(ruby, async {
+            match self.0.lock().await.as_mut().next().await {
+                Some(Ok(data)) => Ok(Some(data)),
+                Some(Err(err)) => Err(err),
+                None => Ok(None),
+            }
+        })?
+        .map_err(|err| wreq_error(ruby, err))
     }
 }
 
@@ -91,10 +88,8 @@ impl BodySender {
     /// # Errors
     ///
     /// Returns `TypeError` for a non-Integer capacity and `ArgumentError` for
-    /// an invalid range or argument count. Returns `Wreq::ForkError` before
-    /// creating a channel in a child that inherited the extension.
+    /// an invalid range or argument count.
     pub fn new(ruby: &Ruby, args: &[Value]) -> Result<Self, Error> {
-        rt::ensure_current(ruby)?;
         let capacity = parse_capacity(ruby, args)?;
 
         // Create the Tokio channel without allowing an unwind to cross the Ruby FFI boundary.
@@ -122,8 +117,6 @@ impl BodySender {
     /// wait raises `Wreq::InterruptError`. Returns `Wreq::ForkError` before
     /// reading an inherited channel.
     pub fn push(ruby: &Ruby, rb_self: &Self, data: RString) -> Result<(), Error> {
-        rt::ensure_current(ruby)?;
-
         // Clone during the shared borrow, then release it before waiting
         // for capacity. Request attachment needs a mutable borrow.
         let tx = match &rb_self.read_inner(ruby)?.tx {
@@ -131,7 +124,8 @@ impl BodySender {
             _ => return Err(closed_body_sender_error(ruby)),
         };
 
-        rt::try_block_on(ruby, tx.send(data.to_bytes()), body_sender_send_error)
+        rt::block_on(ruby, tx.send(data.to_bytes()))?
+            .map_err(|err| body_sender_send_error(ruby, err))
     }
 
     /// Close the producing side while retaining the receiver and queued chunks.
@@ -143,7 +137,6 @@ impl BodySender {
     /// Returns `Wreq::ForkError` before reading an inherited channel, or
     /// `Wreq::BodyError` if the internal state is already in use.
     pub fn close(ruby: &Ruby, rb_self: &Self) -> Result<(), Error> {
-        rt::ensure_current(ruby)?;
         let mut inner = rb_self.write_inner(ruby)?;
         inner.tx.take();
         Ok(())
@@ -156,22 +149,21 @@ impl BodySender {
     /// Returns `Wreq::ForkError` before reading an inherited channel, or
     /// `Wreq::BodyError` if the internal state is already in use.
     pub fn is_closed(ruby: &Ruby, rb_self: &Self) -> Result<bool, Error> {
-        rt::ensure_current(ruby)?;
         rb_self.read_inner(ruby).map(|r| r.is_closed())
     }
 
-    /// Borrow the channel state without panicking on accidental re-entry.
+    /// Borrow channel state only in the process that created this sender.
     fn read_inner(&self, ruby: &Ruby) -> Result<Ref<'_, InnerBodySender>, Error> {
         self.0
-            .as_ref()
+            .get(ruby)?
             .try_borrow()
             .map_err(|err| body_sender_borrow_error(ruby, err))
     }
 
-    /// Mutably borrow the channel state without panicking on accidental re-entry.
+    /// Mutably borrow channel state only in the process that created this sender.
     fn write_inner(&self, ruby: &Ruby) -> Result<RefMut<'_, InnerBodySender>, Error> {
         self.0
-            .as_ref()
+            .get(ruby)?
             .try_borrow_mut()
             .map_err(|err| body_sender_borrow_mut_error(ruby, err))
     }
@@ -183,7 +175,6 @@ impl BodySender {
     /// Returns `Wreq::MemoryError` if the sender was already used for a request, or
     /// `Wreq::BodyError` if Ruby re-enters while the state is in use.
     pub(super) fn take_receiver(&self, ruby: &Ruby) -> Result<ReceiverStream<Bytes>, Error> {
-        rt::ensure_current(ruby)?;
         self.write_inner(ruby)?
             .rx
             .take()

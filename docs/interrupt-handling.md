@@ -84,9 +84,10 @@ to the Ruby-owned thread with the GVL may [`src/rt.rs`](../src/rt.rs) map a
 wreq-owned cancellation to the `Wreq::InterruptError` defined in
 [`src/error.rs`](../src/error.rs).
 
-Keep this conversion centralized in `rt::try_block_on`. Request, response, and
-body operations may call `try_block_on`, but they must not construct their own
-Ruby cancellation exception.
+Keep cancellation conversion centralized in `rt::block_on`. Request, response,
+and body operations may call `block_on`, but they must not construct their own
+Ruby cancellation exception. `block_on` returns a future's native error
+unchanged so the caller can convert it after the GVL has been reacquired.
 
 These forms are forbidden for wreq-owned cancellation:
 

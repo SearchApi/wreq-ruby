@@ -162,14 +162,19 @@ unless defined?(Wreq)
     #   response.bytes # Raises Wreq::MemoryError
     class MemoryError < Error; end
 
-    # Raised when a forked child tries to use inherited native state.
+    # Raised when a forked child tries to use native state owned by its parent.
     #
-    # Tokio worker threads and pooled connections cannot be reused after fork.
+    # Loading wreq-ruby before fork is supported. If the parent has not started
+    # the runtime, each worker starts its own on the first asynchronous
+    # operation. Objects created before fork still belong to the parent and
+    # cannot be used in a child. If the parent has already started the runtime,
+    # the child cannot use that inherited runtime either.
     #
-    # @example Native operations are rejected in an inherited child
+    # @example An inherited client is rejected in the child
+    #   client = Wreq::Client.new
     #   pid = Process.fork do
     #     begin
-    #       Wreq::Client.new
+    #       client.get("https://example.com")
     #     rescue Wreq::ForkError => error
     #       warn error.message
     #     end

@@ -18,8 +18,12 @@ unless defined?(Wreq)
     # A sender can be attached to one request. Closing it prevents further writes but
     # retains queued chunks so a request attached afterward can still drain them.
     # Attaching the same sender to another request raises Wreq::MemoryError.
-    # Creating or using a sender raises Wreq::ForkError if the child inherited
-    # wreq-ruby from its parent.
+    # Creating a sender does not initialize Tokio. An inherited sender raises
+    # Wreq::ForkError before its channel is accessed. A new sender can be
+    # created in a child, but pushing data also requires a usable runtime.
+    #
+    # @note Fork safety Create each sender in the worker that writes to it.
+    #   Do not pass a sender through `fork`.
     class BodySender
       # Create a bounded request-body sender.
       #
@@ -28,7 +32,6 @@ unless defined?(Wreq)
       # @return [Wreq::BodySender] A streaming request body sender
       # @raise [ArgumentError] if capacity is zero, negative, or too large
       # @raise [TypeError] if capacity is not an Integer
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
       def self.new(capacity = 8)
       end
 
@@ -37,7 +40,7 @@ unless defined?(Wreq)
       # @param data [String] binary chunk
       # @return [nil]
       # @raise [IOError] if the sender or receiving side is closed
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the sender or runtime belongs to the parent process
       def push(data)
       end
 
@@ -46,7 +49,7 @@ unless defined?(Wreq)
       # This operation is idempotent.
       #
       # @return [nil]
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the sender belongs to the parent process
       def close
       end
 
@@ -56,7 +59,7 @@ unless defined?(Wreq)
       # the receiving side.
       #
       # @return [Boolean]
-      # @raise [Wreq::ForkError] if the child inherited wreq-ruby from its parent
+      # @raise [Wreq::ForkError] if the sender belongs to the parent process
       def closed?
       end
     end

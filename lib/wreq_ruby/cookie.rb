@@ -158,6 +158,11 @@ unless defined?(Wreq)
     # Stores cookies for reuse across requests.
     #
     # Pass a Jar to Wreq::Client as `cookie_provider` to share its cookies.
+    # A jar belongs to the process that created it and cannot be inherited
+    # across `fork`.
+    #
+    # @note Fork safety Create a new jar in each worker. wreq-ruby does not
+    #   copy cookies from an inherited jar.
     class Jar
       # Creates an empty cookie jar.
       # @return [Wreq::Jar]
@@ -166,6 +171,7 @@ unless defined?(Wreq)
 
       # Returns all stored cookies.
       # @return [Array<Wreq::Cookie>]
+      # @raise [Wreq::ForkError] if the jar belongs to the parent process
       def get_all
       end
 
@@ -174,6 +180,7 @@ unless defined?(Wreq)
       # @param url [String] URL that scopes the cookie
       # @return [void]
       # @raise [TypeError] if cookie is neither a String nor Wreq::Cookie
+      # @raise [Wreq::ForkError] if the jar belongs to the parent process
       def add(cookie, url)
       end
 
@@ -181,11 +188,13 @@ unless defined?(Wreq)
       # @param name [String]
       # @param url [String]
       # @return [void]
+      # @raise [Wreq::ForkError] if the jar belongs to the parent process
       def remove(name, url)
       end
 
       # Clear all cookies from the jar.
       # @return [void]
+      # @raise [Wreq::ForkError] if the jar belongs to the parent process
       def clear
       end
     end
