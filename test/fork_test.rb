@@ -48,6 +48,21 @@ class ForkTest < Minitest::Test
     refute_match(/\[BUG\]|segmentation fault|panicked/i, stderr)
   end
 
+  def test_fresh_clients_can_request_from_concurrent_forked_workers
+    skip "this regression test is Linux-only" unless RbConfig::CONFIG.fetch("host_os").include?("linux")
+    skip "fork is not supported on this platform" unless Process.respond_to?(:fork)
+
+    stdout, stderr, status = run_fork_script("multiprocess_client.rb", timeout: 60)
+
+    assert status.success?, "subprocess failed with #{status.inspect}: #{stderr}"
+    assert_equal "ok\n", stdout
+    4.times do |worker|
+      assert_match(/^worker_#{worker}=ok$/, stderr)
+    end
+    assert_match(/^parent_after_workers=ok$/, stderr)
+    refute_match(/Wreq::ForkError|\[BUG\]|segmentation fault|panicked/i, stderr)
+  end
+
   def test_initialized_runtime_is_rejected_after_fork
     skip "fork is not supported on this platform" unless Process.respond_to?(:fork)
 
@@ -67,7 +82,7 @@ class ForkTest < Minitest::Test
 
   private
 
-  def run_fork_script(name)
+  def run_fork_script(name, timeout: 30)
     lib_dir = File.expand_path("../lib", __dir__)
     script = File.expand_path("scripts/#{name}", __dir__)
 
@@ -82,25 +97,29 @@ class ForkTest < Minitest::Test
           err: stderr,
           pgroup: true
         )
-        status = Timeout.timeout(30) { Process.wait2(pid).last }
+        status = Timeout.timeout(timeout) { Process.wait2(pid).last }
+        kill_process_group(pid) unless status.success?
         stdout.rewind
         stderr.rewind
         return [stdout.read, stderr.read, status]
       rescue Timeout::Error
-        begin
-          Process.kill("KILL", -pid)
-        rescue Errno::ESRCH
-          nil
-        end
-
-        begin
-          Process.wait(pid)
-        rescue Errno::ECHILD
-          nil
-        end
-
+        kill_process_group(pid)
         flunk "#{name} timed out"
       end
+    end
+  end
+
+  def kill_process_group(pid)
+    begin
+      Process.kill("KILL", -pid)
+    rescue Errno::ESRCH
+      nil
+    end
+
+    begin
+      Process.wait(pid)
+    rescue Errno::ECHILD
+      nil
     end
   end
 end
