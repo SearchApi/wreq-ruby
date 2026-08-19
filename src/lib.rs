@@ -20,7 +20,7 @@ mod tls;
 use magnus::{Error, Module, Ruby, Value};
 
 use crate::{
-    client::{Client, resp::Response},
+    client::{Client, response::Response},
     http::Method,
 };
 
@@ -30,55 +30,55 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Send a HTTP request.
 #[inline]
 pub fn request(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::request_with_default_client(ruby, args)
+    Client::request_once_from_args(ruby, args)
 }
 
 /// Send a GET request.
 #[inline]
 pub fn get(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::execute_with_default_client(ruby, Method::GET, args)
+    Client::request_once(ruby, Method::GET, args)
 }
 
 /// Send a POST request.
 #[inline]
 pub fn post(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::execute_with_default_client(ruby, Method::POST, args)
+    Client::request_once(ruby, Method::POST, args)
 }
 
 /// Send a PUT request.
 #[inline]
 pub fn put(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::execute_with_default_client(ruby, Method::PUT, args)
+    Client::request_once(ruby, Method::PUT, args)
 }
 
 /// Send a DELETE request.
 #[inline]
 pub fn delete(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::execute_with_default_client(ruby, Method::DELETE, args)
+    Client::request_once(ruby, Method::DELETE, args)
 }
 
 /// Send a HEAD request.
 #[inline]
 pub fn head(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::execute_with_default_client(ruby, Method::HEAD, args)
+    Client::request_once(ruby, Method::HEAD, args)
 }
 
 /// Send an OPTIONS request.
 #[inline]
 pub fn options(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::execute_with_default_client(ruby, Method::OPTIONS, args)
+    Client::request_once(ruby, Method::OPTIONS, args)
 }
 
 /// Send a TRACE request.
 #[inline]
 pub fn trace(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::execute_with_default_client(ruby, Method::TRACE, args)
+    Client::request_once(ruby, Method::TRACE, args)
 }
 
 /// Send a PATCH request.
 #[inline]
 pub fn patch(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
-    Client::execute_with_default_client(ruby, Method::PATCH, args)
+    Client::request_once(ruby, Method::PATCH, args)
 }
 
 /// wreq ruby binding
