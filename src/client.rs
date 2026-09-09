@@ -1,4 +1,5 @@
 mod body;
+mod ca;
 mod param;
 mod query;
 mod req;
@@ -15,12 +16,13 @@ use crate::{
     client::{req::execute_request, resp::Response},
     cookie::Jar,
     emulate::Emulation,
-    error::wreq_error,
+    error::{option_value_error, wreq_error},
     extractor::Extractor,
     gvl,
     header::{Headers, OrigHeaders, UserAgent},
     http::Method,
     options::{NativeOption, Options},
+    utils::convert_path,
 };
 
 /// A builder for `Client`.
@@ -96,6 +98,16 @@ struct Builder {
     verify: Option<bool>,
     /// Whether to retain peer certificate data on responses.
     tls_info: Option<bool>,
+    /// Path to a PEM CA bundle that replaces the default trust store.
+    #[serde(default)]
+    ca_file: NativeOption<String>,
+    /// Raw PEM certificate content that replaces the default trust store.
+    ca_pem: Option<String>,
+    /// Path to a PEM CA bundle added alongside the default trust store.
+    #[serde(default)]
+    additional_ca_file: NativeOption<String>,
+    /// Raw PEM certificate content added alongside the default trust store.
+    additional_ca_pem: Option<String>,
 
     // ========= Network options =========
     /// Whether to disable the proxy for the client.
@@ -152,6 +164,18 @@ impl Builder {
                 (stringify!(proxy), options.is_non_nil(stringify!(proxy))),
                 (stringify!(no_proxy), builder.no_proxy == Some(true)),
             ])
+            .reject_conflicts([
+                (stringify!(ca_file), options.is_non_nil(stringify!(ca_file))),
+                (stringify!(ca_pem), builder.ca_pem.is_some()),
+                (
+                    stringify!(additional_ca_file),
+                    options.is_non_nil(stringify!(additional_ca_file)),
+                ),
+                (
+                    stringify!(additional_ca_pem),
+                    builder.additional_ca_pem.is_some(),
+                ),
+            ])
             .require_when_present(
                 stringify!(max_redirects),
                 builder.max_redirects.is_some(),
@@ -160,6 +184,14 @@ impl Builder {
             )
             .finish()?;
 
+        extract_native_option!(
+            options, builder, ca_file,
+            Value =>? convert_path
+        );
+        extract_native_option!(
+            options, builder, additional_ca_file,
+            Value =>? convert_path
+        );
         extract_native_option!(
             options,
             builder,
@@ -221,6 +253,8 @@ impl Client {
             .take()
             .map(|jar| jar.clone_store(ruby))
             .transpose()?;
+
+        let mut ca = ca::resolve(ruby, &mut params)?;
         let result = gvl::nogvl(|| {
             let mut builder = wreq::Client::builder();
 
@@ -350,6 +384,15 @@ impl Client {
             // TLS options.
             apply_option!(set_if_some, builder, params.verify, tls_cert_verification);
             apply_option!(set_if_some, builder, params.tls_info, tls_info);
+
+            // Custom CA certificate store.
+            apply_option!(
+                set_if_some_try_map,
+                builder,
+                ca,
+                tls_cert_store,
+                ca::into_cert_store
+            );
 
             // Network options.
             apply_option!(set_if_some, builder, params.proxy, proxy);
