@@ -113,7 +113,7 @@ dependencies = [
 [[package]]
 name = "btls"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?branch=demo%2Fmerge-upstream-boring-20260616#2c1026a045e31454e841f96c6dfb594d5a4e4752"
+source = "git+https://github.com/0x676e67/btls?rev=de7ab84fdb58641a2bdfdf9d8ebd7db1dcf4b29b#de7ab84fdb58641a2bdfdf9d8ebd7db1dcf4b29b"
 dependencies = [
  "bitflags",
  "btls-sys",
@@ -125,7 +125,7 @@ dependencies = [
 [[package]]
 name = "btls-sys"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?branch=demo%2Fmerge-upstream-boring-20260616#2c1026a045e31454e841f96c6dfb594d5a4e4752"
+source = "git+https://github.com/0x676e67/btls?rev=de7ab84fdb58641a2bdfdf9d8ebd7db1dcf4b29b#de7ab84fdb58641a2bdfdf9d8ebd7db1dcf4b29b"
 dependencies = [
  "bindgen",
  "cmake",
@@ -165,6 +165,15 @@ name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
+
+[[package]]
+name = "chromium-roots"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "229b200495e6cf4d4b599a1884c30f5af57898604e6c0bd94a217295c0d1df69"
+dependencies = [
+ "rustls-pki-types",
+]
 
 [[package]]
 name = "clang-sys"
@@ -1270,9 +1279,9 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.6.11"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cfcf7e2740e6fc6d4d688b4ef00650406bb94adf4731e43c096c3a19fe40840"
+checksum = "08a05a66a4fdd61cbbe0a1d755ffe0ca6aba159dd4820936a0ff8a8278245b9c"
 dependencies = [
  "async-compression",
  "bitflags",
@@ -1281,6 +1290,7 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
+ "percent-encoding",
  "pin-project-lite",
  "tokio",
  "tokio-util",
@@ -1372,15 +1382,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
-name = "webpki-root-certs"
-version = "1.0.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b96554aa2acc8ccdb7e1c9a58a7a68dd5d13bccc69cd124cb09406db612a1c9b"
-dependencies = [
- "rustls-pki-types",
-]
-
-[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1419,12 +1420,13 @@ dependencies = [
 
 [[package]]
 name = "wreq"
-version = "6.0.0-rc.29"
-source = "git+https://github.com/0x676e67/wreq?rev=12ccf64bb00e79db6eabd4bc3ccf82871d3eb5a5#12ccf64bb00e79db6eabd4bc3ccf82871d3eb5a5"
+version = "0.16.1"
+source = "git+https://github.com/0x676e67/wreq?rev=abd421d16dd48b3c2d7fb812f185eec3c6ec3132#abd421d16dd48b3c2d7fb812f185eec3c6ec3132"
 dependencies = [
  "btls",
  "btls-sys",
  "bytes",
+ "chromium-roots",
  "cookie",
  "encoding_rs",
  "futures-util",
@@ -1451,7 +1453,6 @@ dependencies = [
  "tower",
  "tower-http",
  "url",
- "webpki-root-certs",
  "wreq-proto",
  "wreq-rt",
 ]
@@ -1516,6 +1517,7 @@ name = "wreq-util"
 version = "3.0.0-rc.14"
 dependencies = [
  "brotli",
+ "chromium-roots",
  "flate2",
  "typed-builder",
  "wreq",

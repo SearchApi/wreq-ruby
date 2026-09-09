@@ -131,6 +131,13 @@ macro_rules! header_chrome_accept_encoding {
         );
         $headers.insert(ACCEPT_LANGUAGE, HeaderValue::from_static("en-US,en;q=0.9"));
     };
+    (zstd_only, $headers:expr) => {
+        #[cfg(feature = "emulation-compression")]
+        $headers.insert(
+            ACCEPT_ENCODING,
+            HeaderValue::from_static("gzip, deflate, br, zstd"),
+        );
+    };
 }
 
 macro_rules! header_firefox_sec_fetch {

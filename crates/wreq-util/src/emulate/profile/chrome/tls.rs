@@ -49,6 +49,17 @@ macro_rules! tls_options {
             .sigalgs_list($sigalgs)
             .alps_use_new_codepoint(true))
     };
+    (9, $curves:expr) => {
+        tls_options!(@build ChromeTlsConfig::builder()
+            .permute_extensions(true)
+            .enable_ech_grease(true)
+            .pre_shared_key(true)
+            .curves($curves)
+            .sigalgs_list(NEW_SIGALGS_LIST)
+            .trust_anchors(CHROME_TRUST_ANCHORS)
+            .grease_sigalgs_enabled(true)
+            .alps_use_new_codepoint(true))
+    };
 }
 
 pub const CURVES_1: &str = join!(":", "X25519", "P-256", "P-384");
@@ -101,6 +112,9 @@ pub const NEW_SIGALGS_LIST: &str = join!(
     "rsa_pkcs1_sha512"
 );
 
+// Encoded IDs and wreq's Chromium root store come from the same root set.
+pub(super) const CHROME_TRUST_ANCHORS: &[u8] = &chromium_roots::encoded_trust_anchor_ids();
+
 pub const CERTIFICATE_COMPRESSORS: &[&'static dyn CertificateCompressor] = &[&BrotliCompressor];
 
 #[derive(TypedBuilder)]
@@ -128,11 +142,17 @@ pub struct ChromeTlsConfig {
 
     #[builder(default = false, setter(into))]
     pre_shared_key: bool,
+
+    #[builder(default, setter(strip_option))]
+    trust_anchors: Option<&'static [u8]>,
+
+    #[builder(default, setter(strip_option))]
+    grease_sigalgs_enabled: Option<bool>,
 }
 
 impl From<ChromeTlsConfig> for TlsOptions {
     fn from(val: ChromeTlsConfig) -> Self {
-        TlsOptions::builder()
+        let builder = TlsOptions::builder()
             .grease_enabled(true)
             .enable_ocsp_stapling(true)
             .enable_signed_cert_timestamps(true)
@@ -147,7 +167,17 @@ impl From<ChromeTlsConfig> for TlsOptions {
             .alps_protocols([val.alps_protos])
             .alps_use_new_codepoint(val.alps_use_new_codepoint)
             .aes_hw_override(true)
-            .certificate_compressors(CERTIFICATE_COMPRESSORS)
-            .build()
+            .certificate_compressors(CERTIFICATE_COMPRESSORS);
+        let builder = if let Some(trust_anchors) = val.trust_anchors {
+            builder.trust_anchors(trust_anchors)
+        } else {
+            builder
+        };
+        let builder = if let Some(enabled) = val.grease_sigalgs_enabled {
+            builder.grease_sigalgs_enabled(enabled)
+        } else {
+            builder
+        };
+        builder.build()
     }
 }

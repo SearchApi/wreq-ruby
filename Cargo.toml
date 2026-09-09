@@ -6,7 +6,7 @@ homepage = "https://github.com/SearchApi/wreq-ruby"
 repository = "https://github.com/SearchApi/wreq-ruby"
 edition = "2024"
 version = "1.2.13"
-rust-version = "1.95"
+rust-version = "1.98"
 
 [lib]
 crate-type = ["cdylib"]
@@ -17,7 +17,7 @@ name = "wreq_ruby"
 magnus = { version = "0.8.2", features = ["bytes"] }
 rb-sys = { version = "0.9.128", default-features = false }
 tokio = { version = "1.53.1", features = ["full"] }
-wreq = { version = "6.0.0-rc", features = [
+wreq = { version = "0.16.1", features = [
     "query",
     "form",
     "json",
@@ -65,7 +65,7 @@ strip = true
 
 [patch.crates-io]
 http2 = { git = "https://github.com/0x676e67/http2", rev = "b413a92b2e1fe7e2ea1b7be78e75b872386fdfa0" }
-btls = { git = "https://github.com/0x676e67/btls", branch = "demo/merge-upstream-boring-20260616" }
-btls-sys = { git = "https://github.com/0x676e67/btls", branch = "demo/merge-upstream-boring-20260616" }
-wreq = { git = "https://github.com/0x676e67/wreq", rev = "12ccf64bb00e79db6eabd4bc3ccf82871d3eb5a5" }
+btls = { git = "https://github.com/0x676e67/btls", rev = "de7ab84fdb58641a2bdfdf9d8ebd7db1dcf4b29b" }
+btls-sys = { git = "https://github.com/0x676e67/btls", rev = "de7ab84fdb58641a2bdfdf9d8ebd7db1dcf4b29b" }
+wreq = { git = "https://github.com/0x676e67/wreq", rev = "abd421d16dd48b3c2d7fb812f185eec3c6ec3132" }
 wreq-util = { path = "crates/wreq-util" }
