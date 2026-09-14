@@ -18,10 +18,11 @@ class EmulationTest < Minitest::Test
     assert_instance_of Wreq::Emulation, Wreq::Emulation.new(profile: profile)
   end
 
-  def test_new_chrome_profiles_are_available
+  def test_new_browser_profiles_are_available
     {
       Wreq::Profile::Chrome152 => "Chrome152",
-      Wreq::Profile::Chrome153 => "Chrome153"
+      Wreq::Profile::Chrome153 => "Chrome153",
+      Wreq::Profile::Firefox152 => "Firefox152"
     }.each do |profile, name|
       assert_equal name, profile.to_s
       assert_instance_of Wreq::Emulation, Wreq::Emulation.new(profile: profile)

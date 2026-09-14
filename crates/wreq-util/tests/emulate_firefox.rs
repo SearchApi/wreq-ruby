@@ -90,3 +90,24 @@ test_emulation!(
     ["t13d1717h2_5b57614c22b0_3cbfd9057e0d"],
     "6ea73faa8fc5aac76bded7bd238f6433"
 );
+
+test_emulation!(
+    test_firefox_150,
+    Emulation::Firefox150,
+    ["t13d1617h2_86a278354501_3cbfd9057e0d"],
+    "6ea73faa8fc5aac76bded7bd238f6433"
+);
+
+test_emulation!(
+    test_firefox_151,
+    Emulation::Firefox151,
+    ["t13d1617h2_86a278354501_3cbfd9057e0d"],
+    "6ea73faa8fc5aac76bded7bd238f6433"
+);
+
+test_emulation!(
+    test_firefox_152,
+    Emulation::Firefox152,
+    ["t13d1617h2_86a278354501_3cbfd9057e0d"],
+    "6ea73faa8fc5aac76bded7bd238f6433"
+);

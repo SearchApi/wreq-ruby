@@ -131,6 +131,7 @@ define_ruby_enum!(
     Firefox149,
     Firefox150,
     Firefox151,
+    Firefox152,
 
     SafariIos17_2,
     SafariIos17_4_1,

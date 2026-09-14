@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(emulate)* Add Chrome 151 profile.
 - *(emulate)* Add Chrome 152 profile.
 - *(emulate)* Add Chrome 153 profile.
+- *(emulate)* Add Firefox 152 profile.
+
+### Fixed
+
+- *(emulate)* Fix Firefox 150 and 151 cipher suite lists.
 
 ## [3.0.0-rc.14](https://github.com/0x676e67/wreq-util/compare/v3.0.0-rc.13...v3.0.0-rc.14) - 2026-07-04
 
