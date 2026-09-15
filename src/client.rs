@@ -1,8 +1,8 @@
 mod body;
 mod param;
 mod query;
-mod req;
-pub mod resp;
+mod request;
+pub mod response;
 
 use std::{net::IpAddr, time::Duration};
 
@@ -12,7 +12,7 @@ use wreq::Proxy;
 
 use crate::{
     arch::{ProcessLocal, SUPPORTS_INTERFACE, SUPPORTS_TCP_USER_TIMEOUT},
-    client::{req::execute_request, resp::Response},
+    client::{request::execute_request, response::Response},
     cookie::Jar,
     emulate::Emulation,
     error::wreq_error,
@@ -123,6 +123,14 @@ struct Builder {
 #[magnus::wrap(class = "Wreq::Client", free_immediately, size)]
 pub struct Client(ProcessLocal<wreq::Client>);
 
+/// Borrow the process-local wrapper without bypassing its ownership check.
+impl AsRef<ProcessLocal<wreq::Client>> for Client {
+    #[inline]
+    fn as_ref(&self) -> &ProcessLocal<wreq::Client> {
+        &self.0
+    }
+}
+
 // ===== impl Builder =====
 
 impl Builder {
@@ -204,8 +212,10 @@ impl Client {
     ///
     /// Returns `Wreq::BuilderError`, `Wreq::TlsError`, or another mapped native
     /// initialization error without unwinding through Ruby.
-    pub(crate) fn default_client(ruby: &Ruby) -> Result<wreq::Client, magnus::Error> {
+    pub(crate) fn default(ruby: &Ruby) -> Result<Self, magnus::Error> {
         Self::build(ruby, Builder::default())
+            .map(ProcessLocal::new)
+            .map(Self)
     }
 
     /// Apply validated parameters and build the native client without the GVL.
@@ -381,16 +391,6 @@ impl Client {
         // Ruby exceptions must be created after the GVL has been reacquired.
         result.map_err(|err| wreq_error(ruby, err))
     }
-
-    /// Clone the native client handle in the process that created it.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Wreq::ForkError` when the client was inherited from a parent
-    /// process.
-    fn native_client(&self, ruby: &Ruby) -> Result<wreq::Client, magnus::Error> {
-        self.0.get(ruby).cloned()
-    }
 }
 
 impl Client {
@@ -398,138 +398,90 @@ impl Client {
     ///
     /// Request arguments are validated before the native client is built, so
     /// invalid options fail without initializing a connection pool.
-    pub(crate) fn request_with_default_client(
+    pub(crate) fn request_once_from_args(
         ruby: &Ruby,
         args: &[Value],
     ) -> Result<Response, magnus::Error> {
         let ((method, url), request) = extract_request!(ruby, args, (Obj<Method>, String));
-        let client = Self::default_client(ruby)?;
-        execute_request(ruby, client, *method, url, request)
+        let client = Self::default(ruby)?;
+        execute_request(ruby, &client, *method, url, request)
     }
 
     /// Send a request with `method` through a newly built default client.
     ///
     /// Request arguments are validated before the native client is built, so
     /// invalid options fail without initializing a connection pool.
-    pub(crate) fn execute_with_default_client(
+    pub(crate) fn request_once(
         ruby: &Ruby,
         method: Method,
         args: &[Value],
     ) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        let client = Self::default_client(ruby)?;
-        execute_request(ruby, client, method, url, request)
+        let client = Self::default(ruby)?;
+        execute_request(ruby, &client, method, url, request)
     }
 
     /// Send a HTTP request.
     #[inline]
     pub fn request(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((method, url), request) = extract_request!(ruby, args, (Obj<Method>, String));
-        execute_request(ruby, rb_self.native_client(ruby)?, *method, url, request)
+        execute_request(ruby, rb_self, *method, url, request)
     }
 
     /// Send a GET request.
     #[inline]
     pub fn get(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(
-            ruby,
-            rb_self.native_client(ruby)?,
-            Method::GET,
-            url,
-            request,
-        )
+        execute_request(ruby, rb_self, Method::GET, url, request)
     }
 
     /// Send a POST request.
     #[inline]
     pub fn post(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(
-            ruby,
-            rb_self.native_client(ruby)?,
-            Method::POST,
-            url,
-            request,
-        )
+        execute_request(ruby, rb_self, Method::POST, url, request)
     }
 
     /// Send a PUT request.
     #[inline]
     pub fn put(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(
-            ruby,
-            rb_self.native_client(ruby)?,
-            Method::PUT,
-            url,
-            request,
-        )
+        execute_request(ruby, rb_self, Method::PUT, url, request)
     }
 
     /// Send a DELETE request.
     #[inline]
     pub fn delete(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(
-            ruby,
-            rb_self.native_client(ruby)?,
-            Method::DELETE,
-            url,
-            request,
-        )
+        execute_request(ruby, rb_self, Method::DELETE, url, request)
     }
 
     /// Send a HEAD request.
     #[inline]
     pub fn head(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(
-            ruby,
-            rb_self.native_client(ruby)?,
-            Method::HEAD,
-            url,
-            request,
-        )
+        execute_request(ruby, rb_self, Method::HEAD, url, request)
     }
 
     /// Send an OPTIONS request.
     #[inline]
     pub fn options(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(
-            ruby,
-            rb_self.native_client(ruby)?,
-            Method::OPTIONS,
-            url,
-            request,
-        )
+        execute_request(ruby, rb_self, Method::OPTIONS, url, request)
     }
 
     /// Send a TRACE request.
     #[inline]
     pub fn trace(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(
-            ruby,
-            rb_self.native_client(ruby)?,
-            Method::TRACE,
-            url,
-            request,
-        )
+        execute_request(ruby, rb_self, Method::TRACE, url, request)
     }
 
     /// Send a PATCH request.
     #[inline]
     pub fn patch(ruby: &Ruby, rb_self: &Self, args: &[Value]) -> Result<Response, magnus::Error> {
         let ((url,), request) = extract_request!(ruby, args, (String,));
-        execute_request(
-            ruby,
-            rb_self.native_client(ruby)?,
-            Method::PATCH,
-            url,
-            request,
-        )
+        execute_request(ruby, rb_self, Method::PATCH, url, request)
     }
 }
 
@@ -546,7 +498,7 @@ pub fn include(ruby: &Ruby, gem_module: &RModule) -> Result<(), magnus::Error> {
     client_class.define_method("trace", method!(Client::trace, -1))?;
     client_class.define_method("patch", method!(Client::patch, -1))?;
 
-    resp::include(ruby, gem_module)?;
+    response::include(ruby, gem_module)?;
     body::include(ruby, gem_module)?;
     Ok(())
 }
