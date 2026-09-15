@@ -144,6 +144,38 @@ unless defined?(Wreq)
       #   {Wreq::TlsInfo} object. Disabled by default because retaining
       #   certificate data uses additional memory.
       #
+      # @param ca_file [String, #to_path, nil] Path to a PEM-encoded CA bundle
+      #   that **replaces** the default system trust store. Only certificates
+      #   signed by CAs in this file will be trusted. Accepts any object
+      #   responding to +to_path+ (e.g. +Pathname+). The file is read during
+      #   client construction; a missing or unreadable file raises immediately.
+      #   Mutually exclusive with +ca_pem+, +additional_ca_file+, and
+      #   +additional_ca_pem+.
+      #
+      # @param ca_pem [String, nil] Raw PEM-encoded certificate content that
+      #   **replaces** the default system trust store. Useful when certificate
+      #   material comes from a secret store or environment variable rather
+      #   than a file on disk. Invalid PEM that the native store rejects raises
+      #   {Wreq::TlsError} during client construction.
+      #   Mutually exclusive with +ca_file+, +additional_ca_file+, and
+      #   +additional_ca_pem+.
+      #
+      # @param additional_ca_file [String, #to_path, nil] Path to a PEM-encoded
+      #   CA bundle loaded **alongside** the default system trust store.
+      #   Public roots remain available; the supplied certificates are added
+      #   on top. Accepts any object responding to +to_path+ (e.g. +Pathname+).
+      #   The file is read during client construction; a missing or unreadable
+      #   file raises immediately. Mutually exclusive with +ca_file+, +ca_pem+, 
+      #   and +additional_ca_pem+.
+      #
+      # @param additional_ca_pem [String, nil] Raw PEM-encoded certificate
+      #   content loaded **alongside** the default system trust store. Public
+      #   roots remain available; the supplied certificates are added on top.
+      #   Invalid PEM that the native store rejects raises
+      #   {Wreq::TlsError} during client construction.
+      #   Mutually exclusive with +ca_file+, +ca_pem+, and
+      #   +additional_ca_file+.
+      #
       # @param no_proxy [Boolean, nil] Disable use of any configured proxy
       #   for this client, even if proxy settings are detected from the
       #   environment.
@@ -253,6 +285,15 @@ unless defined?(Wreq)
       #   client = Wreq::Client.new(
       #     verify: false,  # WARNING: Do not use in production!
       #     timeout: 5
+      #   )
+      # @example Client with custom CA (replace system roots)
+      #   client = Wreq::Client.new(
+      #     ca_file: "/etc/ssl/private/internal-ca.pem"
+      #   )
+      #
+      # @example Client with additional CA (augment system roots)
+      #   client = Wreq::Client.new(
+      #     additional_ca_pem: File.binread("/etc/ssl/certs/extra-ca.pem")
       #   )
       def self.new(**options)
       end
