@@ -2,14 +2,13 @@
 
 unless defined?(Wreq)
   module Wreq
-    # HTTP response object containing status, headers, and body.
+    # An HTTP response returned by wreq-ruby.
     #
-    # This class wraps a native Rust implementation providing efficient
-    # access to HTTP response data including status codes, headers, body
-    # content, and streaming capabilities.
-    #
-    # A response belongs to the process that received it. Accessing its metadata
-    # or body after inheriting it from a parent raises Wreq::ForkError.
+    # Response metadata can be read repeatedly. Body helpers either buffer the
+    # body for reuse or stream it once. A response belongs to the process that
+    # received it. Accessing inherited metadata or body state raises
+    # Wreq::ForkError. Independent values copied before fork, such as its status
+    # or headers, remain usable in the child.
     #
     # @note Fork safety Keep each response in the process that received it.
     #   Issue a new request in the worker instead of carrying a response through
@@ -26,8 +25,8 @@ unless defined?(Wreq)
     #
     # @example Streaming response
     #   response = client.get("https://example.com/large-file")
-    #   response.stream.each do |chunk|
-    #     # Process chunk
+    #   File.open("download.bin", "wb") do |file|
+    #     response.chunks { |chunk| file.write(chunk) }
     #   end
     class Response
       # Get the HTTP status code as an integer.
@@ -47,6 +46,20 @@ unless defined?(Wreq)
       #   status = response.status
       #   status.success?  # => true
       def status
+      end
+
+      # Return this response or raise for a 4xx or 5xx status.
+      #
+      # Requests do not raise for HTTP status codes by default. This opt-in
+      # check leaves the response body available.
+      #
+      # @return [Wreq::Response] The same response for a non-error status
+      # @raise [Wreq::StatusError] If the status is in the 4xx or 5xx range
+      # @raise [Wreq::ForkError] if the response belongs to the parent process
+      # @example
+      #   response = client.get("https://example.com/missing")
+      #   response.raise_for_status!
+      def raise_for_status!
       end
 
       # Get the HTTP protocol version used.
@@ -123,6 +136,8 @@ unless defined?(Wreq)
 
       # Get the response bytes as a binary string.
       # @return [String] Response body as binary data
+      # @raise [Wreq::MemoryError] if another body operation is active, or the
+      #   body was streamed or closed
       # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
       #   binary_data = response.bytes
@@ -138,6 +153,8 @@ unless defined?(Wreq)
       # @example
       #   html = response.text("ISO-8859-1")
       #   puts html
+      # @raise [Wreq::MemoryError] if another body operation is active, or the
+      #   body was streamed or closed
       # @raise [Wreq::DecodingError] if body cannot be decoded with the specified encoding
       # @raise [Wreq::ForkError] if the response belongs to the parent process
       def text(default_encoding = "UTF-8")
@@ -149,6 +166,8 @@ unless defined?(Wreq)
       # values. Fractional and exponent-form numbers are returned as Float values.
       #
       # @return [Object] Parsed JSON (Hash, Array, String, Integer, Float, Boolean, nil)
+      # @raise [Wreq::MemoryError] if another body operation is active, or the
+      #   body was streamed or closed
       # @raise [Wreq::DecodingError] if body is not valid JSON
       # @raise [Wreq::ForkError] if the response belongs to the parent process
       # @example
@@ -166,6 +185,8 @@ unless defined?(Wreq)
       # @return [nil]
       # @yield [chunk] Each chunk of the response body as a binary String
       # @raise [LocalJumpError] if called without a block
+      # @raise [Wreq::MemoryError] if another body operation is active, or the
+      #   body was already read, streamed, or closed
       # @raise [Wreq::TimeoutError, Wreq::BodyError, Wreq::ConnectionResetError, Wreq::RequestError]
       #   if streaming fails while reading the response body
       # @raise [Wreq::ForkError] if the response belongs to the parent process

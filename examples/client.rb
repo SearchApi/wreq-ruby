@@ -23,11 +23,7 @@ begin
   code = s.code
   puts "Response code: #{code}"
 rescue Wreq::BuilderError => e
-  puts "❌ BuilderError caught!"
-  puts "Error message: #{e.message}"
-  puts "Error class: #{e.class}"
-  puts "Backtrace (first 3 lines):"
-  puts e.backtrace.first(3).map { |line| "  #{line}" }
+  warn e.full_message(highlight: false)
 rescue => e
-  puts "❌ Unexpected error: #{e.class} - #{e.message}"
+  warn e.full_message(highlight: false)
 end

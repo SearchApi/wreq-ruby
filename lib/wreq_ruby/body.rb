@@ -17,6 +17,7 @@ unless defined?(Wreq)
     #
     # A sender can be attached to one request. Closing it prevents further writes but
     # retains queued chunks so a request attached afterward can still drain them.
+    # Attaching the same sender to another request raises Wreq::MemoryError.
     # Creating a sender does not initialize Tokio. An inherited sender raises
     # Wreq::ForkError before its channel is accessed. A new sender can be
     # created in a child, but pushing data also requires a usable runtime.
