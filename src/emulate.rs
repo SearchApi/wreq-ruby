@@ -1,5 +1,6 @@
 use ::serde::Deserialize;
 use magnus::{Error, Module, Object, RModule, Ruby, Value, function, method, typed_data::Obj};
+use wreq::IntoEmulation;
 
 use crate::options::{NativeOption, Options};
 
@@ -206,10 +207,13 @@ define_ruby_enum!(
     IOS => "ios",
 );
 
-/// A struct to represent the `EmulationOption` class.
+/// Materialized emulation configuration owned by the Ruby object.
+///
+/// Clients and requests clone this value rather than regenerating profile settings,
+/// preserving configuration-level randomness for the lifetime of the object.
 #[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Emulation", free_immediately, size)]
-pub struct Emulation(pub wreq_util::Emulation);
+pub struct Emulation(pub wreq::Emulation);
 
 // ===== impl Emulation =====
 
@@ -246,7 +250,8 @@ impl Emulation {
             )
             .http2(params.http2.unwrap_or(true))
             .headers(params.headers.unwrap_or(true))
-            .build();
+            .build()
+            .into_emulation();
 
         Ok(Self(emulation))
     }

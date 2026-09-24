@@ -216,6 +216,11 @@ impl Platform {
 /// The `Emulation` struct allows you to configure various aspects of profile and platform
 /// emulation, including the profile, platform, and whether to enable certain features
 /// like HTTP/2 or headers.
+///
+/// Conversion through [`wreq::IntoEmulation`] creates a native configuration,
+/// including a randomized Trust Anchor ID order for Chrome 152/153 profiles.
+/// Client-level emulation retains that order for subsequent connections.
+/// Chrome 154 sorts the IDs by their raw bytes instead.
 #[derive(Default, Clone, TypedBuilder)]
 pub struct Emulation {
     /// Whether to change the profile (browser/okhttp) information.

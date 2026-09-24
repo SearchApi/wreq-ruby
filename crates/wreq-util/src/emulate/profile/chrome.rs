@@ -1931,7 +1931,8 @@ mod_generator!(
 
 mod_generator!(
     v154,
-    v152::build_emulation,
+    tls_options!(9, CURVES_3, sorted_trust_anchors()),
+    http2_options!(3),
     header_initializer_with_zstd_priority,
     [
         (

@@ -264,6 +264,14 @@ module Wreq
   # for HTTP/2 and automatic default headers. The actual implementation is
   # provided by Rust.
   #
+  # Construction generates the native configuration once. For Chrome 152/153,
+  # the TLS trust_anchors extension's ID order is randomized at construction;
+  # Chrome 154 sorts those IDs by their raw bytes instead. Reusing this object
+  # across clients or requests retains that order. Creating a new object generates
+  # a new configuration, including a fresh shuffle for Chrome 152/153.
+  # This does not freeze other per-handshake randomness or force a new handshake
+  # when a request reuses an existing connection.
+  #
   # `profile:` defaults to the library's default profile when omitted.
   # `platform:` defaults to the library's default platform when omitted.
   #
@@ -289,6 +297,10 @@ module Wreq
     # Native fields and methods are set by the extension.
     # This stub is for documentation only.
     unless singleton_methods(false).include?(:new)
+      # Generates a reusable native configuration. Chrome 152/153 Trust Anchor ID
+      # order is chosen here and retained when this object is reused; Chrome 154
+      # uses raw-byte sorted order. See {Emulation} for connection semantics.
+      #
       # @param profile [Wreq::Profile, nil] Fingerprint profile to emulate
       # @param platform [Wreq::Platform, nil] Operating system platform to emulate
       # @param http2 [Boolean, nil] Whether HTTP/2 emulation is enabled; defaults

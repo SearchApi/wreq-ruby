@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Match Trust Anchor ID ordering by Chrome version: randomized per native configuration for 152/153, and sorted by raw ID bytes for 154.
+
 - *(emulate)* Fix Firefox 150 and 151 cipher suite lists.
 
 ## [3.0.0-rc.14](https://github.com/0x676e67/wreq-util/compare/v3.0.0-rc.13...v3.0.0-rc.14) - 2026-07-04
