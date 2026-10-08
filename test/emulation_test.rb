@@ -7,7 +7,7 @@ require "timeout"
 
 class EmulationTest < Minitest::Test
   def test_reused_emulation_retains_trust_anchors_across_clients_and_requests
-    [Wreq::Profile::Chrome152, Wreq::Profile::Chrome153, Wreq::Profile::Chrome154].each do |profile|
+    [Wreq::Profile::Chrome152, Wreq::Profile::Chrome153, Wreq::Profile::Chrome154, Wreq::Profile::Chrome155].each do |profile|
       emulation = Wreq::Emulation.new(profile: profile)
       client = Wreq::Client.new(emulation: emulation, no_proxy: true)
       expected = capture_trust_anchors { |url| client.get(url, timeout: 5) }
@@ -43,6 +43,7 @@ class EmulationTest < Minitest::Test
       Wreq::Profile::Chrome152 => "Chrome152",
       Wreq::Profile::Chrome153 => "Chrome153",
       Wreq::Profile::Chrome154 => "Chrome154",
+      Wreq::Profile::Chrome155 => "Chrome155",
       Wreq::Profile::Firefox152 => "Firefox152"
     }.each do |profile, name|
       assert_equal name, profile.to_s

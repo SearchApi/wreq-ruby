@@ -305,3 +305,13 @@ test_emulation!(
     ],
     "52d84b11737d980aef856699f885ca86"
 );
+
+test_emulation!(
+    test_chrome155,
+    Emulation::Chrome155,
+    [
+        "t13d1517h2_8daaf6152771_cb7bf5808d99",
+        "t13d1518h2_8daaf6152771_e2d80978ab2e"
+    ],
+    "52d84b11737d980aef856699f885ca86"
+);

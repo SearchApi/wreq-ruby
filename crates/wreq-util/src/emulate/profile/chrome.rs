@@ -1963,6 +1963,42 @@ mod_generator!(
     ]
 );
 
+// Chrome 155 retains Chrome 154's TLS/HTTP2 configuration. Its UA-CH permutation
+// and GREASE brand are seeded by major version 155.
+// https://chromium.googlesource.com/chromium/src/+/cfaadc5a132d78e1828635aa8405a499f3e14864/components/embedder_support/user_agent_utils.cc
+mod_generator!(
+    v155,
+    v154::build_emulation,
+    header_initializer_chrome155,
+    [
+        (
+            MacOS,
+            r#""Google Chrome";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
+        ),
+        (
+            Linux,
+            r#""Google Chrome";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
+        ),
+        (
+            Android,
+            r#""Google Chrome";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
+            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36"
+        ),
+        (
+            Windows,
+            r#""Google Chrome";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
+        ),
+        (
+            IOS,
+            r#""Google Chrome";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/155.0.8059.37 Mobile/15E148 Safari/604.1"
+        )
+    ]
+);
+
 mod_generator!(
     edge143,
     v132::build_emulation,

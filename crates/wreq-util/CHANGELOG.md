@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(emulate)* Add Chrome 152 profile.
 - *(emulate)* Add Chrome 153 profile.
 - *(emulate)* Add Chrome 154 profile.
+- *(emulate)* Add Chrome 155 profile, including the JPEG XL navigation Accept header.
 - *(emulate)* Add Firefox 152 profile.
 
 ### Fixed

@@ -73,6 +73,20 @@ pub fn header_initializer_with_zstd_priority(
     headers
 }
 
+pub fn header_initializer_chrome155(
+    sec_ch_ua: &'static str,
+    ua: &'static str,
+    emulation_os: Platform,
+) -> HeaderMap {
+    let mut headers = header_initializer_with_zstd_priority(sec_ch_ua, ua, emulation_os);
+    // Chrome 155 enables JPEG XL in Blink; the iOS profile keeps its WebKit headers.
+    // https://chromium.googlesource.com/chromium/src/+/cfaadc5a132d78e1828635aa8405a499f3e14864/content/common/content_constants_internal.h
+    if !matches!(emulation_os, Platform::IOS) {
+        headers.insert(ACCEPT, HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,image/jxl,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"));
+    }
+    headers
+}
+
 pub fn header_initializer_chrome152(
     sec_ch_ua: &'static str,
     ua: &'static str,
