@@ -34,6 +34,11 @@ macro_rules! apply_option {
             $builder = $builder.$method();
         }
     };
+    (set_if_some_try_map, $builder:expr, $option:expr, $method:ident, $transform:expr) => {
+        if let Some(value) = $option.take() {
+            $builder = $builder.$method($transform(value)?);
+        }
+    };
 }
 
 /// Convert a Ruby-native option whose field name is also its keyword name.
@@ -50,6 +55,14 @@ macro_rules! extract_native_option {
         $target
             .$field
             .set($options.convert::<$source>(stringify!($field))?.map($map));
+    }};
+    ($options:expr, $target:expr, $field:ident, $source:ty =>? $map:expr) => {{
+        $target.$field.set(
+            $options
+                .convert::<$source>(stringify!($field))?
+                .map(|v| ($map)(v).map_err(|e| option_value_error(stringify!($field), e)))
+                .transpose()?,
+        );
     }};
 }
 

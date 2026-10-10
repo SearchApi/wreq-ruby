@@ -16,6 +16,7 @@ mod options;
 mod rt;
 mod serde;
 mod tls;
+mod utils;
 
 use magnus::{Error, Module, Ruby, Value};
 
