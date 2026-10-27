@@ -66,6 +66,7 @@ define_enum!(
     Chrome153 => ("chrome_153", v153::emulation),
     Chrome154 => ("chrome_154", v154::emulation),
     Chrome155 => ("chrome_155", v155::emulation),
+    Chrome156 => ("chrome_156", v156::emulation),
 
     // Edge versions
     Edge101 => ("edge_101", edge101::emulation),
@@ -221,7 +222,7 @@ impl Platform {
 /// Conversion through [`wreq::IntoEmulation`] creates a native configuration,
 /// including a randomized Trust Anchor ID order for Chrome 152/153 profiles.
 /// Client-level emulation retains that order for subsequent connections.
-/// Chrome 154/155 sort the IDs by their raw bytes instead.
+/// Chrome 154–156 sort the IDs by their raw bytes instead.
 #[derive(Default, Clone, TypedBuilder)]
 pub struct Emulation {
     /// Whether to change the profile (browser/okhttp) information.

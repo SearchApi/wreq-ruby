@@ -1999,6 +1999,41 @@ mod_generator!(
     ]
 );
 
+// Chrome 156 retains Chrome 155's TLS/HTTP2 and Accept configuration.
+// https://chromium.googlesource.com/chromium/src/+/29eb03535d5f2f4f899b95f22a92413ffde5284e/components/embedder_support/user_agent_utils.cc
+mod_generator!(
+    v156,
+    v154::build_emulation,
+    header_initializer_chrome155,
+    [
+        (
+            MacOS,
+            r#""Not:A-Brand";v="8", "Chromium";v="156", "Google Chrome";v="156""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+        ),
+        (
+            Linux,
+            r#""Not:A-Brand";v="8", "Chromium";v="156", "Google Chrome";v="156""#,
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+        ),
+        (
+            Android,
+            r#""Not:A-Brand";v="8", "Chromium";v="156", "Google Chrome";v="156""#,
+            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"
+        ),
+        (
+            Windows,
+            r#""Not:A-Brand";v="8", "Chromium";v="156", "Google Chrome";v="156""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+        ),
+        (
+            IOS,
+            r#""Not:A-Brand";v="8", "Chromium";v="156", "Google Chrome";v="156""#,
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/156.0.8078.54 Mobile/15E148 Safari/604.1"
+        )
+    ]
+);
+
 mod_generator!(
     edge143,
     v132::build_emulation,

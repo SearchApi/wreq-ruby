@@ -93,6 +93,7 @@ define_ruby_enum!(
     Chrome153,
     Chrome154,
     Chrome155,
+    Chrome156,
 
     Edge101,
     Edge122,

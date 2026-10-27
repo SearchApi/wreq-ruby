@@ -235,6 +235,7 @@ mod tests {
             crate::Profile::Chrome153,
             crate::Profile::Chrome154,
             crate::Profile::Chrome155,
+            crate::Profile::Chrome156,
         ] {
             let native = profile.into_emulation();
             let cloned = native.clone();
@@ -246,7 +247,7 @@ mod tests {
             expected.sort_unstable();
             if matches!(
                 profile,
-                crate::Profile::Chrome154 | crate::Profile::Chrome155
+                crate::Profile::Chrome154 | crate::Profile::Chrome155 | crate::Profile::Chrome156
             ) {
                 assert_eq!(decoded, expected);
             }
