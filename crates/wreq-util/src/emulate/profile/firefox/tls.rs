@@ -86,9 +86,6 @@ pub const KEY_SHARES_2: &[KeyShare] =
 
 pub const CIPHER_LIST_1: &str = join!(
     ":",
-    "TLS_AES_128_GCM_SHA256",
-    "TLS_CHACHA20_POLY1305_SHA256",
-    "TLS_AES_256_GCM_SHA384",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
@@ -107,9 +104,6 @@ pub const CIPHER_LIST_1: &str = join!(
 
 pub const CIPHER_LIST_2: &str = join!(
     ":",
-    "TLS_AES_128_GCM_SHA256",
-    "TLS_CHACHA20_POLY1305_SHA256",
-    "TLS_AES_256_GCM_SHA384",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
@@ -126,9 +120,6 @@ pub const CIPHER_LIST_2: &str = join!(
 
 pub const CIPHER_LIST_3: &str = join!(
     ":",
-    "TLS_AES_128_GCM_SHA256",
-    "TLS_CHACHA20_POLY1305_SHA256",
-    "TLS_AES_256_GCM_SHA384",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
@@ -158,6 +149,12 @@ pub const SIGALGS_LIST: &str = join!(
     "ecdsa_sha1",
     "rsa_pkcs1_sha1"
 );
+
+pub const TLS13_CIPHER_LIST: &[Tls13Cipher] = &[
+    Tls13Cipher::AES_128_GCM_SHA256,
+    Tls13Cipher::CHACHA20_POLY1305_SHA256,
+    Tls13Cipher::AES_256_GCM_SHA384,
+];
 
 pub const CERTIFICATE_COMPRESSORS: &[&'static dyn CertificateCompressor] =
     &[&ZlibCompressor, &BrotliCompressor, &ZstdCompressor];
@@ -243,11 +240,12 @@ impl From<FirefoxTlsConfig> for TlsOptions {
             .curves_list(val.curves_list)
             .sigalgs_list(val.sigalgs_list)
             .cipher_list(val.cipher_list)
+            .tls13_cipher_list(TLS13_CIPHER_LIST)
             .session_ticket(val.session_ticket)
             .delegated_credentials(val.delegated_credentials)
             .record_size_limit(val.record_size_limit)
             .enable_ocsp_stapling(true)
-            .enable_ech_grease(val.enable_ech_grease)
+            .ech_grease(val.enable_ech_grease.then_some(EchGrease::NssPre3127))
             .enable_signed_cert_timestamps(val.enable_signed_cert_timestamps)
             .alpn_protocols([AlpnProtocol::HTTP2, AlpnProtocol::HTTP1])
             .min_tls_version(TlsVersion::TLS_1_2)
@@ -255,10 +253,7 @@ impl From<FirefoxTlsConfig> for TlsOptions {
             .pre_shared_key(val.pre_shared_key)
             .psk_skip_session_ticket(val.psk_skip_session_tickets)
             .psk_dhe_ke(val.psk_dhe_ke)
-            .preserve_tls13_cipher_list(true)
-            .extension_permutation(val.extension_permutation)
-            .aes_hw_override(true)
-            .random_aes_hw_override(true);
+            .extension_permutation(val.extension_permutation);
 
         if let Some(key_shares) = val.key_shares {
             builder = builder.key_shares(key_shares)

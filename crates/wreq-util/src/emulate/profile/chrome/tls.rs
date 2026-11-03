@@ -71,9 +71,6 @@ pub const CURVES_3: &str = join!(":", "X25519MLKEM768", "X25519", "P-256", "P-38
 
 pub const CIPHER_LIST: &str = join!(
     ":",
-    "TLS_AES_128_GCM_SHA256",
-    "TLS_AES_256_GCM_SHA384",
-    "TLS_CHACHA20_POLY1305_SHA256",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
@@ -87,6 +84,12 @@ pub const CIPHER_LIST: &str = join!(
     "TLS_RSA_WITH_AES_128_CBC_SHA",
     "TLS_RSA_WITH_AES_256_CBC_SHA"
 );
+
+pub const TLS13_CIPHER_LIST: &[Tls13Cipher] = &[
+    Tls13Cipher::AES_128_GCM_SHA256,
+    Tls13Cipher::AES_256_GCM_SHA384,
+    Tls13Cipher::CHACHA20_POLY1305_SHA256,
+];
 
 pub const SIGALGS_LIST: &str = join!(
     ":",
@@ -200,14 +203,17 @@ impl From<ChromeTlsConfig> for TlsOptions {
             .curves_list(val.curves)
             .sigalgs_list(val.sigalgs_list)
             .cipher_list(val.cipher_list)
+            .tls13_cipher_list(TLS13_CIPHER_LIST)
             .min_tls_version(TlsVersion::TLS_1_2)
             .max_tls_version(TlsVersion::TLS_1_3)
             .permute_extensions(val.permute_extensions)
             .pre_shared_key(val.pre_shared_key)
-            .enable_ech_grease(val.enable_ech_grease)
+            .ech_grease(
+                val.enable_ech_grease
+                    .then_some(EchGrease::Aead(EchGreaseAead::AES_128_GCM)),
+            )
             .alps_protocols([val.alps_protos])
             .alps_use_new_codepoint(val.alps_use_new_codepoint)
-            .aes_hw_override(true)
             .certificate_compressors(CERTIFICATE_COMPRESSORS);
         let builder = if let Some(trust_anchors) = val.trust_anchors {
             builder.trust_anchors(trust_anchors)

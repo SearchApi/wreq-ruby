@@ -17,8 +17,8 @@ use wreq::{
         StreamDependency, StreamId,
     },
     tls::{
-        AlpnProtocol, AlpsProtocol, ExtensionType, KeyShare, TlsOptions, TlsVersion,
-        compress::CertificateCompressor,
+        AlpnProtocol, AlpsProtocol, EchGrease, EchGreaseAead, ExtensionType, KeyShare, Tls13Cipher,
+        TlsOptions, TlsVersion, compress::CertificateCompressor,
     },
 };
 

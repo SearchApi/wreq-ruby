@@ -19,7 +19,7 @@ macro_rules! tls_options {
             .curves($curves)
             .cipher_list($cipher_list)
             .sigalgs_list($sigalgs_list)
-            .preserve_tls13_cipher_list(true)
+            .tls13_cipher_list(TLS13_CIPHER_LIST)
             .min_tls_version(wreq::tls::TlsVersion::TLS_1_2)
             .max_tls_version(wreq::tls::TlsVersion::TLS_1_3)
             .build()
@@ -33,9 +33,6 @@ pub const CURVES_2: &str = join!(":", "X25519MLKEM768", "X25519", "P-256", "P-38
 
 pub const CIPHER_LIST_1: &str = join!(
     ":",
-    "TLS_AES_128_GCM_SHA256",
-    "TLS_AES_256_GCM_SHA384",
-    "TLS_CHACHA20_POLY1305_SHA256",
     "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
@@ -62,9 +59,6 @@ pub const CIPHER_LIST_1: &str = join!(
 );
 pub const CIPHER_LIST_2: &str = join!(
     ":",
-    "TLS_AES_128_GCM_SHA256",
-    "TLS_AES_256_GCM_SHA384",
-    "TLS_CHACHA20_POLY1305_SHA256",
     "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
@@ -85,9 +79,6 @@ pub const CIPHER_LIST_2: &str = join!(
 );
 pub const CIPHER_LIST_3: &str = join!(
     ":",
-    "TLS_AES_256_GCM_SHA384",
-    "TLS_CHACHA20_POLY1305_SHA256",
-    "TLS_AES_128_GCM_SHA256",
     "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
@@ -106,6 +97,12 @@ pub const CIPHER_LIST_3: &str = join!(
     "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA",
     "TLS_RSA_WITH_3DES_EDE_CBC_SHA"
 );
+
+pub const TLS13_CIPHER_LIST: &[Tls13Cipher] = &[
+    Tls13Cipher::AES_256_GCM_SHA384,
+    Tls13Cipher::CHACHA20_POLY1305_SHA256,
+    Tls13Cipher::AES_128_GCM_SHA256,
+];
 
 pub const SIGALGS_LIST_1: &str = join!(
     ":",
@@ -155,23 +152,25 @@ pub struct SafariTlsConfig {
     cipher_list: &'static str,
 
     #[builder(default, setter(strip_option))]
-    preserve_tls13_cipher_list: Option<bool>,
+    tls13_cipher_list: Option<&'static [Tls13Cipher]>,
 }
 
 impl From<SafariTlsConfig> for TlsOptions {
     fn from(val: SafariTlsConfig) -> Self {
-        TlsOptions::builder()
+        let mut builder = TlsOptions::builder()
             .session_ticket(false)
             .grease_enabled(true)
             .enable_ocsp_stapling(true)
             .enable_signed_cert_timestamps(true)
-            .preserve_tls13_cipher_list(val.preserve_tls13_cipher_list)
             .curves_list(val.curves)
             .sigalgs_list(val.sigalgs_list)
             .cipher_list(val.cipher_list)
             .min_tls_version(val.min_tls_version)
             .max_tls_version(val.max_tls_version)
-            .certificate_compressors(CERTIFICATE_COMPRESSORS)
-            .build()
+            .certificate_compressors(CERTIFICATE_COMPRESSORS);
+        if let Some(ciphers) = val.tls13_cipher_list {
+            builder = builder.tls13_cipher_list(ciphers);
+        }
+        builder.build()
     }
 }
