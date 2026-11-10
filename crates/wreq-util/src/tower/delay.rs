@@ -10,9 +10,9 @@
 //! ```no_run
 //! use std::time::Duration;
 //! use wreq::Client;
-//! use wreq_util::middleware::delay::DelayLayer;
+//! use wreq_util::tower::delay::DelayLayer;
 //!
-//! let client = Client::builder()
+//! let client = Client::builder_tokio()
 //!     .layer(DelayLayer::new(Duration::from_secs(1)))
 //!     .build()?;
 //! # Ok::<(), wreq::Error>(())
@@ -23,9 +23,9 @@
 //! ```no_run
 //! use std::time::Duration;
 //! use wreq::Client;
-//! use wreq_util::middleware::delay::JitterDelayLayer;
+//! use wreq_util::tower::delay::JitterDelayLayer;
 //!
-//! let client = Client::builder()
+//! let client = Client::builder_tokio()
 //!     .layer(JitterDelayLayer::new(Duration::from_secs(1), 0.2))
 //!     .build()?;
 //! # Ok::<(), wreq::Error>(())

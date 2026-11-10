@@ -69,14 +69,13 @@ macro_rules! mod_generator {
             use super::*;
 
             pub fn emulation(emulation: Emulation) -> wreq::Emulation {
-                build_emulation(stringify!($mod_name), emulation, $cipher, $ua)
+                build_emulation(emulation, $cipher, $ua)
             }
         }
     };
 }
 
 fn build_emulation(
-    group: &'static str,
     emulation: Emulation,
     cipher_list: &'static str,
     user_agent: &'static str,
@@ -127,7 +126,7 @@ fn build_emulation(
         headers
     });
 
-    build_standard_emulation(group, tls_options, http2_options, headers)
+    build_standard_emulation(tls_options, http2_options, headers)
 }
 
 mod_generator!(

@@ -5,7 +5,7 @@ unless defined?(Wreq)
     # HTTP client with extensive configuration options.
     #
     # This class wraps a native Rust implementation providing high-performance
-    # HTTP/1.1 and HTTP/2 client functionality with support for connection pooling,
+    # HTTP/1.1, HTTP/2 and HTTP/3 client functionality with support for connection pooling,
     # compression, redirects, proxies, and fine-grained timeout controls.
     #
     # The client is thread-safe and maintains an internal connection pool for
@@ -110,25 +110,37 @@ unless defined?(Wreq)
       #   allowing the reuse of local addresses in TIME_WAIT state. Useful for
       #   reducing port exhaustion in high-throughput scenarios.
       #
-      # @param pool_idle_timeout [Integer, nil] Time in seconds before idle
-      #   connections in the pool are evicted and closed. Helps free up
-      #   resources for long-running applications.
+      # @param pool_idle_timeout [Integer, nil] Idle connection reuse timeout in
+      #   seconds. Defaults to 90 when omitted or nil. Does not expire a busy
+      #   HTTP/2 or HTTP/3 connection.
       #
-      # @param pool_max_idle_per_host [Integer, nil] Maximum number of idle
-      #   connections to maintain per host in the connection pool. Connections
-      #   beyond this limit will be closed immediately after use.
+      # @param pool_max_idle_per_host [Integer, nil] Maximum idle HTTP/1
+      #   connections retained per compatibility group, which includes the host
+      #   and connection configuration. Defaults to unlimited when omitted or
+      #   nil; 0 disables connection reuse. Does not limit active connections.
       #
-      # @param pool_max_size [Integer, nil] Total maximum size of the connection
-      #   pool across all hosts. Once reached, new requests may need to wait
-      #   for existing connections to become available.
+      # @param pool_max_size [Integer, nil] Maximum compatibility groups retaining
+      #   idle HTTP/1 or shared HTTP/2 and HTTP/3 connections. Defaults to unlimited
+      #   when omitted, nil or 0. A full pool evicts the least recently used idle
+      #   group; it does not make requests wait or limit physical connections.
       #
       # @param http1_only [Boolean, nil] Force the client to use HTTP/1.1 only,
       #   even if HTTP/2 is available. Useful for compatibility with servers
-      #   that have problematic HTTP/2 implementations.
+      #   that have problematic HTTP/2 implementations. Cannot be combined with
+      #   http2_only or http3_only. An explicit request version overrides this
+      #   preference.
       #
       # @param http2_only [Boolean, nil] Force the client to use HTTP/2 only.
       #   Requests to servers that don't support HTTP/2 will fail. Cannot be
-      #   combined with http1_only.
+      #   combined with http1_only or http3_only. An explicit request version
+      #   overrides this preference, including HTTP/3 over QUIC.
+      #
+      # @param http3_only [Boolean, nil] Use HTTP/3 over QUIC without falling back
+      #   to TCP. Defaults to false when omitted or nil. Requires HTTPS and UDP
+      #   connectivity. Cannot be combined with http1_only or http2_only. An
+      #   explicit HTTP/1 or HTTP/2 request version overrides this preference.
+      #   HTTP/HTTPS proxies, including environment proxies, cannot carry HTTP/3;
+      #   use no_proxy: true, a SOCKS5 UDP proxy, or a QUIC MASQUE proxy instead.
       #
       # @param https_only [Boolean, nil] Reject plain HTTP connections and
       #   only allow HTTPS. Provides an additional layer of security by
@@ -149,7 +161,9 @@ unless defined?(Wreq)
       #   environment.
       #
       # @param proxy [String, nil] Proxy server URI to use for all requests.
-      #   Supports HTTP, HTTPS, and SOCKS5 proxies. Format: "protocol://host:port"
+      #   Supports HTTP, HTTPS, SOCKS and QUIC proxies. HTTP/3 can use SOCKS5 UDP
+      #   ASSOCIATE or a `quic://` MASQUE proxy, but not HTTP CONNECT proxies.
+      #   Format: "protocol://host:port"
       #   Example: "http://proxy.example.com:8080"
       # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable.
       # @param interface [String, nil] Bind sockets to a network interface on

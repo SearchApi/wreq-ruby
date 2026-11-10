@@ -1,9 +1,9 @@
-macro_rules! headers_stream_dependency {
+macro_rules! headers_priority {
     (1) => {
-        StreamDependency::new(StreamId::zero(), 41, false)
+        HeadersPriority::new(HeadersDependency::Root, 41, false)
     };
     (2) => {
-        StreamDependency::new(StreamId::from(13), 41, false)
+        HeadersPriority::new(HeadersDependency::Declared(StreamId::from(13)), 41, false)
     };
 }
 
@@ -52,28 +52,28 @@ macro_rules! http2_options {
             .initial_stream_id(3)
             .header_table_size(65536)
             .enable_push(false)
-            .headers_stream_dependency(headers_stream_dependency!(1))
+            .headers_priority(headers_priority!(1))
             .build()
     };
     (2) => {
         http2_options!(@base Http2Options::builder())
             .initial_stream_id(15)
             .header_table_size(65536)
-            .headers_stream_dependency(headers_stream_dependency!(2))
+            .headers_priority(headers_priority!(2))
             .priorities(
                 Priorities::builder()
                     .extend([
                         Priority::new(
                             StreamId::from(3),
-                            StreamDependency::new(StreamId::zero(), 200, false),
+                            StreamDependency::new(StreamId::from(0), 200, false),
                         ),
                         Priority::new(
                             StreamId::from(5),
-                            StreamDependency::new(StreamId::zero(), 100, false),
+                            StreamDependency::new(StreamId::from(0), 100, false),
                         ),
                         Priority::new(
                             StreamId::from(7),
-                            StreamDependency::new(StreamId::zero(), 0, false),
+                            StreamDependency::new(StreamId::from(0), 0, false),
                         ),
                         Priority::new(
                             StreamId::from(9),
@@ -85,7 +85,7 @@ macro_rules! http2_options {
                         ),
                         Priority::new(
                             StreamId::from(13),
-                            StreamDependency::new(StreamId::zero(), 240, false),
+                            StreamDependency::new(StreamId::from(0), 240, false),
                         ),
                     ])
                     .build(),
@@ -98,7 +98,7 @@ macro_rules! http2_options {
             .header_table_size(65536)
             .enable_push(false)
             .max_concurrent_streams(0)
-            .headers_stream_dependency(headers_stream_dependency!(1))
+            .headers_priority(headers_priority!(1))
             .build()
     };
     (4) => {
@@ -107,7 +107,7 @@ macro_rules! http2_options {
             .header_table_size(4096)
             .enable_push(false)
             .initial_window_size(32768)
-            .headers_stream_dependency(headers_stream_dependency!(1))
+            .headers_priority(headers_priority!(1))
             .build()
     };
 }

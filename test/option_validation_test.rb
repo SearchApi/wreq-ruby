@@ -227,12 +227,21 @@ class OptionValidationTest < Minitest::Test
   end
 
   def test_protocol_only_options_are_mutually_exclusive
-    error = assert_raises(ArgumentError) do
-      Wreq::Client.new(http1_only: true, http2_only: true)
+    [:http1_only, :http2_only, :http3_only].combination(2) do |first, second|
+      error = assert_raises(ArgumentError) do
+        Wreq::Client.new(**{first => true, second => true})
+      end
+
+      assert_includes error.message, ":#{first}"
+      assert_includes error.message, ":#{second}"
     end
 
-    assert_includes error.message, ":http1_only"
-    assert_includes error.message, ":http2_only"
+    assert_instance_of Wreq::Client,
+      Wreq::Client.new(http3_only: true, http1_only: false, http2_only: nil)
+    assert_instance_of Wreq::Client,
+      Wreq::Client.new(http1_only: true, http3_only: false)
+    assert_instance_of Wreq::Client,
+      Wreq::Client.new(http2_only: true, http3_only: nil)
   end
 
   def test_validation_reports_the_first_failed_rule

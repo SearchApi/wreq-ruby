@@ -20,6 +20,8 @@ tokio = { version = "1.53.1", features = ["full"] }
 # Keep the existing trust store independent of wreq's default feature selection.
 wreq = { version = "0.16.1", default-features = false, features = [
     "tokio-rt",
+    "http2",
+    "http3",
     "chromium-roots",
     "query",
     "form",
@@ -67,9 +69,15 @@ opt-level = 3
 strip = true
 
 [patch.crates-io]
-http2 = { git = "https://github.com/0x676e67/http2", rev = "29b3bdfc7560d6f84119c103311afa147488b6f0" }
+# Keep transport patches aligned with wreq's demo/brave-galileo-ac7w3r branch.
+http2 = { git = "https://github.com/0x676e67/http2", rev = "ce505e52ce9c25fb055412cb39b1caaa7a1f70a8" }
+http3 = { git = "https://github.com/0x676e67/http3", rev = "5bd394f3dfb8bc63591627a229c34c02caadc3af" }
+http3-datagram = { git = "https://github.com/0x676e67/http3", rev = "5bd394f3dfb8bc63591627a229c34c02caadc3af" }
+http3-quic = { git = "https://github.com/0x676e67/http3", rev = "5bd394f3dfb8bc63591627a229c34c02caadc3af" }
+quic = { git = "https://github.com/0x676e67/quic", rev = "b3d74044e874c5e785f462e3032faaf021cb6958" }
+netty = { git = "https://github.com/0x676e67/netty", rev = "0e1e53c0d9e500b253361cf6997559c44d7717b5" }
 btls = { git = "https://github.com/0x676e67/btls", rev = "5ec1c113a03626a5877b34dd6d2ea8d440897a91" }
 btls-sys = { git = "https://github.com/0x676e67/btls", rev = "5ec1c113a03626a5877b34dd6d2ea8d440897a91" }
 tokio-btls = { git = "https://github.com/0x676e67/btls", rev = "5ec1c113a03626a5877b34dd6d2ea8d440897a91" }
-wreq = { git = "https://github.com/0x676e67/wreq", rev = "74fc1469b5c54b3fb93037e48f136b569d0fe418" }
+wreq = { git = "https://github.com/0x676e67/wreq", rev = "10029bb86ff88d8ed88b8e10518fe6e1f7ff322c" }
 wreq-util = { path = "crates/wreq-util" }

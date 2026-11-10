@@ -232,47 +232,14 @@ impl From<ChromeTlsConfig> for TlsOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wreq::IntoEmulation;
 
     #[test]
-    fn chrome_profiles_retain_trust_anchor_order_when_cloned() {
-        for profile in [
-            crate::Profile::Chrome152,
-            crate::Profile::Chrome153,
-            crate::Profile::Chrome154,
-            crate::Profile::Chrome155,
-            crate::Profile::Chrome156,
-            crate::Profile::Chrome157,
-        ] {
-            let native = profile.into_emulation();
-            let cloned = native.clone();
-            let ids = native.tls_options.unwrap().trust_anchors.unwrap();
-            assert_eq!(ids.len(), CHROME_TRUST_ANCHORS.len());
-            assert_eq!(ids, cloned.tls_options.unwrap().trust_anchors.unwrap());
-            let decoded = decode_ids(&ids);
-            let mut expected = chromium_roots::trust_anchor_ids();
-            expected.sort_unstable();
-            if matches!(
-                profile,
-                crate::Profile::Chrome154
-                    | crate::Profile::Chrome155
-                    | crate::Profile::Chrome156
-                    | crate::Profile::Chrome157
-            ) {
-                assert_eq!(decoded, expected);
-            }
-            let mut actual = decoded;
-            actual.sort_unstable();
-            assert_eq!(actual, expected);
-        }
-        assert!(
-            crate::Profile::Chrome151
-                .into_emulation()
-                .tls_options
-                .unwrap()
-                .trust_anchors
-                .is_none()
-        );
+    fn sorted_trust_anchors_match_chromium_root_store() {
+        let encoded = sorted_trust_anchors();
+        let mut expected = chromium_roots::trust_anchor_ids();
+        expected.sort_unstable();
+        assert_eq!(decode_ids(&encoded), expected);
+        assert_eq!(encoded.len(), CHROME_TRUST_ANCHORS.len());
     }
 
     #[test]

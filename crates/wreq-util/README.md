@@ -20,12 +20,14 @@ See the [crate documentation](https://docs.rs/wreq-util/latest/wreq_util) for mo
 
 ## Example
 
+This vendored copy uses the development wreq revision pinned in the [root Cargo.toml](../../Cargo.toml). Building it independently requires the same Git patches.
+
 The following example uses the [Tokio](https://tokio.rs) runtime with optional features enabled by adding this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-wreq = "6.0.0-rc"
+wreq = "0.16.1"
 wreq-util = "3.0.0-rc"
 ```
 
@@ -38,7 +40,7 @@ use wreq_util::Emulation;
 #[tokio::main]
 async fn main() -> wreq::Result<()> {
     // Build a client
-    let client = Client::builder()
+    let client = Client::builder_tokio()
         .emulation(Emulation::Chrome147)
         .build()?;
 

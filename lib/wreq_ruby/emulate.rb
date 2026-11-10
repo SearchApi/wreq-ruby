@@ -267,6 +267,9 @@ module Wreq
   # for HTTP/2 and automatic default headers. The actual implementation is
   # provided by Rust.
   #
+  # Profiles configure TLS over TCP, HTTP/2 and request headers. They do not
+  # configure HTTP/3 or QUIC fingerprints; HTTP/3 uses the backend defaults.
+  #
   # Construction generates the native configuration once. For Chrome 152/153,
   # the TLS trust_anchors extension's ID order is randomized at construction;
   # Chrome 154 and later sort those IDs by their raw bytes instead. Reusing this object

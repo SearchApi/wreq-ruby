@@ -76,11 +76,11 @@ struct Builder {
     tcp_reuse_address: Option<bool>,
 
     // ========= Connection pool options =========
-    /// Set an optional timeout for idle sockets being kept-alive. (in seconds)
+    /// Idle connection reuse timeout, in seconds.
     pool_idle_timeout: Option<u64>,
-    /// Sets the maximum idle connection per host allowed in the pool.
+    /// Maximum idle HTTP/1 connections retained per compatibility group.
     pool_max_idle_per_host: Option<usize>,
-    /// Sets the maximum number of connections in the pool.
+    /// Maximum compatibility groups retaining reusable connections; zero is unlimited.
     pool_max_size: Option<usize>,
 
     // ========= Protocol options =========
@@ -88,6 +88,8 @@ struct Builder {
     http1_only: Option<bool>,
     /// Whether to use the HTTP/2 protocol only.
     http2_only: Option<bool>,
+    /// Whether to use HTTP/3 over QUIC without falling back to TCP.
+    http3_only: Option<bool>,
     /// Whether to use HTTPS only.
     https_only: Option<bool>,
 
@@ -147,6 +149,7 @@ impl Builder {
             .reject_conflicts([
                 (stringify!(http1_only), builder.http1_only == Some(true)),
                 (stringify!(http2_only), builder.http2_only == Some(true)),
+                (stringify!(http3_only), builder.http3_only == Some(true)),
             ])
             .reject_conflicts([
                 (stringify!(proxy), options.is_non_nil(stringify!(proxy))),
@@ -222,7 +225,7 @@ impl Client {
             .map(|jar| jar.clone_store(ruby))
             .transpose()?;
         let result = gvl::nogvl(|| {
-            let mut builder = wreq::Client::builder();
+            let mut builder = wreq::Client::builder_tokio();
 
             // Emulation options.
             apply_option!(set_if_some_inner, builder, params.emulation, emulation);
@@ -345,6 +348,7 @@ impl Client {
             // Protocol options.
             apply_option!(set_if_true, builder, params.http1_only, http1_only, false);
             apply_option!(set_if_true, builder, params.http2_only, http2_only, false);
+            apply_option!(set_if_true, builder, params.http3_only, http3_only, false);
             apply_option!(set_if_some, builder, params.https_only, https_only);
 
             // TLS options.

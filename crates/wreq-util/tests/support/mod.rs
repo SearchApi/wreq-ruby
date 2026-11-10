@@ -14,7 +14,7 @@ pub static DEFAULT_USER_AGENT: &str =
 pub static TEST_SEMAPHORE: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(1));
 
 pub static CLIENT: LazyLock<Client> = LazyLock::new(|| {
-    Client::builder()
+    Client::builder_tokio()
         .connect_timeout(Duration::from_secs(60))
         .build()
         .unwrap()

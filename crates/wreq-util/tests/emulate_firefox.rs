@@ -118,9 +118,8 @@ test_emulation!(
 ///
 /// Every profile is listed rather than a range, so adding one is a deliberate choice about
 /// which side of 147 it falls on.
-#[test]
-fn firefox_accept_language_matches_the_profile_version() {
-    use wreq::IntoEmulation;
+#[tokio::test]
+async fn firefox_accept_language_matches_the_profile_version() {
     use wreq_util::{Platform, Profile};
 
     const PRE_147: &[(&str, Profile)] = &[
@@ -149,23 +148,29 @@ fn firefox_accept_language_matches_the_profile_version() {
         ("Firefox152", Emulation::Firefox152),
     ];
 
-    fn accept_language(profile: Profile) -> String {
-        Emulation::builder()
-            .profile(profile)
-            .platform(Platform::Linux)
-            .build()
-            .into_emulation()
-            .headers
-            .get("accept-language")
-            .and_then(|value| value.to_str().ok())
-            .unwrap_or_default()
-            .to_owned()
-    }
-
-    for (name, profile) in PRE_147 {
-        assert_eq!("en-US,en;q=0.5", accept_language(*profile), "{name}");
-    }
-    for (name, profile) in POST_147 {
-        assert_eq!("en-US,en;q=0.9", accept_language(*profile), "{name}");
+    let server = support::server::http(|request| async move {
+        let mut response = http::Response::default();
+        response.headers_mut().insert(
+            "accept-language",
+            request.headers()["accept-language"].clone(),
+        );
+        response
+    });
+    let client = wreq::Client::builder_tokio().no_proxy().build().unwrap();
+    for (profiles, expected) in [(PRE_147, "en-US,en;q=0.5"), (POST_147, "en-US,en;q=0.9")] {
+        for (name, profile) in profiles {
+            let response = client
+                .get(format!("http://{}/", server.addr()))
+                .emulation(
+                    Emulation::builder()
+                        .profile(*profile)
+                        .platform(Platform::Linux)
+                        .build(),
+                )
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(response.headers()["accept-language"], expected, "{name}");
+        }
     }
 }

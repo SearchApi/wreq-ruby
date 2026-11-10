@@ -23,6 +23,7 @@ tokio-rt = ["wreq/tokio-rt"]
 compio-rt = ["wreq/compio-rt"]
 
 emulation = [
+    "wreq/http2",
     "dep:typed-builder",
     "dep:brotli",
     "dep:flate2",

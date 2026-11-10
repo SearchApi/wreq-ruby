@@ -5,7 +5,7 @@ use wreq_util::tower::delay::{DelayLayer, JitterDelayLayer};
 #[tokio::main]
 async fn main() -> Result<(), wreq::Error> {
     // Build a client with a 1 second delay between requests
-    let client = Client::builder()
+    let client = Client::builder_tokio()
         .layer(DelayLayer::new(Duration::from_secs(1)))
         .tls_cert_verification(false)
         .build()?;
@@ -52,7 +52,7 @@ async fn basic_jitter_delay() -> Result<(), wreq::Error> {
     println!("=== Basic Jittered Delay ===\n");
 
     // Build a client with jittered delay: base 1s ± 50% (range: 0.5s to 1.5s)
-    let client = Client::builder()
+    let client = Client::builder_tokio()
         .layer(JitterDelayLayer::new(Duration::from_secs(1), 0.5))
         .tls_cert_verification(false)
         .build()?;
@@ -100,7 +100,7 @@ async fn basic_jitter_delay() -> Result<(), wreq::Error> {
 async fn conditional_jitter_delay() -> Result<(), wreq::Error> {
     println!("=== Conditional Jittered Delay (using `JitterDelayLayer::when`) ===\n");
 
-    let client = Client::builder()
+    let client = Client::builder_tokio()
         .layer(JitterDelayLayer::new(Duration::from_millis(800), 0.3).when(
             |req: &http::Request<_>| {
                 // Only apply delay to POST requests
@@ -149,7 +149,7 @@ async fn conditional_fixed_delay() -> Result<(), wreq::Error> {
     println!("=== Conditional Fixed Delay (using `DelayLayer::when`) ===\n");
 
     // Build a client that only delays requests to specific paths
-    let client = Client::builder()
+    let client = Client::builder_tokio()
         .layer(
             DelayLayer::new(Duration::from_secs(1)).when(|req: &http::Request<_>| {
                 // Only apply delay to /delay/* endpoints

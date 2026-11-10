@@ -80,7 +80,7 @@ async fn assert_emulation_headers(profile: Profile, expected: &'static [&'static
     let server = server::low_level_with_response(move |request, stream| {
         check_header_order(request, stream, expected)
     });
-    let response = Client::builder()
+    let response = Client::builder_tokio()
         .emulation(profile)
         .build()
         .expect("client")
@@ -95,7 +95,11 @@ async fn assert_emulation_headers(profile: Profile, expected: &'static [&'static
 #[tokio::test]
 async fn test_client_emulation_device() {
     let server = server::http(move |req| async move {
-        let header = |name| req.headers().get(name).and_then(|value| value.to_str().ok());
+        let header = |name| {
+            req.headers()
+                .get(name)
+                .and_then(|value| value.to_str().ok())
+        };
 
         assert_eq!(
             header("user-agent"),
@@ -113,7 +117,7 @@ async fn test_client_emulation_device() {
     });
 
     let url = format!("http://{}/ua", server.addr());
-    let res = Client::builder()
+    let res = Client::builder_tokio()
         .emulation(
             Emulation::builder()
                 .profile(Emulation::Chrome151)

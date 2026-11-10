@@ -202,7 +202,6 @@ macro_rules! standard_mod_generator {
                 default_headers: Option<HeaderMap>,
             ) -> wreq::Emulation {
                 build_standard_emulation(
-                    stringify!($mod_name),
                     $tls_options,
                     http2.then(|| $http2_options),
                     default_headers,
