@@ -68,6 +68,7 @@ module Wreq
       Chrome154 = nil
       Chrome155 = nil
       Chrome156 = nil
+      Chrome157 = nil
 
       Edge101 = nil
       Edge122 = nil
@@ -268,7 +269,7 @@ module Wreq
   #
   # Construction generates the native configuration once. For Chrome 152/153,
   # the TLS trust_anchors extension's ID order is randomized at construction;
-  # Chrome 154–156 sort those IDs by their raw bytes instead. Reusing this object
+  # Chrome 154 and later sort those IDs by their raw bytes instead. Reusing this object
   # across clients or requests retains that order. Creating a new object generates
   # a new configuration, including a fresh shuffle for Chrome 152/153.
   # This does not freeze other per-handshake randomness or force a new handshake
