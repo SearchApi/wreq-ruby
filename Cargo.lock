@@ -1883,7 +1883,7 @@ dependencies = [
 [[package]]
 name = "wreq"
 version = "0.16.1"
-source = "git+https://github.com/0x676e67/wreq?rev=10029bb86ff88d8ed88b8e10518fe6e1f7ff322c#10029bb86ff88d8ed88b8e10518fe6e1f7ff322c"
+source = "git+https://github.com/0x676e67/wreq?rev=18d500474139c6740c841d3263f82a7eb1ac4883#18d500474139c6740c841d3263f82a7eb1ac4883"
 dependencies = [
  "btls",
  "btls-sys",

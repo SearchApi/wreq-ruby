@@ -79,5 +79,5 @@ netty = { git = "https://github.com/0x676e67/netty", rev = "0e1e53c0d9e500b25336
 btls = { git = "https://github.com/0x676e67/btls", rev = "5ec1c113a03626a5877b34dd6d2ea8d440897a91" }
 btls-sys = { git = "https://github.com/0x676e67/btls", rev = "5ec1c113a03626a5877b34dd6d2ea8d440897a91" }
 tokio-btls = { git = "https://github.com/0x676e67/btls", rev = "5ec1c113a03626a5877b34dd6d2ea8d440897a91" }
-wreq = { git = "https://github.com/0x676e67/wreq", rev = "10029bb86ff88d8ed88b8e10518fe6e1f7ff322c" }
+wreq = { git = "https://github.com/0x676e67/wreq", rev = "18d500474139c6740c841d3263f82a7eb1ac4883" }
 wreq-util = { path = "crates/wreq-util" }
