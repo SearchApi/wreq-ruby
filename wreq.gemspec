@@ -1,25 +1,13 @@
 # frozen_string_literal: true
 
-require "json"
-
 Gem::Specification.new do |spec|
   spec.name = "wreq"
   # RubyGems integrates and expects `cargo`.
   # Read more about
   # [Gem::Ext::CargoBuilder](https://github.com/rubygems/rubygems/blob/v3.5.23/lib/rubygems/ext/cargo_builder.rb)
   #
-  # wreq relies on "version" in `Cargo.toml` for the release process. You can read this gem spec with:
-  # `bundle exec ruby -e 'puts Gem::Specification.load("wreq.gemspec")'`
-  #
-  # keep in sync the key "wreq-ruby" with `Rakefile`.
-  #
-  # uses `cargo` to extract the version.
-  cargo_output = `cargo metadata --format-version 1`
-  cargo_output.force_encoding("UTF-8")
-  spec.version = JSON.parse(cargo_output.strip)
-    .fetch("packages")
-    .find { |p| p["name"] == "wreq-ruby" }
-    .fetch("version")
+  # RubyGems accepts a fourth version segment, which Cargo does not.
+  spec.version = File.read(File.join(__dir__, "VERSION")).strip
   spec.authors = ["SearchApi"]
   spec.email = ["support@searchapi.io"]
   spec.summary = "Ruby bindings for wreq, an HTTP client with TLS/HTTP2 browser fingerprinting"

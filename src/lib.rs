@@ -25,7 +25,7 @@ use crate::{
 };
 
 const RUBY_MODULE_NAME: &str = "Wreq";
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = include_str!("../VERSION");
 
 /// Send a HTTP request.
 #[inline]
@@ -85,7 +85,7 @@ pub fn patch(ruby: &Ruby, args: &[Value]) -> Result<Response, magnus::Error> {
 #[magnus::init]
 fn init(ruby: &Ruby) -> Result<(), Error> {
     let gem_module = ruby.define_module(RUBY_MODULE_NAME)?;
-    gem_module.const_set("VERSION", VERSION)?;
+    gem_module.const_set("VERSION", VERSION.trim_end())?;
     error::include(ruby, &gem_module)?;
     gem_module.define_module_function("request", magnus::function!(request, -1))?;
     gem_module.define_module_function("get", magnus::function!(get, -1))?;
