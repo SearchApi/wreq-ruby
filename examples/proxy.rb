@@ -24,10 +24,10 @@ begin
   response = client.get("https://httpbin.io/ip")
   puts "Status: #{response.code}"
   puts "Response: #{response.text}"
-rescue Wreq::RequestError => e
-  puts "❌ Request failed: #{e.message}"
+rescue Wreq::Error => e
+  warn e.full_message(highlight: false)
 rescue => e
-  puts "❌ Error: #{e.class} - #{e.message}"
+  warn e.full_message(highlight: false)
 end
 
 # ==============================================================================
@@ -44,10 +44,10 @@ begin
   response = client.get("https://httpbin.io/ip")
   puts "Status: #{response.code}"
   puts "Response: #{response.text}"
-rescue Wreq::RequestError => e
-  puts "❌ Request failed: #{e.message}"
+rescue Wreq::Error => e
+  warn e.full_message(highlight: false)
 rescue => e
-  puts "❌ Error: #{e.class} - #{e.message}"
+  warn e.full_message(highlight: false)
 end
 
 # ==============================================================================
@@ -64,10 +64,10 @@ begin
   response = client.get("https://httpbin.io/ip")
   puts "Status: #{response.code}"
   puts "Response: #{response.text}"
-rescue Wreq::RequestError => e
-  puts "❌ Request failed: #{e.message}"
+rescue Wreq::Error => e
+  warn e.full_message(highlight: false)
 rescue => e
-  puts "❌ Error: #{e.class} - #{e.message}"
+  warn e.full_message(highlight: false)
 end
 
 # ==============================================================================
@@ -85,10 +85,10 @@ begin
   response = client.get("https://httpbin.io/ip")
   puts "Status: #{response.code}"
   puts "Response: #{response.text}"
-rescue Wreq::RequestError => e
-  puts "❌ Request failed: #{e.message}"
+rescue Wreq::Error => e
+  warn e.full_message(highlight: false)
 rescue => e
-  puts "❌ Error: #{e.class} - #{e.message}"
+  warn e.full_message(highlight: false)
 end
 
 # ==============================================================================
@@ -106,8 +106,8 @@ begin
   response = client.get("https://httpbin.io/ip")
   puts "Status: #{response.code}"
   puts "Response: #{response.text}"
-rescue Wreq::RequestError => e
-  puts "❌ Request failed: #{e.message}"
+rescue Wreq::Error => e
+  warn e.full_message(highlight: false)
 rescue => e
-  puts "❌ Error: #{e.class} - #{e.message}"
+  warn e.full_message(highlight: false)
 end
