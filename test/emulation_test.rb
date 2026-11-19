@@ -46,6 +46,7 @@ class EmulationTest < Minitest::Test
       Wreq::Profile::Chrome155 => "Chrome155",
       Wreq::Profile::Chrome156 => "Chrome156",
       Wreq::Profile::Chrome157 => "Chrome157",
+      Wreq::Profile::Chrome158 => "Chrome158",
       Wreq::Profile::Firefox152 => "Firefox152"
     }.each do |profile, name|
       assert_equal name, profile.to_s

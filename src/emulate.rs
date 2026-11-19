@@ -95,7 +95,7 @@ define_ruby_enum!(
     Chrome155,
     Chrome156,
     Chrome157,
-
+    Chrome158,
     Edge101,
     Edge122,
     Edge127,
@@ -115,7 +115,6 @@ define_ruby_enum!(
     Edge146,
     Edge147,
     Edge148,
-
     Firefox109,
     Firefox117,
     Firefox128,
@@ -137,7 +136,6 @@ define_ruby_enum!(
     Firefox150,
     Firefox151,
     Firefox152,
-
     SafariIos17_2,
     SafariIos17_4_1,
     SafariIos16_5,
@@ -167,7 +165,6 @@ define_ruby_enum!(
     SafariIos26_2,
     SafariIPad26,
     SafariIpad26_2,
-
     OkHttp3_9,
     OkHttp3_11,
     OkHttp3_13,
@@ -176,7 +173,6 @@ define_ruby_enum!(
     OkHttp4_10,
     OkHttp4_12,
     OkHttp5,
-
     Opera116,
     Opera117,
     Opera118,
