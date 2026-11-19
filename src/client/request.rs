@@ -1,18 +1,21 @@
+//! Request option parsing, native request construction, and execution.
+
 use std::{net::IpAddr, time::Duration};
 
 use ::serde::Deserialize;
 use http::header;
 use magnus::{RHash, TryConvert, typed_data::Obj, value::ReprValue};
-use wreq::{Client, Proxy};
+use wreq::Proxy;
 
 use super::body::{Body, form::Form, json::Json};
 use crate::{
-    arch::SUPPORTS_INTERFACE,
-    client::{query::Query, resp::Response},
+    arch::{ProcessLocal, SUPPORTS_INTERFACE},
+    client::{query::Query, response::Response},
     cookie::Cookies,
     emulate::Emulation,
     error::wreq_error,
     extractor::Extractor,
+    gvl,
     header::{Headers, OrigHeaders},
     http::{Method, Version},
     options::{NativeOption, Options},
@@ -21,7 +24,6 @@ use crate::{
 
 /// The parameters for a request.
 #[derive(Default, Deserialize)]
-#[non_exhaustive]
 pub struct Request {
     /// The emulation option for the request.
     #[serde(default)]
@@ -177,14 +179,31 @@ impl Request {
     }
 }
 
-pub fn execute_request<U: AsRef<str>>(
+/// Build and execute one request with a process-local client.
+///
+/// Request builder configuration is synchronous and runs without the GVL.
+/// Only the completed request's network future is submitted to Tokio.
+///
+/// # Errors
+///
+/// Returns `Wreq::ForkError` for an inherited client, a mapped native error when
+/// building or sending the request fails, or an interruption/runtime error from
+/// [`rt::block_on`].
+pub fn execute_request<U, C>(
     ruby: &magnus::Ruby,
-    client: Client,
+    client: &C,
     method: Method,
     url: U,
     mut request: Request,
-) -> Result<Response, magnus::Error> {
-    rt::block_on(ruby, async move {
+) -> Result<Response, magnus::Error>
+where
+    U: AsRef<str>,
+    C: AsRef<ProcessLocal<wreq::Client>>,
+{
+    // Process ownership failures construct a Ruby exception and require the GVL.
+    let client = client.as_ref().get(ruby)?;
+
+    let request = gvl::nogvl(|| {
         let mut builder = client.request(method.into_ffi(), url.as_ref());
 
         // Emulation options.
@@ -304,8 +323,11 @@ pub fn execute_request<U: AsRef<str>>(
             builder = builder.body(wreq::Body::from(body));
         }
 
-        // Send request.
-        builder.send().await.map(Response::new)
-    })?
-    .map_err(|err| wreq_error(ruby, err))
+        builder.build()
+    })
+    .map_err(|err| wreq_error(ruby, err))?;
+
+    rt::block_on(ruby, client.execute(request))?
+        .map(Response::new)
+        .map_err(|err| wreq_error(ruby, err))
 }

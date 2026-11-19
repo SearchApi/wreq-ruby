@@ -17,24 +17,6 @@ use crate::{
 /// Initialize the global runtime lazily and preserve failures for Ruby.
 static RUNTIME: OnceLock<Result<TokioRuntime, io::Error>> = OnceLock::new();
 
-/// Reject a child process that inherited an initialized native runtime.
-///
-/// # Errors
-///
-/// Returns `Wreq::ForkError` when the global runtime belongs to the parent
-/// process.
-fn ensure_runtime_owner(ruby: &Ruby) -> Result<(), magnus::Error> {
-    #[cfg(unix)]
-    if let Some((owner_pid, current_pid)) = arch::forked_process_ids() {
-        return Err(fork_error(ruby, owner_pid, current_pid));
-    }
-
-    #[cfg(not(unix))]
-    let _ = ruby;
-
-    Ok(())
-}
-
 /// Block on a future to completion on the current process's global Tokio runtime.
 ///
 /// The future runs without Ruby's GVL, so it must not construct Ruby objects or
@@ -56,7 +38,12 @@ where
     #[cfg(unix)]
     arch::initialize_fork_tracking().map_err(|err| fork_handler_error(ruby, &err))?;
 
-    ensure_runtime_owner(ruby)?;
+    // A forked child must not read or use the parent's inherited Tokio state.
+    #[cfg(unix)]
+    if let Some((owner_pid, current_pid)) = arch::forked_process_ids() {
+        return Err(fork_error(ruby, owner_pid, current_pid));
+    }
+
     let runtime = RUNTIME
         .get_or_init(|| {
             let mut builder = Builder::new_multi_thread();
