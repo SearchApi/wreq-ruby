@@ -11,7 +11,7 @@ require_relative "../lib/wreq"
 #   Set when creating the Wreq::Client instance.
 #   All requests from this client will use the specified emulation unless overridden.
 client = Wreq::Client.new(emulation: Wreq::Emulation.new(
-  profile: Wreq::Profile::Chrome149,
+  profile: Wreq::Profile::Chrome150,
   platform: Wreq::Platform::MacOS,
   http2: true,
   headers: true

@@ -61,6 +61,15 @@ module Wreq
       Chrome147 = nil
       Chrome148 = nil
       Chrome149 = nil
+      Chrome150 = nil
+      Chrome151 = nil
+      Chrome152 = nil
+      Chrome153 = nil
+      Chrome154 = nil
+      Chrome155 = nil
+      Chrome156 = nil
+      Chrome157 = nil
+      Chrome158 = nil
 
       Edge101 = nil
       Edge122 = nil
@@ -102,6 +111,7 @@ module Wreq
       Firefox149 = nil
       Firefox150 = nil
       Firefox151 = nil
+      Firefox152 = nil
 
       SafariIos17_2 = nil
       SafariIos17_4_1 = nil
@@ -258,6 +268,17 @@ module Wreq
   # for HTTP/2 and automatic default headers. The actual implementation is
   # provided by Rust.
   #
+  # Profiles configure TLS over TCP, HTTP/2 and request headers. They do not
+  # configure HTTP/3 or QUIC fingerprints; HTTP/3 uses the backend defaults.
+  #
+  # Construction generates the native configuration once. For Chrome 152/153,
+  # the TLS trust_anchors extension's ID order is randomized at construction;
+  # Chrome 154 and later sort those IDs by their raw bytes instead. Reusing this object
+  # across clients or requests retains that order. Creating a new object generates
+  # a new configuration, including a fresh shuffle for Chrome 152/153.
+  # This does not freeze other per-handshake randomness or force a new handshake
+  # when a request reuses an existing connection.
+  #
   # `profile:` defaults to the library's default profile when omitted.
   # `platform:` defaults to the library's default platform when omitted.
   #
@@ -283,6 +304,10 @@ module Wreq
     # Native fields and methods are set by the extension.
     # This stub is for documentation only.
     unless singleton_methods(false).include?(:new)
+      # Generates a reusable native configuration. Chrome 152/153 Trust Anchor ID
+      # order is chosen here and retained when this object is reused; Chrome 154–156
+      # use raw-byte sorted order. See {Emulation} for connection semantics.
+      #
       # @param profile [Wreq::Profile, nil] Fingerprint profile to emulate
       # @param platform [Wreq::Platform, nil] Operating system platform to emulate
       # @param http2 [Boolean, nil] Whether HTTP/2 emulation is enabled; defaults

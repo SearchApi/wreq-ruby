@@ -76,7 +76,7 @@ unless defined?(Wreq)
     # @param deflate [Boolean, nil] Enable deflate compression
     # @param zstd [Boolean, nil] Enable Zstandard compression
     # @param timeout [Integer, nil] Total request timeout (seconds)
-    # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+    # @param read_timeout [Integer, nil] Timeout for headers or each body chunk (seconds)
     # @param proxy [String, nil] Proxy server URI
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -110,7 +110,7 @@ unless defined?(Wreq)
     # @param deflate [Boolean, nil] Enable deflate compression
     # @param zstd [Boolean, nil] Enable Zstandard compression
     # @param timeout [Integer, nil] Total request timeout (seconds)
-    # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+    # @param read_timeout [Integer, nil] Timeout for headers or each body chunk (seconds)
     # @param proxy [String, nil] Proxy server URI
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -144,7 +144,7 @@ unless defined?(Wreq)
     # @param deflate [Boolean, nil] Enable deflate compression
     # @param zstd [Boolean, nil] Enable Zstandard compression
     # @param timeout [Integer, nil] Total request timeout (seconds)
-    # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+    # @param read_timeout [Integer, nil] Timeout for headers or each body chunk (seconds)
     # @param proxy [String, nil] Proxy server URI
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -178,7 +178,7 @@ unless defined?(Wreq)
     # @param deflate [Boolean, nil] Enable deflate compression
     # @param zstd [Boolean, nil] Enable Zstandard compression
     # @param timeout [Integer, nil] Total request timeout (seconds)
-    # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+    # @param read_timeout [Integer, nil] Timeout for headers or each body chunk (seconds)
     # @param proxy [String, nil] Proxy server URI
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -212,7 +212,7 @@ unless defined?(Wreq)
     # @param deflate [Boolean, nil] Enable deflate compression
     # @param zstd [Boolean, nil] Enable Zstandard compression
     # @param timeout [Integer, nil] Total request timeout (seconds)
-    # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+    # @param read_timeout [Integer, nil] Timeout for headers or each body chunk (seconds)
     # @param proxy [String, nil] Proxy server URI
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -246,7 +246,7 @@ unless defined?(Wreq)
     # @param deflate [Boolean, nil] Enable deflate compression
     # @param zstd [Boolean, nil] Enable Zstandard compression
     # @param timeout [Integer, nil] Total request timeout (seconds)
-    # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+    # @param read_timeout [Integer, nil] Timeout for headers or each body chunk (seconds)
     # @param proxy [String, nil] Proxy server URI
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -280,7 +280,7 @@ unless defined?(Wreq)
     # @param deflate [Boolean, nil] Enable deflate compression
     # @param zstd [Boolean, nil] Enable Zstandard compression
     # @param timeout [Integer, nil] Total request timeout (seconds)
-    # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+    # @param read_timeout [Integer, nil] Timeout for headers or each body chunk (seconds)
     # @param proxy [String, nil] Proxy server URI
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -314,7 +314,7 @@ unless defined?(Wreq)
     # @param deflate [Boolean, nil] Enable deflate compression
     # @param zstd [Boolean, nil] Enable Zstandard compression
     # @param timeout [Integer, nil] Total request timeout (seconds)
-    # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+    # @param read_timeout [Integer, nil] Timeout for headers or each body chunk (seconds)
     # @param proxy [String, nil] Proxy server URI
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.
@@ -348,7 +348,7 @@ unless defined?(Wreq)
     # @param deflate [Boolean, nil] Enable deflate compression
     # @param zstd [Boolean, nil] Enable Zstandard compression
     # @param timeout [Integer, nil] Total request timeout (seconds)
-    # @param read_timeout [Integer, nil] Per-chunk read timeout (seconds)
+    # @param read_timeout [Integer, nil] Timeout for headers or each body chunk (seconds)
     # @param proxy [String, nil] Proxy server URI
     # @param local_address [String, nil] Bind the client's local source IP address (IPv4/IPv6). Useful on multi-homed hosts to originate connections from a specific address or enforce source routing. Examples: "192.168.1.10", "10.0.0.5", "2001:db8::1". The address must exist on the host and be routable or the connection may fail.
     # @param interface [String, nil] Bind to an interface on supported platforms; unsupported platforms raise ArgumentError.

@@ -42,7 +42,7 @@ module Wreq
 
     # Value-based equality. Returns true when both represent the same HTTP method.
     # @param other [Object]
-    # @return [Boolean]    
+    # @return [Boolean]
     unless method_defined?(:==)
       def ==(other)
       end
@@ -77,7 +77,14 @@ module Wreq
       HTTP_10 = nil # @return [Wreq::Version] HTTP/1.0
       HTTP_11 = nil # @return [Wreq::Version] HTTP/1.1
       HTTP_2 = nil # @return [Wreq::Version] HTTP/2
-      HTTP_3 = nil # @return [Wreq::Version] HTTP/3
+      # Select HTTP/3 over QUIC with `version: Wreq::Version::HTTP_3` on a request.
+      # To use it by default, construct a client with `http3_only: true` instead.
+      # Requires an HTTPS URL and a reachable UDP endpoint. There is no automatic
+      # Alt-Svc discovery or fallback to HTTP/1.1 or HTTP/2.
+      # HTTP CONNECT proxies cannot carry these requests; use a direct connection,
+      # a SOCKS5 UDP relay or a `quic://` MASQUE proxy.
+      # @return [Wreq::Version] HTTP/3
+      HTTP_3 = nil
     end
 
     # Returns a string representation of the HTTP version.

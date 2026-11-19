@@ -121,7 +121,46 @@ class ErrorHandlingTest < Minitest::Test
     end
   end
 
+  def test_proxy_tcp_connect_timeout_keeps_proxy_error
+    skip "Requires a stalled TCP handshake from a full loopback accept queue" unless RUBY_PLATFORM.include?("linux") || Gem.win_platform?
+
+    with_stalled_tcp_listener do |port|
+      %w[http socks5h].each do |scheme|
+        client = Wreq::Client.new(proxy: "#{scheme}://127.0.0.1:#{port}", connect_timeout: 1, timeout: 5)
+        start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+        error = assert_raises(Wreq::ProxyConnectionError, "#{scheme} proxy TCP deadline") do
+          client.get("https://127.0.0.1:443/")
+        end
+        assert_instance_of Wreq::ProxyConnectionError, error
+        assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC) - start, :>=, 0.9,
+          "#{scheme} proxy should time out, not fail immediately"
+      end
+    end
+  end
+
   private
+
+  def with_stalled_tcp_listener
+    sockets = []
+    listener = Socket.new(:INET, :STREAM)
+    listener.bind(Socket.sockaddr_in(0, "127.0.0.1"))
+    listener.listen(0)
+    address = listener.local_address
+
+    # Leave the accept queue full and verify a subsequent dial stays pending.
+    pending = 8.times.any? do
+      socket = Socket.new(:INET, :STREAM)
+      sockets << socket
+      socket.connect_nonblock(address, exception: false) == :wait_writable &&
+        IO.select(nil, [socket], nil, 0.2).nil?
+    end
+    assert pending, "Expected a stalled TCP handshake on the loopback fixture"
+    yield address.ip_port
+  ensure
+    sockets.each(&:close)
+    listener&.close
+  end
 
   def with_hanging_server
     server = TCPServer.new("127.0.0.1", 0)

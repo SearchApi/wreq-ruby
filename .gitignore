@@ -6,6 +6,7 @@
 /pkg/
 /tmp/
 /target/
+/btls-extension-order-validation/
 *.bundle
 *.so
 Gemfile.lock

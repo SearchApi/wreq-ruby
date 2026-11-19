@@ -1,5 +1,6 @@
 use ::serde::Deserialize;
 use magnus::{Error, Module, Object, RModule, Ruby, Value, function, method, typed_data::Obj};
+use wreq::IntoEmulation;
 
 use crate::options::{NativeOption, Options};
 
@@ -86,7 +87,15 @@ define_ruby_enum!(
     Chrome147,
     Chrome148,
     Chrome149,
-
+    Chrome150,
+    Chrome151,
+    Chrome152,
+    Chrome153,
+    Chrome154,
+    Chrome155,
+    Chrome156,
+    Chrome157,
+    Chrome158,
     Edge101,
     Edge122,
     Edge127,
@@ -106,7 +115,6 @@ define_ruby_enum!(
     Edge146,
     Edge147,
     Edge148,
-
     Firefox109,
     Firefox117,
     Firefox128,
@@ -127,7 +135,7 @@ define_ruby_enum!(
     Firefox149,
     Firefox150,
     Firefox151,
-
+    Firefox152,
     SafariIos17_2,
     SafariIos17_4_1,
     SafariIos16_5,
@@ -157,7 +165,6 @@ define_ruby_enum!(
     SafariIos26_2,
     SafariIPad26,
     SafariIpad26_2,
-
     OkHttp3_9,
     OkHttp3_11,
     OkHttp3_13,
@@ -166,7 +173,6 @@ define_ruby_enum!(
     OkHttp4_10,
     OkHttp4_12,
     OkHttp5,
-
     Opera116,
     Opera117,
     Opera118,
@@ -200,10 +206,13 @@ define_ruby_enum!(
     IOS => "ios",
 );
 
-/// A struct to represent the `EmulationOption` class.
+/// Materialized emulation configuration owned by the Ruby object.
+///
+/// Clients and requests clone this value rather than regenerating profile settings,
+/// preserving configuration-level randomness for the lifetime of the object.
 #[derive(Clone)]
 #[magnus::wrap(class = "Wreq::Emulation", free_immediately, size)]
-pub struct Emulation(pub wreq_util::Emulation);
+pub struct Emulation(pub wreq::Emulation);
 
 // ===== impl Emulation =====
 
@@ -240,7 +249,8 @@ impl Emulation {
             )
             .http2(params.http2.unwrap_or(true))
             .headers(params.headers.unwrap_or(true))
-            .build();
+            .build()
+            .into_emulation();
 
         Ok(Self(emulation))
     }
