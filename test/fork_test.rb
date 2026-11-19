@@ -18,6 +18,7 @@ class ForkTest < Minitest::Test
     inherited_cookie_provider
     inherited_response_metadata
     inherited_response
+    inherited_response_status
     inherited_response_text
     inherited_response_chunks
     inherited_response_close

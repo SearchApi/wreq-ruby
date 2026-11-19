@@ -96,6 +96,9 @@ guard_pid = fork do
     end
     expect_fork_error("inherited_response_metadata") { inherited_objects[:response].status }
     expect_fork_error("inherited_response") { inherited_objects[:response].bytes }
+    expect_fork_error("inherited_response_status") do
+      inherited_objects[:response].raise_for_status!
+    end
     expect_fork_error("inherited_response_text") { inherited_objects[:response].text }
     expect_fork_error("inherited_response_chunks") { inherited_objects[:response].chunks { nil } }
     expect_fork_error("inherited_response_close") { inherited_objects[:response].close }
