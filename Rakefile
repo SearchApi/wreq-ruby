@@ -44,7 +44,13 @@ end
 
 desc "Run Rust tests"
 task :cargo_test do
-  sh "cargo test --workspace --locked"
+  test_env = {}
+  if RbConfig::CONFIG.fetch("host_os").start_with?("linux")
+    # Embedded Ruby tests need the active Ruby's shared library at startup.
+    test_env["LD_LIBRARY_PATH"] = [RbConfig::CONFIG.fetch("libdir"), ENV["LD_LIBRARY_PATH"]]
+      .compact.reject(&:empty?).join(File::PATH_SEPARATOR)
+  end
+  sh test_env, "cargo", "test", "--workspace", "--locked"
 end
 
 desc "Format Rust code"
