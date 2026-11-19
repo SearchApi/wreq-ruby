@@ -1,6 +1,6 @@
 use magnus::{RArray, Ruby, Value};
 
-use super::super::Error;
+use crate::error::Error;
 
 /// Index-based Ruby array iterator that avoids Ruby Enumerator fiber overhead.
 pub(super) struct ArrayEnumerator<'ruby> {

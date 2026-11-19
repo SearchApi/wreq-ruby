@@ -44,17 +44,17 @@ end
 
 desc "Run Rust tests"
 task :cargo_test do
-  sh "cargo test"
+  sh "cargo test --workspace --locked"
 end
 
 desc "Format Rust code"
 task :fmt do
-  sh "cargo fmt"
+  sh "cargo fmt --all"
 end
 
 desc "Run Clippy linter"
 task :lint do
-  sh "cargo clippy -- -D warnings"
+  sh "cargo clippy --workspace --locked -- -D warnings"
 end
 
 desc "Build native gem for platform (e.g., rake 'native[x86_64-linux]')"
