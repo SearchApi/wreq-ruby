@@ -1,9 +1,9 @@
-use ::serde::de::{
+use serde::de::{
     DeserializeSeed, MapAccess,
     value::{BorrowedStrDeserializer, StringDeserializer},
 };
 
-use super::super::{Error, JSON_NUMBER_TOKEN};
+use crate::{JSON_NUMBER_TOKEN, error::Error};
 
 /// Serde map representation used by `serde_json` for arbitrary-precision numbers.
 pub(super) struct NumberDeserializer {

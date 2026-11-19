@@ -1,8 +1,8 @@
-use ::serde::de::{DeserializeSeed, Unexpected, VariantAccess};
 use magnus::{RArray, RHash, Ruby, Value, value::ReprValue};
+use serde::de::{DeserializeSeed, Unexpected, VariantAccess};
 
-use super::{ArrayDeserializer, Deserializer, HashDeserializer, Mode};
-use crate::serde::Error;
+use super::{ArrayDeserializer, Deserializer, HashDeserializer, Mode, class_name};
+use crate::error::Error;
 
 /// Serde access to the payload of a Ruby enum representation.
 pub(super) struct VariantDeserializer<'ruby> {
@@ -36,11 +36,8 @@ impl<'de> VariantAccess<'de> for VariantDeserializer<'_> {
         if self.value.is_nil() {
             Ok(())
         } else {
-            Err(::serde::de::Error::invalid_type(
-                Unexpected::Other(
-                    // SAFETY: conversion runs while the Ruby GVL is held.
-                    &unsafe { self.value.classname() },
-                ),
+            Err(serde::de::Error::invalid_type(
+                Unexpected::Other(&class_name(self.value)),
                 &"unit variant",
             ))
         }
@@ -61,17 +58,14 @@ impl<'de> VariantAccess<'de> for VariantDeserializer<'_> {
         visitor: Visitor,
     ) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
         if let Some(array) = RArray::from_value(self.value) {
             let depth = self.nested_depth()?;
             visitor.visit_seq(ArrayDeserializer::new(self.ruby, array, depth, self.mode))
         } else {
-            Err(::serde::de::Error::invalid_type(
-                Unexpected::Other(
-                    // SAFETY: conversion runs while the Ruby GVL is held.
-                    &unsafe { self.value.classname() },
-                ),
+            Err(serde::de::Error::invalid_type(
+                Unexpected::Other(&class_name(self.value)),
                 &"tuple variant",
             ))
         }
@@ -83,17 +77,14 @@ impl<'de> VariantAccess<'de> for VariantDeserializer<'_> {
         visitor: Visitor,
     ) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
         if let Some(hash) = RHash::from_value(self.value) {
             let depth = self.nested_depth()?;
             visitor.visit_map(HashDeserializer::new(self.ruby, hash, depth, self.mode)?)
         } else {
-            Err(::serde::de::Error::invalid_type(
-                Unexpected::Other(
-                    // SAFETY: conversion runs while the Ruby GVL is held.
-                    &unsafe { self.value.classname() },
-                ),
+            Err(serde::de::Error::invalid_type(
+                Unexpected::Other(&class_name(self.value)),
                 &"struct variant",
             ))
         }
