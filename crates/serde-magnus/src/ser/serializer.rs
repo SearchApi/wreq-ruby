@@ -1,4 +1,6 @@
-use magnus::{IntoValue, Ruby, Value};
+use std::ffi::c_long;
+
+use magnus::{IntoValue, RHash, Ruby, Value};
 use serde::Serialize;
 
 use super::{
@@ -178,16 +180,19 @@ impl<'r> serde::Serializer for Serializer<'r> {
         ))
     }
 
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
-        Ok(MapSerializer::new(self.ruby, self.ruby.hash_new()))
+    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
+        Ok(MapSerializer::new(
+            self.ruby,
+            hash_with_capacity(self.ruby, len.unwrap_or(0)),
+        ))
     }
 
     fn serialize_struct(
         self,
         name: &'static str,
-        _len: usize,
+        len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
-        Ok(StructSerializer::new(self.ruby, name))
+        Ok(StructSerializer::new(self.ruby, name, len))
     }
 
     fn serialize_struct_variant(
@@ -195,12 +200,21 @@ impl<'r> serde::Serializer for Serializer<'r> {
         _name: &'static str,
         _index: u32,
         variant: &'static str,
-        _len: usize,
+        len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         Ok(StructVariantSerializer::new(
             self.ruby,
             variant,
-            self.ruby.hash_new(),
+            hash_with_capacity(self.ruby, len),
         ))
+    }
+}
+
+pub(super) fn hash_with_capacity(ruby: &Ruby, capacity: usize) -> RHash {
+    // Magnus passes the capacity to Ruby as a C long, which can be narrower than usize.
+    if c_long::try_from(capacity).is_ok() {
+        ruby.hash_new_capa(capacity)
+    } else {
+        ruby.hash_new()
     }
 }
