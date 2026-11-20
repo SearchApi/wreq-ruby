@@ -90,6 +90,16 @@ define_enum!(
     Edge146 => ("edge_146", edge146::emulation),
     Edge147 => ("edge_147", edge147::emulation),
     Edge148 => ("edge_148", edge148::emulation),
+    Edge149 => ("edge_149", edge149::emulation),
+    Edge150 => ("edge_150", edge150::emulation),
+    Edge151 => ("edge_151", edge151::emulation),
+    Edge152 => ("edge_152", edge152::emulation),
+    Edge153 => ("edge_153", edge153::emulation),
+    Edge154 => ("edge_154", edge154::emulation),
+    Edge155 => ("edge_155", edge155::emulation),
+    Edge156 => ("edge_156", edge156::emulation),
+    Edge157 => ("edge_157", edge157::emulation),
+    Edge158 => ("edge_158", edge158::emulation),
 
     // Opera versions
     Opera116 => ("opera_116", opera116::emulation),
