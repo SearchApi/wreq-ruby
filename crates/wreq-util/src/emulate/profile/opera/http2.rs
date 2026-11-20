@@ -1,6 +1,6 @@
-macro_rules! headers_stream_dependency {
+macro_rules! headers_priority {
     () => {
-        StreamDependency::new(StreamId::zero(), 255, true)
+        HeadersPriority::new(HeadersDependency::Root, 255, true)
     };
 }
 
@@ -42,7 +42,7 @@ macro_rules! http2_options {
             .max_header_list_size(262144)
             .header_table_size(65536)
             .enable_push(false)
-            .headers_stream_dependency(headers_stream_dependency!())
+            .headers_priority(headers_priority!())
             .headers_pseudo_order(pseudo_order!())
             .settings_order(settings_order!())
             .build()

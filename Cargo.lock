@@ -124,7 +124,7 @@ dependencies = [
 [[package]]
 name = "btls"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?rev=5ec1c113a03626a5877b34dd6d2ea8d440897a91#5ec1c113a03626a5877b34dd6d2ea8d440897a91"
+source = "git+https://github.com/0x676e67/btls?branch=main#8879c026b548c25441f83ff58b39d7e22ba1b5b1"
 dependencies = [
  "bitflags",
  "btls-sys",
@@ -136,7 +136,7 @@ dependencies = [
 [[package]]
 name = "btls-sys"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?rev=5ec1c113a03626a5877b34dd6d2ea8d440897a91#5ec1c113a03626a5877b34dd6d2ea8d440897a91"
+source = "git+https://github.com/0x676e67/btls?branch=main#8879c026b548c25441f83ff58b39d7e22ba1b5b1"
 dependencies = [
  "bindgen 0.73.2",
  "cmake",
@@ -483,7 +483,7 @@ dependencies = [
 [[package]]
 name = "http2"
 version = "0.5.20"
-source = "git+https://github.com/0x676e67/http2?rev=29b3bdfc7560d6f84119c103311afa147488b6f0#29b3bdfc7560d6f84119c103311afa147488b6f0"
+source = "git+https://github.com/0x676e67/http2?branch=master#3219d38910c22105ea7fc5464696f26589432e9c"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -758,6 +758,25 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys",
+]
+
+[[package]]
+name = "netty"
+version = "0.2.5"
+source = "git+https://github.com/0x676e67/netty?branch=main#314db585d85e7ea9c15535f458e7324b800fc702"
+dependencies = [
+ "bytes",
+ "futures-channel",
+ "futures-util",
+ "http",
+ "http-body",
+ "http2",
+ "httparse",
+ "pin-project-lite",
+ "smallvec",
+ "tokio",
+ "tokio-util",
+ "want",
 ]
 
 [[package]]
@@ -1228,7 +1247,7 @@ dependencies = [
 [[package]]
 name = "tokio-btls"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?rev=5ec1c113a03626a5877b34dd6d2ea8d440897a91#5ec1c113a03626a5877b34dd6d2ea8d440897a91"
+source = "git+https://github.com/0x676e67/btls?branch=main#8879c026b548c25441f83ff58b39d7e22ba1b5b1"
 dependencies = [
  "btls",
  "btls-sys",
@@ -1431,7 +1450,7 @@ dependencies = [
 [[package]]
 name = "wreq"
 version = "0.16.1"
-source = "git+https://github.com/0x676e67/wreq?rev=74fc1469b5c54b3fb93037e48f136b569d0fe418#74fc1469b5c54b3fb93037e48f136b569d0fe418"
+source = "git+https://github.com/0x676e67/wreq?branch=main#85d0528f10ceba32ca444d3343b61c291ef8c1d4"
 dependencies = [
  "btls",
  "btls-sys",
@@ -1449,6 +1468,7 @@ dependencies = [
  "libc",
  "lru",
  "mime",
+ "netty",
  "percent-encoding",
  "pin-project-lite",
  "serde",
@@ -1463,39 +1483,6 @@ dependencies = [
  "tower",
  "tower-http",
  "url",
- "wreq-proto",
- "wreq-rt",
-]
-
-[[package]]
-name = "wreq-proto"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a43942f024bb303f1042c9aa3c87fa1d9149f507c65db6e5220a11ccdb207387"
-dependencies = [
- "bytes",
- "futures-channel",
- "futures-util",
- "http",
- "http-body",
- "http2",
- "httparse",
- "pin-project-lite",
- "smallvec",
- "tokio",
- "tokio-util",
- "want",
-]
-
-[[package]]
-name = "wreq-rt"
-version = "0.2.2-rc.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99e9bce67a3fa3dd3f1503f066d86661c9caf399a763d3bd184da7afaf886c8b"
-dependencies = [
- "pin-project-lite",
- "tokio",
- "wreq-proto",
 ]
 
 [[package]]
