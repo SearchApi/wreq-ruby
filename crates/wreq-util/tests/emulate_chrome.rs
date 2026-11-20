@@ -345,3 +345,10 @@ test_emulation!(
     ],
     "52d84b11737d980aef856699f885ca86"
 );
+
+test_emulation!(
+    test_edge158,
+    Emulation::Edge158,
+    ["t13d1516h2_8daaf6152771_806a8c22fdea"],
+    "52d84b11737d980aef856699f885ca86"
+);
