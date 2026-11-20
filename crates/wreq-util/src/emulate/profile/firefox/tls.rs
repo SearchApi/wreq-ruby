@@ -13,7 +13,7 @@ macro_rules! tls_options {
 
     (1, $cipher_list:expr, $curves:expr, $key_shares:expr) => {
         tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
-            .enable_ech_grease(true)
+            .ech_grease(EchGrease::NssPre3127)
             .pre_shared_key(true)
             .psk_skip_session_tickets(true)
             .key_shares($key_shares)
@@ -25,13 +25,13 @@ macro_rules! tls_options {
     (3, $cipher_list:expr, $curves:expr, $key_shares:expr) => {
         tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
             .session_ticket(false)
-            .enable_ech_grease(true)
+            .ech_grease(EchGrease::NssPre3127)
             .psk_dhe_ke(false)
             .key_shares($key_shares))
     };
-    (4, $cipher_list:expr, $curves:expr, $key_shares:expr) => {
+    (4, $cipher_list:expr, $curves:expr, $key_shares:expr, $ech_grease:expr) => {
         tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
-            .enable_ech_grease(true)
+            .ech_grease($ech_grease)
             .enable_signed_cert_timestamps(true)
             .session_ticket(true)
             .pre_shared_key(true)
@@ -41,7 +41,7 @@ macro_rules! tls_options {
     };
     (5, $cipher_list:expr, $curves:expr, $key_shares:expr) => {
         tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
-            .enable_ech_grease(true)
+            .ech_grease(EchGrease::NssPre3127)
             .pre_shared_key(true)
             .psk_skip_session_tickets(true)
             .key_shares($key_shares)
@@ -49,7 +49,7 @@ macro_rules! tls_options {
     };
     (6, $cipher_list:expr, $curves:expr, $key_shares:expr) => {
         tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
-            .enable_ech_grease(true)
+            .ech_grease(EchGrease::NssPre3127)
             .enable_signed_cert_timestamps(true)
             .session_ticket(false)
             .psk_dhe_ke(false)
@@ -78,6 +78,9 @@ pub const CURVES_2: &str = join!(
     "ffdhe2048",
     "ffdhe3072"
 );
+
+// Firefox 156 stopped advertising FFDHE groups by default.
+pub const CURVES_3: &str = join!(":", "X25519MLKEM768", "X25519", "P-256", "P-384", "P-521");
 
 pub const KEY_SHARES_1: &[KeyShare] = &[KeyShare::X25519, KeyShare::P256];
 
@@ -206,8 +209,8 @@ pub struct FirefoxTlsConfig {
     #[builder(default = true)]
     session_ticket: bool,
 
-    #[builder(default = false, setter(into))]
-    enable_ech_grease: bool,
+    #[builder(default, setter(into))]
+    ech_grease: Option<EchGrease>,
 
     #[builder(default = false, setter(into))]
     enable_signed_cert_timestamps: bool,
@@ -245,7 +248,7 @@ impl From<FirefoxTlsConfig> for TlsOptions {
             .delegated_credentials(val.delegated_credentials)
             .record_size_limit(val.record_size_limit)
             .enable_ocsp_stapling(true)
-            .ech_grease(val.enable_ech_grease.then_some(EchGrease::NssPre3127))
+            .ech_grease(val.ech_grease)
             .enable_signed_cert_timestamps(val.enable_signed_cert_timestamps)
             .alpn_protocols([AlpnProtocol::HTTP2, AlpnProtocol::HTTP1])
             .min_tls_version(TlsVersion::TLS_1_2)

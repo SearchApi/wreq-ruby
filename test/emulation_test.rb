@@ -6,19 +6,22 @@ require "stringio"
 require "timeout"
 
 class EmulationTest < Minitest::Test
+  TRUST_ANCHOR_IDS = 51_764
+
   def test_reused_emulation_retains_trust_anchors_across_clients_and_requests
     [Wreq::Profile::Chrome152, Wreq::Profile::Chrome153, Wreq::Profile::Chrome154, Wreq::Profile::Chrome155, Wreq::Profile::Chrome156, Wreq::Profile::Chrome157].each do |profile|
       emulation = Wreq::Emulation.new(profile: profile)
       client = Wreq::Client.new(emulation: emulation, no_proxy: true)
-      expected = capture_trust_anchors { |url| client.get(url, timeout: 5) }
+      extensions = capture_client_hello_extensions { |url| client.get(url, timeout: 5) }
+      expected = extensions.fetch(TRUST_ANCHOR_IDS)
       refute_empty expected, profile.to_s
 
       request_client = Wreq::Client.new(no_proxy: true)
       2.times do
-        actual = capture_trust_anchors do |url|
+        actual = capture_client_hello_extensions do |url|
           request_client.get(url, emulation: emulation, timeout: 5)
         end
-        assert_equal expected, actual, "#{profile}: reusing an object must retain its configuration"
+        assert_equal expected, actual.fetch(TRUST_ANCHOR_IDS), "#{profile}: reusing an object must retain its configuration"
       end
     end
   end
@@ -62,11 +65,40 @@ class EmulationTest < Minitest::Test
     end
   end
 
+  def test_all_firefox_profiles_are_available
+    versions = [109, 117, 128, 133, 135, 136, 139, *(142..160)]
+    names = versions.map { |version| "Firefox#{version}" } + %w[FirefoxPrivate135 FirefoxAndroid135 FirefoxPrivate136]
+    names.each do |name|
+      assert Wreq::Profile.const_defined?(name, false), "missing #{name}"
+      profile = Wreq::Profile.const_get(name, false)
+      assert_equal name, profile.to_s
+      assert_instance_of Wreq::Emulation, Wreq::Emulation.new(profile: profile)
+    end
+  end
+
+  def test_firefox_client_hello_matches_nss_version
+    [
+      [Wreq::Profile::Firefox154, 15, [4588, 29, 23, 24, 25, 256, 257]],
+      [Wreq::Profile::Firefox155, 16, [4588, 29, 23, 24, 25, 256, 257]],
+      [Wreq::Profile::Firefox156, 16, [4588, 29, 23, 24, 25]]
+    ].each do |profile, padding_remainder, groups|
+      client = Wreq::Client.new(emulation: Wreq::Emulation.new(profile: profile), no_proxy: true)
+      extensions = capture_client_hello_extensions { |url| client.get(url, timeout: 5) }
+
+      ech = StringIO.new(extensions.fetch(65_037))
+      read_tls_bytes(ech, 6) # Outer tag, HPKE suite and config ID.
+      read_tls_bytes(ech, read_tls_bytes(ech, 2).unpack1("n")) # Encapsulated key.
+      payload_size = read_tls_bytes(ech, 2).unpack1("n")
+      assert_equal padding_remainder, payload_size % 32, "#{profile}: ECH GREASE ciphertext"
+      assert_equal groups, extensions.fetch(10).unpack("n*").drop(1), "#{profile}: supported groups"
+    end
+  end
+
   private
 
   # Each listener forces a new connection. Stop after ClientHello so this test
   # inspects the extension bytes without depending on certificates or the network.
-  def capture_trust_anchors
+  def capture_client_hello_extensions
     server = TCPServer.new("127.0.0.1", 0)
     thread = Thread.new do
       socket = nil
@@ -81,7 +113,7 @@ class EmulationTest < Minitest::Test
           length = handshake.byteslice(1, 3).bytes.reduce(0) { |n, byte| (n << 8) | byte }
           break if handshake.bytesize >= length + 4
         end
-        trust_anchors_from_client_hello(handshake)
+        extensions_from_client_hello(handshake)
       end
     ensure
       socket&.close
@@ -102,7 +134,7 @@ class EmulationTest < Minitest::Test
     bytes
   end
 
-  def trust_anchors_from_client_hello(handshake)
+  def extensions_from_client_hello(handshake)
     io = StringIO.new(handshake)
     raise "expected ClientHello" unless read_tls_bytes(io, 1).unpack1("C") == 1
     read_tls_bytes(io, 3 + 2 + 32) # Handshake length, legacy version and random.
@@ -110,11 +142,11 @@ class EmulationTest < Minitest::Test
     read_tls_bytes(io, read_tls_bytes(io, 2).unpack1("n")) # Cipher suites.
     read_tls_bytes(io, read_tls_bytes(io, 1).unpack1("C")) # Compression methods.
     extensions = StringIO.new(read_tls_bytes(io, read_tls_bytes(io, 2).unpack1("n")))
+    parsed = {}
     until extensions.eof?
       type, length = read_tls_bytes(extensions, 4).unpack("nn")
-      data = read_tls_bytes(extensions, length)
-      return data if type == 51764
+      parsed[type] = read_tls_bytes(extensions, length)
     end
-    raise "missing trust_anchors extension"
+    parsed
   end
 end

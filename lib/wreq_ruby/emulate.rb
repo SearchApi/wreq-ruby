@@ -112,6 +112,14 @@ module Wreq
       Firefox150 = nil
       Firefox151 = nil
       Firefox152 = nil
+      Firefox153 = nil
+      Firefox154 = nil
+      Firefox155 = nil
+      Firefox156 = nil
+      Firefox157 = nil
+      Firefox158 = nil
+      Firefox159 = nil
+      Firefox160 = nil
 
       SafariIos17_2 = nil
       SafariIos17_4_1 = nil
