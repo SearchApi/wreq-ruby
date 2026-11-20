@@ -54,8 +54,8 @@ class EmulationTest < Minitest::Test
     end
   end
 
-  def test_opera_132_through_140_profiles_are_available
-    (132..140).each do |version|
+  def test_all_opera_profiles_are_available
+    (116..140).each do |version|
       name = "Opera#{version}"
       assert Wreq::Profile.const_defined?(name, false), "missing #{name}"
       profile = Wreq::Profile.const_get(name, false)
