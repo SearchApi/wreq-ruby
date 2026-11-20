@@ -189,6 +189,15 @@ define_ruby_enum!(
     Opera129,
     Opera130,
     Opera131,
+    Opera132,
+    Opera133,
+    Opera134,
+    Opera135,
+    Opera136,
+    Opera137,
+    Opera138,
+    Opera139,
+    Opera140,
 );
 
 // Defines constant registration, `into_ffi`/`from_ffi`, and handlers for

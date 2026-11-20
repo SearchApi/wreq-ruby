@@ -54,6 +54,16 @@ class EmulationTest < Minitest::Test
     end
   end
 
+  def test_all_opera_profiles_are_available
+    (116..140).each do |version|
+      name = "Opera#{version}"
+      assert Wreq::Profile.const_defined?(name, false), "missing #{name}"
+      profile = Wreq::Profile.const_get(name, false)
+      assert_equal name, profile.to_s
+      assert_instance_of Wreq::Emulation, Wreq::Emulation.new(profile: profile)
+    end
+  end
+
   def test_all_emulation_os_constants_are_non_nil
     Wreq::Platform.constants.each do |name|
       const = Wreq::Platform.const_get(name)

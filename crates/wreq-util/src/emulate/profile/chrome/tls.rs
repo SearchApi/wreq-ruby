@@ -32,38 +32,48 @@ macro_rules! tls_options {
             .pre_shared_key(true)
             .curves($curves))
     };
-    (7, $curves:expr) => {
-        tls_options!(@build ChromeTlsConfig::builder()
+    (7) => {{
+        use $crate::emulate::profile::chrome::tls as chromium;
+        chromium::tls_options!(@build chromium::ChromeTlsConfig::builder()
             .permute_extensions(true)
             .enable_ech_grease(true)
             .pre_shared_key(true)
-            .curves($curves)
+            .curves(chromium::CURVES_3)
             .alps_use_new_codepoint(true))
-    };
-    (8, $curves:expr, $sigalgs:expr) => {
-        tls_options!(@build ChromeTlsConfig::builder()
+    }};
+    (8) => {{
+        use $crate::emulate::profile::chrome::tls as chromium;
+        chromium::tls_options!(@build chromium::ChromeTlsConfig::builder()
             .permute_extensions(true)
             .enable_ech_grease(true)
             .pre_shared_key(true)
-            .curves($curves)
-            .sigalgs_list($sigalgs)
+            .curves(chromium::CURVES_3)
+            .sigalgs_list(chromium::NEW_SIGALGS_LIST)
             .alps_use_new_codepoint(true))
-    };
-    (9, $curves:expr) => {
-        tls_options!(9, $curves, shuffled_trust_anchors(crate::rand::fast_random))
-    };
-    (9, $curves:expr, $trust_anchors:expr) => {
-        tls_options!(@build ChromeTlsConfig::builder()
+    }};
+    (9) => {{
+        use $crate::emulate::profile::chrome::tls as chromium;
+        chromium::tls_options!(@trust_anchors chromium::shuffled_trust_anchors($crate::rand::fast_random))
+    }};
+    (10) => {{
+        use $crate::emulate::profile::chrome::tls as chromium;
+        chromium::tls_options!(@trust_anchors chromium::sorted_trust_anchors())
+    }};
+    (@trust_anchors $trust_anchors:expr) => {{
+        use $crate::emulate::profile::chrome::tls as chromium;
+        chromium::tls_options!(@build chromium::ChromeTlsConfig::builder()
             .permute_extensions(true)
             .enable_ech_grease(true)
             .pre_shared_key(true)
-            .curves($curves)
-            .sigalgs_list(NEW_SIGALGS_LIST)
+            .curves(chromium::CURVES_3)
+            .sigalgs_list(chromium::NEW_SIGALGS_LIST)
             .trust_anchors($trust_anchors)
             .grease_sigalgs_enabled(true)
             .alps_use_new_codepoint(true))
-    };
+    }};
 }
+
+pub(in crate::emulate::profile) use tls_options;
 
 pub const CURVES_1: &str = join!(":", "X25519", "P-256", "P-384");
 pub const CURVES_2: &str = join!(":", "X25519Kyber768Draft00", "X25519", "P-256", "P-384");
@@ -125,7 +135,9 @@ pub(super) const CHROME_TRUST_ANCHORS: &[u8] = &chromium_roots::encoded_trust_an
 // the root store's source order. Generate an order once per native configuration;
 // connections using that client configuration retain the order.
 // https://chromium.googlesource.com/chromium/src/+/f7b831a4e249fbd98eae4b391c69f70300a849d1/net/ssl/ssl_config_service.cc
-pub(super) fn shuffled_trust_anchors(mut random: impl FnMut() -> u64) -> Vec<u8> {
+pub(in crate::emulate::profile) fn shuffled_trust_anchors(
+    mut random: impl FnMut() -> u64,
+) -> Vec<u8> {
     let mut ids = chromium_roots::trust_anchor_ids();
     for index in (1..ids.len()).rev() {
         let bound = (index + 1) as u64;
@@ -142,7 +154,7 @@ pub(super) fn shuffled_trust_anchors(mut random: impl FnMut() -> u64) -> Vec<u8>
 
 // Chrome 154 sorts the raw IDs before adding their length prefixes.
 // https://chromium.googlesource.com/chromium/src/+/731082f0a26ce4b3976c3d82943092f5d13daf13/net/cert/x509_util.cc
-pub(super) fn sorted_trust_anchors() -> Vec<u8> {
+pub(in crate::emulate::profile) fn sorted_trust_anchors() -> Vec<u8> {
     let mut ids = chromium_roots::trust_anchor_ids();
     ids.sort_unstable();
     encode_trust_anchors(&ids)

@@ -111,3 +111,27 @@ test_emulation!(
     ["t13d1516h2_8daaf6152771_02713d6af862"],
     "52d84b11737d980aef856699f885ca86"
 );
+
+test_emulation!(
+    test_opera132,
+    Emulation::Opera132,
+    ["t13d1516h2_8daaf6152771_d8a2da3f94cd"],
+    "52d84b11737d980aef856699f885ca86"
+);
+
+test_emulation!(
+    test_opera134,
+    Emulation::Opera134,
+    ["t13d1516h2_8daaf6152771_806a8c22fdea"],
+    "52d84b11737d980aef856699f885ca86"
+);
+
+test_emulation!(
+    test_opera140,
+    Emulation::Opera140,
+    [
+        "t13d1517h2_8daaf6152771_cb7bf5808d99",
+        "t13d1518h2_8daaf6152771_e2d80978ab2e"
+    ],
+    "52d84b11737d980aef856699f885ca86"
+);
