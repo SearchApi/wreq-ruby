@@ -5,6 +5,18 @@ macro_rules! tls_options {
         $builder.build().into()
     };
 
+    // Edge sends signature algorithm GREASE without Chromium's Trust Anchor IDs.
+    (edge) => {
+        tls_options!(@build ChromeTlsConfig::builder()
+            .permute_extensions(true)
+            .enable_ech_grease(true)
+            .pre_shared_key(true)
+            .curves(CURVES_3)
+            .sigalgs_list(NEW_SIGALGS_LIST)
+            .grease_sigalgs_enabled(true)
+            .alps_use_new_codepoint(true))
+    };
+
     (1) => {
         tls_options!(@build ChromeTlsConfig::builder())
     };
