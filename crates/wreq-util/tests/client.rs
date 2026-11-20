@@ -149,3 +149,40 @@ async fn test_firefox_default_header_order() {
 async fn test_opera_default_header_order() {
     assert_emulation_headers(Emulation::Opera116, CHROMIUM_HEADER_ORDER).await;
 }
+
+#[tokio::test]
+async fn test_opera140_desktop_headers() {
+    let server = server::http(move |request| async move {
+        let headers = request.headers();
+        assert_eq!(
+            headers["user-agent"],
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 OPR/140.0.0.0"
+        );
+        assert_eq!(
+            headers["sec-ch-ua"],
+            r#""Not-A.Brand";v="99", "Opera";v="140", "Chromium";v="157""#
+        );
+        assert!(
+            headers["accept"]
+                .to_str()
+                .unwrap()
+                .contains("image/jxl,image/avif")
+        );
+        http::Response::default()
+    });
+
+    let response = Client::builder_tokio()
+        .emulation(
+            Emulation::builder()
+                .profile(Emulation::Opera140)
+                .platform(Platform::Windows)
+                .build(),
+        )
+        .build()
+        .unwrap()
+        .get(format!("http://{}/", server.addr()))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), wreq::StatusCode::OK);
+}
