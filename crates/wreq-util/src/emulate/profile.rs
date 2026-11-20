@@ -13,8 +13,8 @@ use wreq::{
     Group,
     header::{ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderName, HeaderValue, USER_AGENT},
     http2::{
-        Http2Options, Priorities, Priority, PseudoId, PseudoOrder, SettingId, SettingsOrder,
-        StreamDependency, StreamId,
+        HeadersDependency, HeadersPriority, Http2Options, Priorities, Priority, PseudoId,
+        PseudoOrder, SettingId, SettingsOrder, StreamDependency, StreamId,
     },
     tls::{
         AlpnProtocol, AlpsProtocol, EchGrease, EchGreaseAead, ExtensionType, KeyShare, Tls13Cipher,

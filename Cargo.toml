@@ -6,7 +6,7 @@ homepage = "https://github.com/SearchApi/wreq-ruby"
 repository = "https://github.com/SearchApi/wreq-ruby"
 edition = "2024"
 version = "1.3.2"
-rust-version = "1.98"
+rust-version = "1.100"
 
 [lib]
 crate-type = ["cdylib"]
@@ -20,6 +20,7 @@ tokio = { version = "1.53.1", features = ["full"] }
 # Keep the existing trust store independent of wreq's default feature selection.
 wreq = { version = "0.16.1", default-features = false, features = [
     "tokio-rt",
+    "http2",
     "chromium-roots",
     "query",
     "form",
@@ -67,9 +68,11 @@ opt-level = 3
 strip = true
 
 [patch.crates-io]
-http2 = { git = "https://github.com/0x676e67/http2", rev = "29b3bdfc7560d6f84119c103311afa147488b6f0" }
-btls = { git = "https://github.com/0x676e67/btls", rev = "5ec1c113a03626a5877b34dd6d2ea8d440897a91" }
-btls-sys = { git = "https://github.com/0x676e67/btls", rev = "5ec1c113a03626a5877b34dd6d2ea8d440897a91" }
-tokio-btls = { git = "https://github.com/0x676e67/btls", rev = "5ec1c113a03626a5877b34dd6d2ea8d440897a91" }
-wreq = { git = "https://github.com/0x676e67/wreq", rev = "74fc1469b5c54b3fb93037e48f136b569d0fe418" }
+# Match the Git patches used by wreq main; Cargo.lock pins the exact revisions.
+btls = { git = "https://github.com/0x676e67/btls", branch = "main" }
+btls-sys = { git = "https://github.com/0x676e67/btls", branch = "main" }
+tokio-btls = { git = "https://github.com/0x676e67/btls", branch = "main" }
+http2 = { git = "https://github.com/0x676e67/http2", branch = "master" }
+netty = { git = "https://github.com/0x676e67/netty", branch = "main" }
+wreq = { git = "https://github.com/0x676e67/wreq", branch = "main" }
 wreq-util = { path = "crates/wreq-util" }

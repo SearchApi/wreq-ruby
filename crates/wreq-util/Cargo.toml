@@ -29,6 +29,7 @@ emulation = [
     "dep:zstd",
     "dep:chromium-roots",
     "wreq/chromium-roots",
+    "wreq/http2",
 ]
 emulation-serde = ["dep:serde"]
 emulation-compression = []
