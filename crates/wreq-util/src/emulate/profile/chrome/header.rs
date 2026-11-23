@@ -92,6 +92,11 @@ pub fn header_initializer_chrome152(
     ua: &'static str,
     emulation_os: Platform,
 ) -> HeaderMap {
+    // Linux sends Accept-Language after Accept-Encoding for this profile.
+    if matches!(emulation_os, Platform::Linux) {
+        return header_initializer_with_zstd_priority(sec_ch_ua, ua, emulation_os);
+    }
+
     let mut headers = HeaderMap::new();
     header_chrome_sec_ch_ua!(
         headers,
