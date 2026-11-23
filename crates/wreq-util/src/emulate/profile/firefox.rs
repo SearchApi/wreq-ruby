@@ -126,7 +126,13 @@ mod_generator!(
 
 mod_generator!(
     ff135,
-    tls_options!(4, CIPHER_LIST_1, CURVES_2, KEY_SHARES_2),
+    tls_options!(
+        4,
+        CIPHER_LIST_1,
+        CURVES_2,
+        KEY_SHARES_2,
+        EchGrease::NssPre3127
+    ),
     http2_options!(1),
     header_initializer_with_zstd,
     [
@@ -463,7 +469,13 @@ mod_generator!(
 
 mod_generator!(
     ff150,
-    tls_options!(4, CIPHER_LIST_3, CURVES_2, KEY_SHARES_2),
+    tls_options!(
+        4,
+        CIPHER_LIST_3,
+        CURVES_2,
+        KEY_SHARES_2,
+        EchGrease::NssPre3127
+    ),
     http2_options!(1),
     header_initializer_with_zstd_q09,
     [
@@ -545,3 +557,62 @@ mod_generator!(
         )
     ]
 );
+
+macro_rules! firefox_desktop_ua {
+    ($platform:literal, $major:literal) => {
+        concat!(
+            "Mozilla/5.0 (",
+            $platform,
+            "; rv:",
+            $major,
+            ".0) Gecko/20100101 Firefox/",
+            $major,
+            ".0"
+        )
+    };
+}
+
+macro_rules! firefox_desktop_profile {
+    ($name:ident, $major:literal, $($transport:expr),+ $(,)?) => {
+        standard_mod_generator!($name, $($transport,)+ |emulation: &Emulation| {
+            emulation.headers.then(|| {
+                let ua = match emulation.platform {
+                    Platform::MacOS => firefox_desktop_ua!("Macintosh; Intel Mac OS X 10.15", $major),
+                    Platform::Linux => firefox_desktop_ua!("X11; Linux x86_64", $major),
+                    _ => firefox_desktop_ua!("Windows NT 10.0; Win64; x64", $major),
+                };
+                header_initializer_with_zstd_q09(ua)
+            })
+        });
+    };
+}
+
+firefox_desktop_profile!(ff153, "153", ff150::build_emulation);
+firefox_desktop_profile!(
+    ff154,
+    "154",
+    tls_options!(
+        4,
+        CIPHER_LIST_2,
+        CURVES_2,
+        KEY_SHARES_2,
+        EchGrease::NssPre3127
+    ),
+    http2_options!(1)
+);
+firefox_desktop_profile!(
+    ff155,
+    "155",
+    tls_options!(4, CIPHER_LIST_2, CURVES_2, KEY_SHARES_2, EchGrease::Nss3127),
+    http2_options!(1)
+);
+firefox_desktop_profile!(
+    ff156,
+    "156",
+    tls_options!(4, CIPHER_LIST_2, CURVES_3, KEY_SHARES_2, EchGrease::Nss3127),
+    http2_options!(1)
+);
+firefox_desktop_profile!(ff157, "157", ff156::build_emulation);
+firefox_desktop_profile!(ff158, "158", ff156::build_emulation);
+firefox_desktop_profile!(ff159, "159", ff156::build_emulation);
+firefox_desktop_profile!(ff160, "160", ff156::build_emulation);
