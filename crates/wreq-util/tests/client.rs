@@ -151,6 +151,37 @@ async fn test_opera_default_header_order() {
 }
 
 #[tokio::test]
+async fn test_opera139_linux_headers() {
+    let server = server::http(|request| async move {
+        assert_eq!(request.version(), http::Version::HTTP_2);
+        assert_eq!(
+            request.headers()["user-agent"],
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 OPR/139.0.0.0"
+        );
+        assert_eq!(request.headers()["sec-ch-ua-platform"], "\"Linux\"");
+        http::Response::default()
+    });
+
+    let response = Client::builder_tokio()
+        .emulation(
+            Emulation::builder()
+                .profile(Emulation::Opera139)
+                .platform(Platform::Linux)
+                .build(),
+        )
+        .http2_only()
+        .no_proxy()
+        .build()
+        .expect("client")
+        .get(format!("http://{}/", server.addr()))
+        .send()
+        .await
+        .expect("request");
+
+    assert_eq!(response.status(), wreq::StatusCode::OK);
+}
+
+#[tokio::test]
 async fn test_opera140_desktop_headers() {
     let server = server::http(move |request| async move {
         let headers = request.headers();

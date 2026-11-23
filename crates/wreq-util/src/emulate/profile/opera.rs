@@ -445,6 +445,11 @@ mod_generator!(
             Windows,
             r#""Opera";v="139", "Chromium";v="155", "Not(A:Brand";v="24""#,
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 OPR/139.0.0.0"
+        ),
+        (
+            Linux,
+            r#""Opera";v="139", "Chromium";v="155", "Not(A:Brand";v="24""#,
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 OPR/139.0.0.0"
         )
     ]
 );
