@@ -100,6 +100,11 @@ Most browser device models share identical TLS and HTTP/2 configurations, differ
 
   </details>
 
+## Error Handling
+
+See [Error handling](docs/errors.md) for the exception hierarchy, native
+predicates, timeout behavior, proxy failures, and safe diagnostic logging.
+
 ## Building
 
 Install the BoringSSL build environment by referring to [boring](https://github.com/cloudflare/boring/blob/master/.github/workflows/ci.yml) and [boringssl](https://github.com/google/boringssl/blob/master/BUILDING.md#build-prerequisites).

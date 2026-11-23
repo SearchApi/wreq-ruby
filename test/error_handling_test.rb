@@ -32,13 +32,12 @@ class ErrorHandlingTest < Minitest::Test
     request_thread&.join(1)
   end
 
-  def test_network_error_handling
-    # Try to connect to a non-existent domain
+  def test_connect_error_handling
+    # wreq classifies DNS failures as connect errors.
     response = Wreq.get("https://definitely-not-a-real-domain-12345.com")
     flunk "Expected network error but got response: #{response.code}"
   rescue => e
-    assert_instance_of Wreq::ConnectionError, e
-    # Network errors should be caught and wrapped appropriately
+    assert_instance_of Wreq::ConnectError, e
   end
 
   def test_invalid_url_handling
@@ -97,7 +96,7 @@ class ErrorHandlingTest < Minitest::Test
     end
   end
 
-  def test_proxy_error_handling
+  def test_proxy_connect_error_handling
     invalid_proxies = [
       "http://invalid.proxy:8080",
       "https://invalid.proxy:8080",
@@ -111,11 +110,11 @@ class ErrorHandlingTest < Minitest::Test
     invalid_proxies.each do |proxy|
       target_urls.each do |url|
         Wreq.get(url, proxy: proxy, timeout: 5)
-        flunk "Expected proxy connection error but got response"
+        flunk "Expected proxy connect error but got response"
       rescue => e
         assert(
-          e.is_a?(Wreq::ProxyConnectionError) || e.is_a?(Wreq::RequestError),
-          "Expected ProxyConnectionError or RequestError, got #{e.class}: #{e.message}"
+          e.is_a?(Wreq::ProxyConnectError) || e.is_a?(Wreq::RequestError),
+          "Expected ProxyConnectError or RequestError, got #{e.class}: #{e.message}"
         )
       end
     end
