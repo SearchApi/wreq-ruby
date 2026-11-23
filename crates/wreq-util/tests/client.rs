@@ -151,34 +151,50 @@ async fn test_opera_default_header_order() {
 }
 
 #[tokio::test]
-async fn test_opera139_linux_headers() {
-    let server = server::http(|request| async move {
-        assert_eq!(request.version(), http::Version::HTTP_2);
-        assert_eq!(
-            request.headers()["user-agent"],
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 OPR/139.0.0.0"
-        );
-        assert_eq!(request.headers()["sec-ch-ua-platform"], "\"Linux\"");
-        http::Response::default()
-    });
+async fn test_opera_linux_headers() {
+    for (profile, expected_user_agent) in [
+        (
+            Emulation::Opera139,
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 OPR/139.0.0.0",
+        ),
+        (
+            Emulation::Opera140,
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 OPR/140.0.0.0",
+        ),
+    ] {
+        let server = server::http(move |request| async move {
+            assert_eq!(request.version(), http::Version::HTTP_2);
+            assert_eq!(
+                request.headers()["user-agent"],
+                expected_user_agent,
+                "{profile:?}"
+            );
+            assert_eq!(
+                request.headers()["sec-ch-ua-platform"],
+                "\"Linux\"",
+                "{profile:?}"
+            );
+            http::Response::default()
+        });
 
-    let response = Client::builder()
-        .emulation(
-            Emulation::builder()
-                .profile(Emulation::Opera139)
-                .platform(Platform::Linux)
-                .build(),
-        )
-        .http2_only()
-        .no_proxy()
-        .build()
-        .expect("client")
-        .get(format!("http://{}/", server.addr()))
-        .send()
-        .await
-        .expect("request");
+        let response = Client::builder()
+            .emulation(
+                Emulation::builder()
+                    .profile(profile)
+                    .platform(Platform::Linux)
+                    .build(),
+            )
+            .http2_only()
+            .no_proxy()
+            .build()
+            .expect("client")
+            .get(format!("http://{}/", server.addr()))
+            .send()
+            .await
+            .expect("request");
 
-    assert_eq!(response.status(), wreq::StatusCode::OK);
+        assert_eq!(response.status(), wreq::StatusCode::OK, "{profile:?}");
+    }
 }
 
 #[tokio::test]
