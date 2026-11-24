@@ -76,12 +76,15 @@ fn check_header_order<'a>(
     })
 }
 
-async fn assert_emulation_headers(profile: Profile, expected: &'static [&'static str]) {
+async fn assert_emulation_headers(
+    emulation: impl wreq::IntoEmulation,
+    expected: &'static [&'static str],
+) {
     let server = server::low_level_with_response(move |request, stream| {
         check_header_order(request, stream, expected)
     });
     let response = Client::builder_tokio()
-        .emulation(profile)
+        .emulation(emulation)
         .build()
         .expect("client")
         .get(format!("http://{}/headers", server.addr()))
@@ -138,6 +141,47 @@ async fn test_client_emulation_device() {
 #[tokio::test]
 async fn test_chrome_default_header_order() {
     assert_emulation_headers(Emulation::Chrome133, CHROMIUM_HEADER_ORDER).await;
+}
+
+#[tokio::test]
+async fn test_linux_navigation_emulation_headers() {
+    let linux = |profile| {
+        Emulation::builder()
+            .profile(profile)
+            .platform(Platform::Linux)
+            .build()
+    };
+    assert_emulation_headers(linux(Profile::Chrome152), CHROMIUM_HEADER_ORDER).await;
+
+    let server = server::http(|request| async move {
+        assert_eq!(request.version(), http::Version::HTTP_2);
+        let mut response = http::Response::default();
+        response
+            .headers_mut()
+            .insert("user-agent", request.headers()["user-agent"].clone());
+        response
+    });
+    let client = Client::builder_tokio()
+        .http2_only()
+        .no_proxy()
+        .build()
+        .expect("client");
+    for (profile, major) in [
+        (Profile::Firefox150, 150),
+        (Profile::Firefox151, 151),
+        (Profile::Firefox152, 152),
+    ] {
+        let response = client
+            .get(format!("http://{}/headers", server.addr()))
+            .emulation(linux(profile))
+            .send()
+            .await
+            .expect("request");
+        let expected = format!(
+            "Mozilla/5.0 (X11; Linux x86_64; rv:{major}.0) Gecko/20100101 Firefox/{major}.0"
+        );
+        assert_eq!(response.headers()["user-agent"], expected, "{profile:?}");
+    }
 }
 
 #[tokio::test]
