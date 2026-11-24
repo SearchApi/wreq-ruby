@@ -1,23 +1,5 @@
-mod header;
-
-use header::navigation_headers_with_zstd_and_priority;
-
 use super::super::{Emulation, HeaderMap, Platform, build_standard_emulation};
-use super::{header::navigation_headers_with_jxl, http2, tls};
-
-macro_rules! opera_desktop_ua {
-    ($platform:literal, $chromium:literal, $opera:literal) => {
-        concat!(
-            "Mozilla/5.0 (",
-            $platform,
-            ") AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",
-            $chromium,
-            ".0.0.0 Safari/537.36 OPR/",
-            $opera,
-            ".0.0.0"
-        )
-    };
-}
+use super::{header, http2, tls};
 
 macro_rules! opera_desktop_profile {
     (
@@ -25,21 +7,18 @@ macro_rules! opera_desktop_profile {
         opera: $opera:literal,
         chromium: $chromium:literal,
         brands: $brands:literal,
-        headers: $headers:ident,
+        headers: $headers:path,
         $($transport:tt)+
     ) => {
         chromium_profile!(
             $name,
             $($transport)+,
             headers: $headers,
+            brands: $brands,
             [
-                (MacOS, $brands, {
-                    opera_desktop_ua!("Macintosh; Intel Mac OS X 10_15_7", $chromium, $opera)
-                }),
-                (Windows, $brands, {
-                    opera_desktop_ua!("Windows NT 10.0; Win64; x64", $chromium, $opera)
-                }),
-                (Linux, $brands, { opera_desktop_ua!("X11; Linux x86_64", $chromium, $opera) })
+                (MacOS, chromium_desktop_ua!("Macintosh; Intel Mac OS X 10_15_7", $chromium, " OPR/", $opera, ".0.0.0")),
+                (Windows, chromium_desktop_ua!("Windows NT 10.0; Win64; x64", $chromium, " OPR/", $opera, ".0.0.0")),
+                (Linux, chromium_desktop_ua!("X11; Linux x86_64", $chromium, " OPR/", $opera, ".0.0.0"))
             ]
         );
     };
@@ -50,7 +29,7 @@ opera_desktop_profile!(
     opera: "116",
     chromium: "131",
     brands: r#""Opera";v="116", "Chromium";v="131", "Not_A Brand";v="24""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     tls: tls::Preset::ResumptionWithMlkem,
     http2: http2::Preset::NoPush
 );
@@ -60,7 +39,7 @@ opera_desktop_profile!(
     opera: "117",
     chromium: "132",
     brands: r#""Not A(Brand";v="8", "Chromium";v="132", "Opera";v="117""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -69,7 +48,7 @@ opera_desktop_profile!(
     opera: "118",
     chromium: "133",
     brands: r#""Not(A:Brand";v="99", "Opera";v="118", "Chromium";v="133""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -78,7 +57,7 @@ opera_desktop_profile!(
     opera: "119",
     chromium: "134",
     brands: r#""Chromium";v="134", "Not:A-Brand";v="24", "Opera";v="119""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -87,7 +66,7 @@ opera_desktop_profile!(
     opera: "120",
     chromium: "135",
     brands: r#""Chromium";v="135", "Not:A-Brand";v="24", "Opera";v="120""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -96,7 +75,7 @@ opera_desktop_profile!(
     opera: "121",
     chromium: "137",
     brands: r#""Opera";v="121", "Chromium";v="137", "Not/A)Brand";v="24""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -105,7 +84,7 @@ opera_desktop_profile!(
     opera: "122",
     chromium: "138",
     brands: r#""Chromium";v="138", "Not=A?Brand";v="24", "Opera";v="122""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -114,7 +93,7 @@ opera_desktop_profile!(
     opera: "123",
     chromium: "139",
     brands: r#""Chromium";v="139", "Not=A?Brand";v="24", "Opera";v="123""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -123,7 +102,7 @@ opera_desktop_profile!(
     opera: "124",
     chromium: "140",
     brands: r#""Chromium";v="140", "Not=A?Brand";v="24", "Opera";v="124""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -132,7 +111,7 @@ opera_desktop_profile!(
     opera: "125",
     chromium: "141",
     brands: r#""Opera";v="125", "Not?A_Brand";v="8", "Chromium";v="141""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -141,7 +120,7 @@ opera_desktop_profile!(
     opera: "126",
     chromium: "142",
     brands: r#""Not:A-Brand";v="99", "Opera";v="126", "Chromium";v="142""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -150,7 +129,7 @@ opera_desktop_profile!(
     opera: "127",
     chromium: "143",
     brands: r#""Not:A-Brand";v="99", "Opera";v="127", "Chromium";v="143""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -159,7 +138,7 @@ opera_desktop_profile!(
     opera: "128",
     chromium: "144",
     brands: r#""Not:A-Brand";v="99", "Opera";v="128", "Chromium";v="144""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -168,7 +147,7 @@ opera_desktop_profile!(
     opera: "129",
     chromium: "145",
     brands: r#""Not:A-Brand";v="99", "Opera";v="129", "Chromium";v="145""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -177,7 +156,7 @@ opera_desktop_profile!(
     opera: "130",
     chromium: "146",
     brands: r#""Not:A-Brand";v="99", "Opera";v="130", "Chromium";v="146""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -186,7 +165,7 @@ opera_desktop_profile!(
     opera: "131",
     chromium: "147",
     brands: r#""Opera";v="131", "Not.A/Brand";v="8", "Chromium";v="147""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera116::build_emulation
 );
 
@@ -197,7 +176,7 @@ opera_desktop_profile!(
     opera: "132",
     chromium: "148",
     brands: r#""Chromium";v="148", "Opera";v="132", "Not/A)Brand";v="99""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     tls: tls::Preset::MlkemNewAlps,
     http2: http2::Preset::NoPush
 );
@@ -207,7 +186,7 @@ opera_desktop_profile!(
     opera: "133",
     chromium: "149",
     brands: r#""Opera";v="133", "Chromium";v="149", "Not)A;Brand";v="24""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera132::build_emulation
 );
 
@@ -216,7 +195,7 @@ opera_desktop_profile!(
     opera: "134",
     chromium: "150",
     brands: r#""Not;A=Brand";v="8", "Chromium";v="150", "Opera";v="134""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     tls: tls::Preset::MlkemNewAlpsWithMldsa,
     http2: http2::Preset::NoPush
 );
@@ -226,7 +205,7 @@ opera_desktop_profile!(
     opera: "135",
     chromium: "151",
     brands: r#""Not=A?Brand";v="99", "Opera";v="135", "Chromium";v="151""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera134::build_emulation
 );
 
@@ -236,7 +215,7 @@ opera_desktop_profile!(
     opera: "136",
     chromium: "152",
     brands: r#""Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     tls: tls::Preset::ShuffledTrustAnchorIds,
     http2: http2::Preset::NoPush
 );
@@ -246,7 +225,7 @@ opera_desktop_profile!(
     opera: "137",
     chromium: "153",
     brands: r#""Opera";v="137", "Not_A Brand";v="8", "Chromium";v="153""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     transport: opera136::build_emulation
 );
 
@@ -256,7 +235,7 @@ opera_desktop_profile!(
     opera: "138",
     chromium: "154",
     brands: r#""Chromium";v="154", "Opera";v="138", "Not A(Brand";v="99""#,
-    headers: navigation_headers_with_zstd_and_priority,
+    headers: header::Preset::ZstdWithPriority,
     tls: tls::Preset::SortedTrustAnchorIds,
     http2: http2::Preset::NoPush
 );
@@ -267,7 +246,7 @@ opera_desktop_profile!(
     opera: "139",
     chromium: "155",
     brands: r#""Opera";v="139", "Chromium";v="155", "Not(A:Brand";v="24""#,
-    headers: navigation_headers_with_jxl,
+    headers: header::Preset::Jxl,
     transport: opera138::build_emulation
 );
 
@@ -276,6 +255,6 @@ opera_desktop_profile!(
     opera: "140",
     chromium: "157",
     brands: r#""Not-A.Brand";v="99", "Opera";v="140", "Chromium";v="157""#,
-    headers: navigation_headers_with_jxl,
+    headers: header::Preset::Jxl,
     transport: opera138::build_emulation
 );
