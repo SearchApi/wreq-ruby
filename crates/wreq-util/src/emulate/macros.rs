@@ -176,7 +176,7 @@ macro_rules! platform_headers {
         $emulation:expr,
         $header_preset:path,
         $brands:literal,
-        [($default_os:ident, $default_ua:expr) $(, ($other_os:ident, $other_ua:expr))* $(,)?]
+        [($default_os:ident, $default_ua:literal) $(, ($other_os:ident, $other_ua:literal))* $(,)?]
     ) => {{
         #[allow(unreachable_patterns)]
         $emulation.headers.then(|| {
@@ -267,19 +267,6 @@ macro_rules! mod_generator {
             $build_emulation,
             |emulation: &Emulation| fixed_headers!(emulation, $header_initializer, $ua)
         );
-    };
-}
-
-macro_rules! chromium_desktop_ua {
-    ($platform:literal, $major:literal $(, $suffix:literal)*) => {
-        concat!(
-            "Mozilla/5.0 (",
-            $platform,
-            ") AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",
-            $major,
-            ".0.0.0 Safari/537.36"
-            $(, $suffix)*
-        )
     };
 }
 

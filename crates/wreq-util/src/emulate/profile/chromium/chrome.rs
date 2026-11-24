@@ -1,47 +1,6 @@
 use super::super::{Emulation, HeaderMap, Platform, build_standard_emulation};
 use super::{header, http2, tls};
 
-macro_rules! chrome_profile {
-    (
-        $name:ident,
-        major: $major:literal,
-        brands: $brands:literal,
-        ios: { os: $ios_os:literal, version: $crios_version:literal },
-        headers: $headers:path,
-        $($preset:ident: $transport:path),+ $(,)?
-    ) => {
-        chromium_profile!(
-            $name,
-            $($preset: $transport,)+
-            headers: $headers,
-            brands: $brands,
-            [
-                (MacOS, chromium_desktop_ua!("Macintosh; Intel Mac OS X 10_15_7", $major)),
-                (Linux, chromium_desktop_ua!("X11; Linux x86_64", $major)),
-                (
-                    Android,
-                    concat!(
-                        "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",
-                        $major,
-                        ".0.0.0 Mobile Safari/537.36"
-                    )
-                ),
-                (Windows, chromium_desktop_ua!("Windows NT 10.0; Win64; x64", $major)),
-                (
-                    IOS,
-                    concat!(
-                        "Mozilla/5.0 (iPhone; CPU iPhone OS ",
-                        $ios_os,
-                        " like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/",
-                        $crios_version,
-                        " Mobile/15E148 Safari/604.1"
-                    )
-                )
-            ]
-        );
-    };
-}
-
 chromium_profile!(
     v100,
     tls: tls::Preset::ClassicGroups,
@@ -714,23 +673,33 @@ chromium_profile!(
     ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v132,
-    major: 132,
-    brands: r#""Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132""#,
-    ios: { os: "17_7", version: "132.0.6834.78" },
-    headers: header::Preset::ZstdWithPriority,
     tls: tls::Preset::MlkemNewAlps,
     http2: http2::Preset::NoPush,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/132.0.6834.78 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v133,
-    major: 133,
-    brands: r#""Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133""#,
-    ios: { os: "17_7", version: "133.0.6943.33" },
-    headers: header::Preset::ZstdWithPriority,
     transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/133.0.6943.33 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 chromium_profile!(
@@ -762,103 +731,158 @@ chromium_profile!(
     ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v135,
-    major: 135,
+    transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
     brands: r#""Google Chrome";v="135", "Not-A.Brand";v="8", "Chromium";v="135""#,
-    ios: { os: "17_7", version: "135.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
-    transport: v132::build_emulation,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/135.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v136,
-    major: 136,
+    transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
     brands: r#""Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99""#,
-    ios: { os: "17_7", version: "136.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
-    transport: v132::build_emulation,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/136.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v137,
-    major: 137,
+    transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
     brands: r#""Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24""#,
-    ios: { os: "17_7", version: "137.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
-    transport: v132::build_emulation,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/137.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v138,
-    major: 138,
+    transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
     brands: r#""Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138""#,
-    ios: { os: "17_7", version: "138.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
-    transport: v132::build_emulation,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/138.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v139,
-    major: 139,
+    transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
     brands: r#""Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139""#,
-    ios: { os: "17_7", version: "139.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
-    transport: v132::build_emulation,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/139.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v140,
-    major: 140,
+    transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
     brands: r#""Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140""#,
-    ios: { os: "17_7", version: "140.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
-    transport: v132::build_emulation,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/140.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v141,
-    major: 141,
+    transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
     brands: r#""Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141""#,
-    ios: { os: "17_7", version: "141.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
-    transport: v132::build_emulation,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/141.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v142,
-    major: 142,
+    transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
     brands: r#""Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99""#,
-    ios: { os: "17_7", version: "142.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
-    transport: v132::build_emulation,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/142.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v143,
-    major: 143,
+    transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
     brands: r#""Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24""#,
-    ios: { os: "17_7", version: "143.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
-    transport: v132::build_emulation,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/143.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v144,
-    major: 144,
-    brands: r#""Not(A:Brand";v="8", "Chromium";v="144", "Google Chrome";v="144""#,
-    ios: { os: "18_3", version: "144.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
     transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Not(A:Brand";v="8", "Chromium";v="144", "Google Chrome";v="144""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/144.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v145,
-    major: 145,
-    brands: r#""Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145""#,
-    ios: { os: "18_3", version: "145.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
     transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/145.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 chromium_profile!(
@@ -919,118 +943,173 @@ chromium_profile!(
     ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v148,
-    major: 148,
-    brands: r#""Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99""#,
-    ios: { os: "18_7_7", version: "148.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
     transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/148.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v149,
-    major: 149,
-    brands: r#""Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24""#,
-    ios: { os: "18_7_7", version: "149.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
     transport: v132::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/149.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 // Add ML-DSA to the TLS signature list while leaving signature GREASE unset.
-chrome_profile!(
+chromium_profile!(
     v150,
-    major: 150,
-    brands: r#""Not;A=Brand";v="8", "Chromium";v="150", "Google Chrome";v="150""#,
-    ios: { os: "18_7_7", version: "150.0.0.0" },
-    headers: header::Preset::ZstdWithPriority,
     tls: tls::Preset::MlkemNewAlpsWithMldsa,
     http2: http2::Preset::NoPush,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Not;A=Brand";v="8", "Chromium";v="150", "Google Chrome";v="150""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/150.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
-chrome_profile!(
+chromium_profile!(
     v151,
-    major: 151,
-    brands: r#""Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151""#,
-    ios: { os: "18_7_7", version: "151.0.7922.43" },
-    headers: header::Preset::ZstdWithPriority,
     transport: v150::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/151.0.7922.43 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 // Shuffle Trust Anchor IDs per native configuration, and send Accept-Language earlier outside Linux.
-chrome_profile!(
+chromium_profile!(
     v152,
-    major: 152,
-    brands: r#""Chromium";v="152", "Not?A_Brand";v="24", "Google Chrome";v="152""#,
-    ios: { os: "18_7_7", version: "152.0.0.0" },
-    headers: header::Preset::EarlyLanguage,
     tls: tls::Preset::ShuffledTrustAnchorIds,
     http2: http2::Preset::NoPush,
+    headers: header::Preset::EarlyLanguage,
+    brands: r#""Chromium";v="152", "Not?A_Brand";v="24", "Google Chrome";v="152""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/152.0.0.0 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 // Keep the shuffled Trust Anchor IDs, but use the regular zstd/priority headers on all platforms.
-chrome_profile!(
+chromium_profile!(
     v153,
-    major: 153,
-    brands: r#""Google Chrome";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
-    ios: { os: "18_7_7", version: "153.0.8010.24" },
-    headers: header::Preset::ZstdWithPriority,
     transport: v152::build_emulation,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Google Chrome";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/153.0.8010.24 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 // Sort the raw Trust Anchor IDs before encoding them, instead of shuffling.
-chrome_profile!(
+chromium_profile!(
     v154,
-    major: 154,
-    brands: r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#,
-    ios: { os: "18_7_7", version: "154.0.8037.41" },
-    headers: header::Preset::ZstdWithPriority,
     tls: tls::Preset::SortedTrustAnchorIds,
     http2: http2::Preset::NoPush,
+    headers: header::Preset::ZstdWithPriority,
+    brands: r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/154.0.8037.41 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 // Advertise JPEG XL outside iOS while retaining Chrome 154's TLS and HTTP/2 settings.
 // The UA-CH permutation and GREASE brand are seeded by major version 155.
 // https://chromium.googlesource.com/chromium/src/+/cfaadc5a132d78e1828635aa8405a499f3e14864/components/embedder_support/user_agent_utils.cc
-chrome_profile!(
+chromium_profile!(
     v155,
-    major: 155,
-    brands: r#""Google Chrome";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
-    ios: { os: "18_7_7", version: "155.0.8059.37" },
-    headers: header::Preset::Jxl,
     transport: v154::build_emulation,
+    headers: header::Preset::Jxl,
+    brands: r#""Google Chrome";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/155.0.8059.37 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 // Chrome 156 retains Chrome 155's TLS/HTTP2 and Accept configuration.
 // https://chromium.googlesource.com/chromium/src/+/29eb03535d5f2f4f899b95f22a92413ffde5284e/components/embedder_support/user_agent_utils.cc
-chrome_profile!(
+chromium_profile!(
     v156,
-    major: 156,
-    brands: r#""Not:A-Brand";v="8", "Chromium";v="156", "Google Chrome";v="156""#,
-    ios: { os: "18_7_7", version: "156.0.8078.54" },
-    headers: header::Preset::Jxl,
     transport: v154::build_emulation,
+    headers: header::Preset::Jxl,
+    brands: r#""Not:A-Brand";v="8", "Chromium";v="156", "Google Chrome";v="156""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/156.0.8078.54 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 // Chrome 157 retains Chrome 156's TLS/HTTP2 and Accept configuration.
 // Its UA-CH order and GREASE brand are seeded by major version 157.
 // https://chromium.googlesource.com/chromium/src/+/653674df293788cf4932c40d914e9e15b41a2d31/components/embedder_support/user_agent_utils.cc
-chrome_profile!(
+chromium_profile!(
     v157,
-    major: 157,
-    brands: r#""Not-A.Brand";v="99", "Google Chrome";v="157", "Chromium";v="157""#,
-    ios: { os: "18_7_7", version: "157.0.8103.37" },
-    headers: header::Preset::Jxl,
     transport: v154::build_emulation,
+    headers: header::Preset::Jxl,
+    brands: r#""Not-A.Brand";v="99", "Google Chrome";v="157", "Chromium";v="157""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/157.0.8103.37 Mobile/15E148 Safari/604.1")
+    ]
 );
 
 // Chrome 158 retains the Chrome 157 TLS, HTTP/2 and Accept presets.
 // https://chromium.googlesource.com/chromium/src/+/b8c2be851f62f6a394ec57955d7f31335d7cb6d4/components/embedder_support/user_agent_utils.cc
-chrome_profile!(
+chromium_profile!(
     v158,
-    major: 158,
-    brands: r#""Chromium";v="158", "Not.A/Brand";v="24", "Google Chrome";v="158""#,
-    ios: { os: "18_7_7", version: "158.0.8127.35" },
-    headers: header::Preset::Jxl,
     transport: v154::build_emulation,
+    headers: header::Preset::Jxl,
+    brands: r#""Chromium";v="158", "Not.A/Brand";v="24", "Google Chrome";v="158""#,
+    [
+        (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36"),
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36"),
+        (Android, "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Mobile Safari/537.36"),
+        (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/158.0.8127.35 Mobile/15E148 Safari/604.1")
+    ]
 );
