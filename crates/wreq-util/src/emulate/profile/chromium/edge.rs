@@ -652,7 +652,7 @@ macro_rules! edge_desktop_ua {
     };
 }
 
-macro_rules! edge_desktop_profile {
+macro_rules! edge_profile {
     ($name:ident, $major:literal, $brands:literal, $($transport:tt)+) => {
         chromium_profile!(
             $name,
@@ -661,70 +661,84 @@ macro_rules! edge_desktop_profile {
             [
                 (MacOS, $brands, { edge_desktop_ua!("Macintosh; Intel Mac OS X 10_15_7", $major) }),
                 (Windows, $brands, { edge_desktop_ua!("Windows NT 10.0; Win64; x64", $major) }),
-                (Linux, $brands, { edge_desktop_ua!("X11; Linux x86_64", $major) })
+                (Linux, $brands, { edge_desktop_ua!("X11; Linux x86_64", $major) }),
+                (Android, $brands, {
+                    concat!(
+                        "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 ",
+                        "(KHTML, like Gecko) Chrome/", $major,
+                        ".0.0.0 Mobile Safari/537.36 EdgA/", $major, ".0.0.0"
+                    )
+                }),
+                (IOS, $brands, {
+                    concat!(
+                        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) ",
+                        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 EdgiOS/",
+                        $major, ".0.0.0 Mobile/15E148 Safari/605.1.15"
+                    )
+                })
             ]
         );
     };
 }
 
 // Unlike newer Chrome, Edge does not advertise JPEG XL in navigation requests.
-edge_desktop_profile!(
+edge_profile!(
     edge149,
     "149",
     r#""Microsoft Edge";v="149", "Chromium";v="149", "Not)A;Brand";v="24""#,
     transport: v132::build_emulation
 );
-edge_desktop_profile!(
+edge_profile!(
     edge150,
     "150",
     r#""Not;A=Brand";v="8", "Chromium";v="150", "Microsoft Edge";v="150""#,
     transport: v150::build_emulation
 );
-edge_desktop_profile!(
+edge_profile!(
     edge151,
     "151",
     r#""Not=A?Brand";v="99", "Microsoft Edge";v="151", "Chromium";v="151""#,
     transport: v150::build_emulation
 );
 // Edge enables TLS signature-algorithm GREASE without sending Trust Anchor IDs.
-edge_desktop_profile!(
+edge_profile!(
     edge152,
     "152",
     r#""Chromium";v="152", "Not?A_Brand";v="24", "Microsoft Edge";v="152""#,
     tls: tls::edge_signature_grease,
     http2: http2::Preset::NoPush
 );
-edge_desktop_profile!(
+edge_profile!(
     edge153,
     "153",
     r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
     transport: edge152::build_emulation
 );
-edge_desktop_profile!(
+edge_profile!(
     edge154,
     "154",
     r#""Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99""#,
     transport: edge152::build_emulation
 );
-edge_desktop_profile!(
+edge_profile!(
     edge155,
     "155",
     r#""Microsoft Edge";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
     transport: edge152::build_emulation
 );
-edge_desktop_profile!(
+edge_profile!(
     edge156,
     "156",
     r#""Not:A-Brand";v="8", "Chromium";v="156", "Microsoft Edge";v="156""#,
     transport: edge152::build_emulation
 );
-edge_desktop_profile!(
+edge_profile!(
     edge157,
     "157",
     r#""Not-A.Brand";v="99", "Microsoft Edge";v="157", "Chromium";v="157""#,
     transport: edge152::build_emulation
 );
-edge_desktop_profile!(
+edge_profile!(
     edge158,
     "158",
     r#""Chromium";v="158", "Not.A/Brand";v="24", "Microsoft Edge";v="158""#,
