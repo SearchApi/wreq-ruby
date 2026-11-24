@@ -1,9 +1,10 @@
 use std::{collections::BTreeMap, fmt};
 
-use ::serde::{Deserialize, Serialize, de::Visitor};
 use magnus::{RArray, RHash, RString, Ruby, Value, encoding::EncodingCapable, value::ReprValue};
+use serde::{Deserialize, Serialize};
+use serde_bytes::ByteBuf;
 
-use super::{deserialize_json, deserialize_ruby, serialize};
+use super::{deserialize, deserialize_json, serialize};
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct Record {
@@ -30,62 +31,13 @@ enum State {
     Failed { message: String },
 }
 
-/// Byte sequence that exercises Serde's owned byte-buffer entry points.
-#[derive(Debug, PartialEq)]
-struct ByteBuffer(Vec<u8>);
-
-impl Serialize for ByteBuffer {
-    fn serialize<Serializer>(
-        &self,
-        serializer: Serializer,
-    ) -> Result<Serializer::Ok, Serializer::Error>
-    where
-        Serializer: ::serde::Serializer,
-    {
-        serializer.serialize_bytes(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for ByteBuffer {
-    fn deserialize<Deserializer>(deserializer: Deserializer) -> Result<Self, Deserializer::Error>
-    where
-        Deserializer: ::serde::Deserializer<'de>,
-    {
-        struct ByteBufferVisitor;
-
-        impl<'de> Visitor<'de> for ByteBufferVisitor {
-            type Value = ByteBuffer;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("an owned byte buffer")
-            }
-
-            fn visit_bytes<Error>(self, value: &[u8]) -> Result<Self::Value, Error>
-            where
-                Error: ::serde::de::Error,
-            {
-                Ok(ByteBuffer(value.to_vec()))
-            }
-
-            fn visit_byte_buf<Error>(self, value: Vec<u8>) -> Result<Self::Value, Error>
-            where
-                Error: ::serde::de::Error,
-            {
-                Ok(ByteBuffer(value))
-            }
-        }
-
-        deserializer.deserialize_byte_buf(ByteBufferVisitor)
-    }
-}
-
 /// Assert that a supported Serde value survives conversion through Ruby.
 fn assert_ruby_round_trip<Input>(ruby: &Ruby, input: Input) -> Result<(), magnus::Error>
 where
     Input: fmt::Debug + PartialEq + Serialize + for<'de> Deserialize<'de>,
 {
     let value: Value = serialize(ruby, &input)?;
-    let output: Input = deserialize_ruby(ruby, value)?;
+    let output: Input = deserialize(ruby, value)?;
     assert_eq!(input, output);
     Ok(())
 }
@@ -110,22 +62,20 @@ fn assert_scalar_conversions(ruby: &Ruby) -> Result<(), magnus::Error> {
     let character: RString = serialize(ruby, &'\u{2603}')?;
     assert_eq!("\u{2603}", character.to_string()?);
     assert!(character.enc_get() == ruby.utf8_encindex());
-    let output: char = deserialize_ruby(ruby, character)?;
+    let output: char = deserialize(ruby, character)?;
     assert_eq!('\u{2603}', output);
 
     let string: RString = serialize(ruby, &"Hello, world!")?;
     assert_eq!("Hello, world!", string.to_string()?);
     assert!(string.enc_get() == ruby.utf8_encindex());
-    assert_eq!(
-        "Hello, world!",
-        deserialize_ruby::<_, String>(ruby, string)?
-    );
+    assert_eq!("Hello, world!", deserialize::<_, String>(ruby, string)?);
 
-    let bytes = ByteBuffer(b"\0binary\xff".to_vec());
+    let bytes = ByteBuf::from(b"\0binary\xff".as_slice());
     let value: RString = serialize(ruby, &bytes)?;
-    assert_eq!(bytes.0.as_slice(), value.to_bytes().as_ref());
+    assert_eq!(bytes.as_ref(), value.to_bytes().as_ref());
     assert!(value.enc_get() == ruby.ascii8bit_encindex());
-    assert_eq!(bytes, deserialize_ruby(ruby, value)?);
+    let output: ByteBuf = deserialize(ruby, value)?;
+    assert_eq!(bytes, output);
 
     let none: Value = serialize(ruby, &Option::<u64>::None)?;
     assert!(none.is_nil());
@@ -157,7 +107,7 @@ fn assert_composite_conversions(ruby: &Ruby) -> Result<(), magnus::Error> {
     let value: RHash = serialize(ruby, &record)?;
     let count: u64 = value.aref(ruby.to_symbol("count"))?;
     assert_eq!(record.count, count);
-    assert_eq!(record, deserialize_ruby(ruby, value)?);
+    assert_eq!(record, deserialize(ruby, value)?);
 
     let map = BTreeMap::from([("first".to_owned(), 1_u64), ("second".to_owned(), 2)]);
     assert_ruby_round_trip(ruby, map)?;
@@ -190,43 +140,44 @@ fn assert_integer_conversions(ruby: &Ruby) -> Result<(), magnus::Error> {
     let value: Value = serialize(ruby, &i128::MIN)?;
     let decimal: String = value.funcall("to_s", ())?;
     assert_eq!(i128::MIN.to_string(), decimal);
-    assert_eq!(i128::MIN, deserialize_ruby::<_, i128>(ruby, value)?);
+    assert_eq!(i128::MIN, deserialize::<_, i128>(ruby, value)?);
     assert_eq!(i128::MIN, deserialize_json::<_, i128>(ruby, value)?);
 
     let value: Value = serialize(ruby, &u128::MAX)?;
     let decimal: String = value.funcall("to_s", ())?;
     assert_eq!(u128::MAX.to_string(), decimal);
-    assert_eq!(u128::MAX, deserialize_ruby::<_, u128>(ruby, value)?);
+    assert_eq!(u128::MAX, deserialize::<_, u128>(ruby, value)?);
     assert_eq!(u128::MAX, deserialize_json::<_, u128>(ruby, value)?);
 
     let value: Value = serialize(ruby, &u64::MAX)?;
-    assert_eq!(u64::MAX, deserialize_ruby::<_, u64>(ruby, value)?);
+    assert_eq!(u64::MAX, deserialize::<_, u64>(ruby, value)?);
     assert_eq!(u64::MAX, deserialize_json::<_, u64>(ruby, value)?);
     Ok(())
 }
 
 /// Verify unsupported borrowed values and malformed enum shapes return errors.
 fn assert_conversion_errors(ruby: &Ruby) -> Result<(), magnus::Error> {
-    let error = deserialize_ruby::<_, &str>(ruby, ruby.str_new("borrowed"))
+    let error = deserialize::<_, &str>(ruby, ruby.str_new("borrowed"))
         .expect_err("borrowed strings must not outlive their Ruby value");
     assert_type_error(error, "expected a borrowed string");
 
-    let error = deserialize_ruby::<_, &[u8]>(ruby, ruby.str_new("borrowed"))
+    let error = deserialize::<_, &[u8]>(ruby, ruby.str_new("borrowed"))
         .expect_err("borrowed byte slices must not outlive their Ruby value");
     assert_type_error(error, "can't deserialize into byte slice");
 
     let variants = ruby.hash_new();
     variants.aset("Ready", ruby.qnil())?;
     variants.aset("Count", 1)?;
-    let error = deserialize_ruby::<_, State>(ruby, variants)
+    let error = deserialize::<_, State>(ruby, variants)
         .expect_err("an enum hash must contain exactly one variant");
     assert_type_error(error, "Hash of length 2");
     Ok(())
 }
 
 #[test]
+#[allow(unsafe_code)]
 fn retains_ruby_serde_conversion_surface() -> Result<(), magnus::Error> {
-    // SAFETY: this is the only test that initializes the embedded Ruby VM.
+    // SAFETY: this process initializes the embedded Ruby VM once on this thread.
     let ruby = unsafe { magnus::embed::init() };
 
     assert_scalar_conversions(&ruby)?;

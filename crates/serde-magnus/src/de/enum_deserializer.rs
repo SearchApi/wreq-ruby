@@ -1,8 +1,8 @@
-use ::serde::de::{DeserializeSeed, EnumAccess, value::StringDeserializer};
 use magnus::{Ruby, Value};
+use serde::de::{DeserializeSeed, EnumAccess, IntoDeserializer};
 
 use super::{Mode, VariantDeserializer};
-use crate::serde::Error;
+use crate::error::Error;
 
 /// Serde enum access over a Ruby string or one-entry hash.
 pub(super) struct EnumDeserializer<'ruby> {
@@ -41,7 +41,7 @@ impl<'ruby, 'de> EnumAccess<'de> for EnumDeserializer<'ruby> {
         Seed: DeserializeSeed<'de>,
     {
         let variant = VariantDeserializer::new(self.ruby, self.value, self.depth, self.mode);
-        seed.deserialize(StringDeserializer::<Error>::new(self.variant))
+        seed.deserialize(self.variant.into_deserializer())
             .map(|value| (value, variant))
     }
 }

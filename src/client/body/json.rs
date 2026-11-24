@@ -9,8 +9,9 @@
 
 use ::serde::{Deserialize, Serialize};
 use magnus::{Error, Ruby, TryConvert, Value};
+use serde_magnus::deserialize_json;
 
-use crate::{error::json_serialization_error, serde::deserialize_json};
+use crate::error::json_serialization_error;
 
 /// An owned JSON tree shared by request and response conversion.
 ///

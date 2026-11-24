@@ -1,8 +1,8 @@
-use ::serde::de::{DeserializeSeed, SeqAccess};
 use magnus::{RArray, Ruby};
+use serde::de::{DeserializeSeed, SeqAccess};
 
 use super::{Deserializer, Mode, array_enumerator::ArrayEnumerator};
-use crate::serde::Error;
+use crate::error::Error;
 
 /// Serde sequence access over a Ruby array.
 pub(super) struct ArrayDeserializer<'ruby> {

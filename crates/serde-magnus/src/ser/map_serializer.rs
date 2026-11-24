@@ -1,8 +1,8 @@
-use ::serde::{Serialize, ser::SerializeMap};
 use magnus::{IntoValue, RHash, Ruby, Value};
+use serde::{Serialize, ser::SerializeMap};
 
 use super::Serializer;
-use crate::serde::Error;
+use crate::error::Error;
 
 /// Serde map serializer backed by a Ruby hash.
 pub(super) struct MapSerializer<'ruby> {

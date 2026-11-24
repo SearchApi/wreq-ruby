@@ -14,7 +14,6 @@ mod header;
 mod http;
 mod options;
 mod rt;
-mod serde;
 mod tls;
 
 use magnus::{Error, Module, Ruby, Value};
