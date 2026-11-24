@@ -90,6 +90,16 @@ module Wreq
       Edge146 = nil
       Edge147 = nil
       Edge148 = nil
+      Edge149 = nil
+      Edge150 = nil
+      Edge151 = nil
+      Edge152 = nil
+      Edge153 = nil
+      Edge154 = nil
+      Edge155 = nil
+      Edge156 = nil
+      Edge157 = nil
+      Edge158 = nil
 
       Firefox109 = nil
       Firefox117 = nil

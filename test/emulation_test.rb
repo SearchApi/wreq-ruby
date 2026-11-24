@@ -6,6 +6,7 @@ require "stringio"
 require "timeout"
 
 class EmulationTest < Minitest::Test
+  SIGNATURE_ALGORITHMS = 13
   TRUST_ANCHOR_IDS = 51_764
 
   def test_reused_emulation_retains_trust_anchors_across_clients_and_requests
@@ -26,6 +27,17 @@ class EmulationTest < Minitest::Test
     end
   end
 
+  def test_edge158_sends_signature_grease_without_trust_anchors
+    client = Wreq::Client.new(emulation: Wreq::Emulation.new(profile: Wreq::Profile::Edge158), no_proxy: true)
+    _, extensions = capture_client_hello { |url| client.get(url, timeout: 5) }
+
+    _, grease, *signatures = extensions.fetch(SIGNATURE_ALGORITHMS).unpack("n*")
+    assert_equal 0x0a0a, grease & 0x0f0f
+    assert_equal grease >> 8, grease & 0xff
+    assert_equal [0x0904, 0x0905, 0x0906], signatures.first(3) # ML-DSA
+    refute extensions.key?(TRUST_ANCHOR_IDS)
+  end
+
   def test_all_emulation_device_constants_are_non_nil
     Wreq::Profile.constants.each do |name|
       const = Wreq::Profile.const_get(name)
@@ -39,6 +51,16 @@ class EmulationTest < Minitest::Test
 
     assert_equal "Chrome151", profile.to_s
     assert_instance_of Wreq::Emulation, Wreq::Emulation.new(profile: profile)
+  end
+
+  def test_all_edge_profiles_are_available
+    ([101, 122, 127, 131] + (134..158).to_a).each do |version|
+      name = "Edge#{version}"
+      assert Wreq::Profile.const_defined?(name, false), "missing #{name}"
+      profile = Wreq::Profile.const_get(name, false)
+      assert_equal name, profile.to_s
+      assert_instance_of Wreq::Emulation, Wreq::Emulation.new(profile: profile)
+    end
   end
 
   def test_new_browser_profiles_are_available
