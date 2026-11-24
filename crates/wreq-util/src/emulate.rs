@@ -108,6 +108,15 @@ define_enum!(
     Opera129 => ("opera_129", opera129::emulation),
     Opera130 => ("opera_130", opera130::emulation),
     Opera131 => ("opera_131", opera131::emulation),
+    Opera132 => ("opera_132", opera132::emulation),
+    Opera133 => ("opera_133", opera133::emulation),
+    Opera134 => ("opera_134", opera134::emulation),
+    Opera135 => ("opera_135", opera135::emulation),
+    Opera136 => ("opera_136", opera136::emulation),
+    Opera137 => ("opera_137", opera137::emulation),
+    Opera138 => ("opera_138", opera138::emulation),
+    Opera139 => ("opera_139", opera139::emulation),
+    Opera140 => ("opera_140", opera140::emulation),
 
     // Firefox versions
     Firefox109 => ("firefox_109", ff109::emulation),
