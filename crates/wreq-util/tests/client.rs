@@ -210,6 +210,7 @@ async fn test_edge158_mobile_headers() {
                     .platform(platform)
                     .build(),
             )
+            .no_proxy()
             .build()
             .unwrap()
             .get(format!("http://{}/", server.addr()))
