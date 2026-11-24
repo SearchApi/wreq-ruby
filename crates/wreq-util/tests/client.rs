@@ -144,6 +144,44 @@ async fn test_chrome_default_header_order() {
 }
 
 #[tokio::test]
+async fn test_edge158_desktop_headers() {
+    let server = server::http(|request| async move {
+        let headers = request.headers();
+        assert_eq!(
+            headers["user-agent"],
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36 Edg/158.0.0.0"
+        );
+        assert_eq!(
+            headers["sec-ch-ua"],
+            r#""Chromium";v="158", "Not.A/Brand";v="24", "Microsoft Edge";v="158""#
+        );
+        assert_eq!(
+            headers["accept"],
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+        );
+        #[cfg(feature = "emulation-compression")]
+        assert_eq!(headers["accept-encoding"], "gzip, deflate, br, zstd");
+        assert_eq!(headers["priority"], "u=0, i");
+        http::Response::default()
+    });
+
+    let response = Client::builder_tokio()
+        .emulation(
+            Emulation::builder()
+                .profile(Emulation::Edge158)
+                .platform(Platform::Windows)
+                .build(),
+        )
+        .build()
+        .unwrap()
+        .get(format!("http://{}/", server.addr()))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), wreq::StatusCode::OK);
+}
+
+#[tokio::test]
 async fn test_linux_navigation_emulation_headers() {
     let linux = |profile| {
         Emulation::builder()

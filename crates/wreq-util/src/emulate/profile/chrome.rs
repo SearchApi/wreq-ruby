@@ -2303,3 +2303,104 @@ mod_generator!(
         )
     ]
 );
+
+macro_rules! edge_desktop_ua {
+    ($platform:literal, $major:literal) => {
+        concat!(
+            "Mozilla/5.0 (",
+            $platform,
+            ") AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",
+            $major,
+            ".0.0.0 Safari/537.36 Edg/",
+            $major,
+            ".0.0.0"
+        )
+    };
+}
+
+macro_rules! edge_desktop_profile {
+    ($name:ident, $major:literal, $brands:literal, $($transport:expr),+ $(,)?) => {
+        standard_mod_generator!($name, $($transport,)+ |emulation: &Emulation| {
+            emulation.headers.then(|| {
+                let (platform, ua) = match emulation.platform {
+                    Platform::Windows => (
+                        Platform::Windows,
+                        edge_desktop_ua!("Windows NT 10.0; Win64; x64", $major),
+                    ),
+                    Platform::Linux => (
+                        Platform::Linux,
+                        edge_desktop_ua!("X11; Linux x86_64", $major),
+                    ),
+                    _ => (
+                        Platform::MacOS,
+                        edge_desktop_ua!("Macintosh; Intel Mac OS X 10_15_7", $major),
+                    ),
+                };
+                header_initializer_with_zstd_priority($brands, ua, platform)
+            })
+        });
+    };
+}
+
+// Unlike newer Chrome, Edge does not advertise JPEG XL in navigation requests.
+edge_desktop_profile!(
+    edge149,
+    "149",
+    r#""Microsoft Edge";v="149", "Chromium";v="149", "Not)A;Brand";v="24""#,
+    v132::build_emulation
+);
+edge_desktop_profile!(
+    edge150,
+    "150",
+    r#""Not;A=Brand";v="8", "Chromium";v="150", "Microsoft Edge";v="150""#,
+    v150::build_emulation
+);
+edge_desktop_profile!(
+    edge151,
+    "151",
+    r#""Not=A?Brand";v="99", "Microsoft Edge";v="151", "Chromium";v="151""#,
+    v150::build_emulation
+);
+edge_desktop_profile!(
+    edge152,
+    "152",
+    r#""Chromium";v="152", "Not?A_Brand";v="24", "Microsoft Edge";v="152""#,
+    tls_options!(edge),
+    http2_options!(3)
+);
+edge_desktop_profile!(
+    edge153,
+    "153",
+    r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
+    edge152::build_emulation
+);
+edge_desktop_profile!(
+    edge154,
+    "154",
+    r#""Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99""#,
+    edge152::build_emulation
+);
+edge_desktop_profile!(
+    edge155,
+    "155",
+    r#""Microsoft Edge";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
+    edge152::build_emulation
+);
+edge_desktop_profile!(
+    edge156,
+    "156",
+    r#""Not:A-Brand";v="8", "Chromium";v="156", "Microsoft Edge";v="156""#,
+    edge152::build_emulation
+);
+edge_desktop_profile!(
+    edge157,
+    "157",
+    r#""Not-A.Brand";v="99", "Microsoft Edge";v="157", "Chromium";v="157""#,
+    edge152::build_emulation
+);
+edge_desktop_profile!(
+    edge158,
+    "158",
+    r#""Chromium";v="158", "Not.A/Brand";v="24", "Microsoft Edge";v="158""#,
+    edge152::build_emulation
+);
