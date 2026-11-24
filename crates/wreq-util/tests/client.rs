@@ -144,6 +144,32 @@ async fn test_chrome_default_header_order() {
 }
 
 #[tokio::test]
+async fn test_edge134_sec_ch_ua() {
+    let server = server::http(|request| async move {
+        let mut response = http::Response::default();
+        response
+            .headers_mut()
+            .insert("sec-ch-ua", request.headers()["sec-ch-ua"].clone());
+        response
+    });
+    let response = Client::builder_tokio()
+        .emulation(Emulation::Edge134)
+        .no_proxy()
+        .build()
+        .expect("client")
+        .get(format!("http://{}/", server.addr()))
+        .send()
+        .await
+        .expect("request");
+
+    assert_eq!(response.status(), wreq::StatusCode::OK);
+    assert_eq!(
+        response.headers()["sec-ch-ua"],
+        r#""Chromium";v="134", "Not:A-Brand";v="24", "Microsoft Edge";v="134""#
+    );
+}
+
+#[tokio::test]
 async fn test_edge158_desktop_headers() {
     let server = server::http(|request| async move {
         let headers = request.headers();
@@ -187,7 +213,7 @@ async fn test_edge158_mobile_headers() {
         (
             Platform::Android,
             "\"Android\"",
-            "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Mobile Safari/537.36 EdgA/158.0.0.0",
+            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Mobile Safari/537.36 EdgA/158.0.0.0",
         ),
         (
             Platform::IOS,
