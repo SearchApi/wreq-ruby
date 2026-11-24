@@ -1,4 +1,8 @@
-use super::*;
+#[cfg(feature = "emulation-compression")]
+use super::super::super::ACCEPT_ENCODING;
+use super::super::super::{
+    ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderName, HeaderValue, Platform, USER_AGENT,
+};
 
 #[inline]
 pub(super) fn navigation_headers_with_zstd_and_priority(
