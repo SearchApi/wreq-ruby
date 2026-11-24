@@ -705,7 +705,7 @@ edge_profile!(
     edge152,
     "152",
     r#""Chromium";v="152", "Not?A_Brand";v="24", "Microsoft Edge";v="152""#,
-    tls: tls::edge_signature_grease,
+    tls: tls::Preset::EdgeSignatureGrease,
     http2: http2::Preset::NoPush
 );
 edge_profile!(

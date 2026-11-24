@@ -10,7 +10,7 @@ use super::{
 
 chromium_profile!(
     v100,
-    tls: tls::classic_groups,
+    tls: tls::Preset::ClassicGroups,
     http2: http2::Preset::StreamLimit,
     headers: navigation_headers,
     [
@@ -110,7 +110,7 @@ chromium_profile!(
 
 chromium_profile!(
     v105,
-    tls: tls::ech_grease,
+    tls: tls::Preset::EchGrease,
     http2: http2::Preset::StreamLimit,
     headers: navigation_headers,
     [
@@ -145,7 +145,7 @@ chromium_profile!(
 // This preset explicitly disables HTTP/2 push; earlier presets leave ENABLE_PUSH unset.
 chromium_profile!(
     v106,
-    tls: tls::permuted_extensions,
+    tls: tls::Preset::PermutedExtensions,
     http2: http2::Preset::StreamLimitNoPush,
     headers: navigation_headers,
     [
@@ -340,7 +340,7 @@ chromium_profile!(
 
 chromium_profile!(
     v116,
-    tls: tls::permuted_extensions_with_ech_grease,
+    tls: tls::Preset::PermutedExtensionsWithEchGrease,
     http2: http2::Preset::StreamLimitNoPush,
     headers: navigation_headers,
     [
@@ -375,7 +375,7 @@ chromium_profile!(
 // The HTTP/2 stream limit is omitted here, while ENABLE_PUSH stays explicitly disabled.
 chromium_profile!(
     v117,
-    tls: tls::resumption,
+    tls: tls::Preset::Resumption,
     http2: http2::Preset::NoPush,
     headers: navigation_headers,
     [
@@ -471,7 +471,7 @@ chromium_profile!(
 // Chrome 118 keeps the no-push HTTP/2 settings but leaves TLS resumption off.
 chromium_profile!(
     v118,
-    tls: tls::permuted_extensions_with_ech_grease,
+    tls: tls::Preset::PermutedExtensionsWithEchGrease,
     http2: http2::Preset::NoPush,
     headers: navigation_headers,
     [
@@ -538,7 +538,7 @@ chromium_profile!(
 
 chromium_profile!(
     v124,
-    tls: tls::resumption_with_kyber,
+    tls: tls::Preset::ResumptionWithKyber,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd,
     [
@@ -738,7 +738,7 @@ chromium_profile!(
 
 chromium_profile!(
     v131,
-    tls: tls::resumption_with_mlkem,
+    tls: tls::Preset::ResumptionWithMlkem,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -772,7 +772,7 @@ chromium_profile!(
 
 chromium_profile!(
     v132,
-    tls: tls::mlkem_new_alps,
+    tls: tls::Preset::MlkemNewAlps,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -1368,7 +1368,7 @@ chromium_profile!(
 // Add ML-DSA to the TLS signature list while leaving signature GREASE unset.
 chromium_profile!(
     v150,
-    tls: tls::mlkem_new_alps_with_mldsa,
+    tls: tls::Preset::MlkemNewAlpsWithMldsa,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -1436,7 +1436,7 @@ chromium_profile!(
 // Shuffle Trust Anchor IDs per native configuration, and send Accept-Language earlier outside Linux.
 chromium_profile!(
     v152,
-    tls: tls::shuffled_trust_anchor_ids,
+    tls: tls::Preset::ShuffledTrustAnchorIds,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_language_and_zstd_only,
     [
@@ -1505,7 +1505,7 @@ chromium_profile!(
 // Sort the raw Trust Anchor IDs before encoding them, instead of shuffling.
 chromium_profile!(
     v154,
-    tls: tls::sorted_trust_anchor_ids,
+    tls: tls::Preset::SortedTrustAnchorIds,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [

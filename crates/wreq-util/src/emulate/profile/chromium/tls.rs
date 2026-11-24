@@ -1,117 +1,145 @@
 use super::super::{
     AlpsProtocol, BrotliCompressor, CertificateCompressor, EchGrease, EchGreaseAead, Tls13Cipher,
-    TlsOptions, TlsVersion, TypedBuilder,
+    TlsOptions, TlsVersion,
 };
 
-pub(super) fn classic_groups() -> TlsOptions {
-    ChromeTlsConfig::builder().build().into()
+#[derive(Clone, Copy)]
+pub(super) enum Preset {
+    ClassicGroups,
+    EchGrease,
+    PermutedExtensions,
+    PermutedExtensionsWithEchGrease,
+    Resumption,
+    ResumptionWithKyber,
+    ResumptionWithMlkem,
+    MlkemNewAlps,
+    MlkemNewAlpsWithMldsa,
+    ShuffledTrustAnchorIds,
+    SortedTrustAnchorIds,
+    EdgeSignatureGrease,
 }
 
-pub(super) fn ech_grease() -> TlsOptions {
-    ChromeTlsConfig::builder()
-        .enable_ech_grease(true)
-        .build()
-        .into()
+struct Settings {
+    curves: &'static str,
+    sigalgs: &'static str,
+    permute_extensions: bool,
+    ech_grease: bool,
+    pre_shared_key: bool,
+    new_alps: bool,
+    grease_sigalgs: Option<bool>,
+    trust_anchors: Option<TrustAnchorOrder>,
 }
 
-pub(super) fn permuted_extensions() -> TlsOptions {
-    ChromeTlsConfig::builder()
-        .permute_extensions(true)
-        .build()
-        .into()
+enum TrustAnchorOrder {
+    Shuffled,
+    Sorted,
 }
 
-pub(super) fn permuted_extensions_with_ech_grease() -> TlsOptions {
-    ChromeTlsConfig::builder()
-        .permute_extensions(true)
-        .enable_ech_grease(true)
-        .build()
-        .into()
-}
+impl Preset {
+    pub(super) fn build(self) -> TlsOptions {
+        const CLASSIC: Settings = Settings {
+            curves: CLASSIC_X25519_GROUPS,
+            sigalgs: SIGALGS_LIST,
+            permute_extensions: false,
+            ech_grease: false,
+            pre_shared_key: false,
+            new_alps: false,
+            grease_sigalgs: None,
+            trust_anchors: None,
+        };
 
-pub(super) fn resumption() -> TlsOptions {
-    ChromeTlsConfig::builder()
-        .permute_extensions(true)
-        .enable_ech_grease(true)
-        .pre_shared_key(true)
-        .build()
-        .into()
-}
+        const PERMUTED_ECH: Settings = Settings {
+            permute_extensions: true,
+            ech_grease: true,
+            ..CLASSIC
+        };
 
-pub(super) fn resumption_with_kyber() -> TlsOptions {
-    resumption_with_groups(KYBER_DRAFT_GROUPS)
-}
+        const RESUMPTION: Settings = Settings {
+            pre_shared_key: true,
+            ..PERMUTED_ECH
+        };
 
-pub(super) fn resumption_with_mlkem() -> TlsOptions {
-    resumption_with_groups(MLKEM_GROUPS)
-}
+        const MLKEM_NEW_ALPS: Settings = Settings {
+            curves: MLKEM_GROUPS,
+            new_alps: true,
+            ..RESUMPTION
+        };
 
-fn resumption_with_groups(groups: &'static str) -> TlsOptions {
-    ChromeTlsConfig::builder()
-        .permute_extensions(true)
-        .enable_ech_grease(true)
-        .pre_shared_key(true)
-        .curves(groups)
-        .build()
-        .into()
-}
+        const MLDSA: Settings = Settings {
+            sigalgs: SIGALGS_WITH_MLDSA,
+            ..MLKEM_NEW_ALPS
+        };
 
-pub(super) fn mlkem_new_alps() -> TlsOptions {
-    ChromeTlsConfig::builder()
-        .permute_extensions(true)
-        .enable_ech_grease(true)
-        .pre_shared_key(true)
-        .curves(MLKEM_GROUPS)
-        .alps_use_new_codepoint(true)
-        .build()
-        .into()
-}
+        const SIGNATURE_GREASE: Settings = Settings {
+            grease_sigalgs: Some(true),
+            ..MLDSA
+        };
 
-pub(super) fn mlkem_new_alps_with_mldsa() -> TlsOptions {
-    ChromeTlsConfig::builder()
-        .permute_extensions(true)
-        .enable_ech_grease(true)
-        .pre_shared_key(true)
-        .curves(MLKEM_GROUPS)
-        .sigalgs_list(SIGALGS_WITH_MLDSA)
-        .alps_use_new_codepoint(true)
-        .build()
-        .into()
-}
+        let settings = match self {
+            Self::ClassicGroups => CLASSIC,
+            Self::EchGrease => Settings {
+                ech_grease: true,
+                ..CLASSIC
+            },
+            Self::PermutedExtensions => Settings {
+                permute_extensions: true,
+                ..CLASSIC
+            },
+            Self::PermutedExtensionsWithEchGrease => PERMUTED_ECH,
+            Self::Resumption => RESUMPTION,
+            Self::ResumptionWithKyber => Settings {
+                curves: KYBER_DRAFT_GROUPS,
+                ..RESUMPTION
+            },
+            Self::ResumptionWithMlkem => Settings {
+                curves: MLKEM_GROUPS,
+                ..RESUMPTION
+            },
+            Self::MlkemNewAlps => MLKEM_NEW_ALPS,
+            Self::MlkemNewAlpsWithMldsa => MLDSA,
+            Self::ShuffledTrustAnchorIds => Settings {
+                trust_anchors: Some(TrustAnchorOrder::Shuffled),
+                ..SIGNATURE_GREASE
+            },
+            Self::SortedTrustAnchorIds => Settings {
+                trust_anchors: Some(TrustAnchorOrder::Sorted),
+                ..SIGNATURE_GREASE
+            },
+            Self::EdgeSignatureGrease => SIGNATURE_GREASE,
+        };
 
-pub(super) fn shuffled_trust_anchor_ids() -> TlsOptions {
-    with_trust_anchor_ids(|| shuffled_trust_anchors(crate::rand::fast_random))
-}
+        let builder = TlsOptions::builder()
+            .grease_enabled(true)
+            .enable_ocsp_stapling(true)
+            .enable_signed_cert_timestamps(true)
+            .curves_list(settings.curves)
+            .sigalgs_list(settings.sigalgs)
+            .cipher_list(CIPHER_LIST)
+            .tls13_cipher_list(TLS13_CIPHER_LIST)
+            .min_tls_version(TlsVersion::TLS_1_2)
+            .max_tls_version(TlsVersion::TLS_1_3)
+            .permute_extensions(settings.permute_extensions)
+            .pre_shared_key(settings.pre_shared_key)
+            .ech_grease(
+                settings
+                    .ech_grease
+                    .then_some(EchGrease::Aead(EchGreaseAead::AES_128_GCM)),
+            )
+            .alps_protocols([AlpsProtocol::HTTP2])
+            .alps_use_new_codepoint(settings.new_alps)
+            .certificate_compressors(CERTIFICATE_COMPRESSORS)
+            .grease_sigalgs_enabled(settings.grease_sigalgs);
 
-pub(super) fn sorted_trust_anchor_ids() -> TlsOptions {
-    with_trust_anchor_ids(sorted_trust_anchors)
-}
-
-fn with_trust_anchor_ids(trust_anchors: impl FnOnce() -> Vec<u8>) -> TlsOptions {
-    ChromeTlsConfig::builder()
-        .permute_extensions(true)
-        .enable_ech_grease(true)
-        .pre_shared_key(true)
-        .curves(MLKEM_GROUPS)
-        .sigalgs_list(SIGALGS_WITH_MLDSA)
-        .trust_anchors(trust_anchors())
-        .grease_sigalgs_enabled(true)
-        .alps_use_new_codepoint(true)
-        .build()
-        .into()
-}
-
-pub(super) fn edge_signature_grease() -> TlsOptions {
-    ChromeTlsConfig::builder()
-        .permute_extensions(true)
-        .enable_ech_grease(true)
-        .pre_shared_key(true)
-        .curves(MLKEM_GROUPS)
-        .sigalgs_list(SIGALGS_WITH_MLDSA)
-        .grease_sigalgs_enabled(true)
-        .alps_use_new_codepoint(true)
-        .build()
-        .into()
+        // Skipping this setter omits the extension; an empty list would still send it.
+        let builder = match settings.trust_anchors {
+            Some(TrustAnchorOrder::Shuffled) => {
+                builder.trust_anchors(shuffled_trust_anchors(crate::rand::fast_random))
+            }
+            Some(TrustAnchorOrder::Sorted) => builder.trust_anchors(sorted_trust_anchors()),
+            None => builder,
+        };
+        builder.build()
+    }
 }
 
 const CLASSIC_X25519_GROUPS: &str = join!(":", "X25519", "P-256", "P-384");
@@ -209,74 +237,6 @@ fn encode_trust_anchors(ids: &[&[u8]]) -> Vec<u8> {
 }
 
 pub const CERTIFICATE_COMPRESSORS: &[&'static dyn CertificateCompressor] = &[&BrotliCompressor];
-
-#[derive(TypedBuilder)]
-pub struct ChromeTlsConfig {
-    #[builder(default = CLASSIC_X25519_GROUPS)]
-    curves: &'static str,
-
-    #[builder(default = SIGALGS_LIST)]
-    sigalgs_list: &'static str,
-
-    #[builder(default = CIPHER_LIST)]
-    cipher_list: &'static str,
-
-    #[builder(default = AlpsProtocol::HTTP2, setter(into))]
-    alps_protos: AlpsProtocol,
-
-    #[builder(default = false)]
-    alps_use_new_codepoint: bool,
-
-    #[builder(default = false, setter(into))]
-    enable_ech_grease: bool,
-
-    #[builder(default = false, setter(into))]
-    permute_extensions: bool,
-
-    #[builder(default = false, setter(into))]
-    pre_shared_key: bool,
-
-    #[builder(default, setter(strip_option))]
-    trust_anchors: Option<Vec<u8>>,
-
-    #[builder(default, setter(strip_option))]
-    grease_sigalgs_enabled: Option<bool>,
-}
-
-impl From<ChromeTlsConfig> for TlsOptions {
-    fn from(val: ChromeTlsConfig) -> Self {
-        let builder = TlsOptions::builder()
-            .grease_enabled(true)
-            .enable_ocsp_stapling(true)
-            .enable_signed_cert_timestamps(true)
-            .curves_list(val.curves)
-            .sigalgs_list(val.sigalgs_list)
-            .cipher_list(val.cipher_list)
-            .tls13_cipher_list(TLS13_CIPHER_LIST)
-            .min_tls_version(TlsVersion::TLS_1_2)
-            .max_tls_version(TlsVersion::TLS_1_3)
-            .permute_extensions(val.permute_extensions)
-            .pre_shared_key(val.pre_shared_key)
-            .ech_grease(
-                val.enable_ech_grease
-                    .then_some(EchGrease::Aead(EchGreaseAead::AES_128_GCM)),
-            )
-            .alps_protocols([val.alps_protos])
-            .alps_use_new_codepoint(val.alps_use_new_codepoint)
-            .certificate_compressors(CERTIFICATE_COMPRESSORS);
-        let builder = if let Some(trust_anchors) = val.trust_anchors {
-            builder.trust_anchors(trust_anchors)
-        } else {
-            builder
-        };
-        let builder = if let Some(enabled) = val.grease_sigalgs_enabled {
-            builder.grease_sigalgs_enabled(enabled)
-        } else {
-            builder
-        };
-        builder.build()
-    }
-}
 
 #[cfg(test)]
 mod tests {

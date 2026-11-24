@@ -51,7 +51,7 @@ opera_desktop_profile!(
     chromium: "131",
     brands: r#""Opera";v="116", "Chromium";v="131", "Not_A Brand";v="24""#,
     headers: navigation_headers_with_zstd_and_priority,
-    tls: tls::resumption_with_mlkem,
+    tls: tls::Preset::ResumptionWithMlkem,
     http2: http2::Preset::NoPush
 );
 
@@ -198,7 +198,7 @@ opera_desktop_profile!(
     chromium: "148",
     brands: r#""Chromium";v="148", "Opera";v="132", "Not/A)Brand";v="99""#,
     headers: navigation_headers_with_zstd_and_priority,
-    tls: tls::mlkem_new_alps,
+    tls: tls::Preset::MlkemNewAlps,
     http2: http2::Preset::NoPush
 );
 
@@ -217,7 +217,7 @@ opera_desktop_profile!(
     chromium: "150",
     brands: r#""Not;A=Brand";v="8", "Chromium";v="150", "Opera";v="134""#,
     headers: navigation_headers_with_zstd_and_priority,
-    tls: tls::mlkem_new_alps_with_mldsa,
+    tls: tls::Preset::MlkemNewAlpsWithMldsa,
     http2: http2::Preset::NoPush
 );
 
@@ -237,7 +237,7 @@ opera_desktop_profile!(
     chromium: "152",
     brands: r#""Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136""#,
     headers: navigation_headers_with_zstd_and_priority,
-    tls: tls::shuffled_trust_anchor_ids,
+    tls: tls::Preset::ShuffledTrustAnchorIds,
     http2: http2::Preset::NoPush
 );
 
@@ -257,7 +257,7 @@ opera_desktop_profile!(
     chromium: "154",
     brands: r#""Chromium";v="154", "Opera";v="138", "Not A(Brand";v="99""#,
     headers: navigation_headers_with_zstd_and_priority,
-    tls: tls::sorted_trust_anchor_ids,
+    tls: tls::Preset::SortedTrustAnchorIds,
     http2: http2::Preset::NoPush
 );
 
