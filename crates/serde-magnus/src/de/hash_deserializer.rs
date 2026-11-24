@@ -1,10 +1,10 @@
 use std::iter::Peekable;
 
-use ::serde::de::{DeserializeSeed, MapAccess};
 use magnus::{RHash, RString, Ruby, Symbol, Value, r_hash::ForEach};
+use serde::de::{DeserializeSeed, MapAccess};
 
 use super::{Deserializer, Mode, array_enumerator::ArrayEnumerator};
-use crate::serde::Error;
+use crate::error::Error;
 
 /// Serde map access over a Ruby hash.
 pub(super) struct HashDeserializer<'ruby> {

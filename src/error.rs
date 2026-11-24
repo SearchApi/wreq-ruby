@@ -1,12 +1,9 @@
-use std::{
-    cell::{BorrowError, BorrowMutError},
-    fmt,
-};
+use std::cell::{BorrowError, BorrowMutError};
 
 use magnus::{
-    Error as MagnusError, RModule, Ruby, error::ErrorType, exception::ExceptionClass, prelude::*,
-    value::Lazy,
+    Error as MagnusError, RModule, Ruby, exception::ExceptionClass, prelude::*, value::Lazy,
 };
+use serde_magnus::options::contextualize_magnus_error;
 use tokio::sync::mpsc::error::SendError;
 
 const RACE_CONDITION_ERROR_MSG: &str = r#"Due to Rust's memory management with borrowing,
@@ -188,23 +185,6 @@ pub fn json_serialization_error(ruby: &Ruby, err: MagnusError) -> MagnusError {
         ruby.get_inner(&BUILDER_ERROR),
         format!("JSON serialization error: {err}"),
     )
-}
-
-/// Prefix a Magnus error while preserving its original Ruby exception class.
-pub(crate) fn contextualize_magnus_error(
-    err: MagnusError,
-    context: fmt::Arguments<'_>,
-) -> MagnusError {
-    match err.error_type() {
-        ErrorType::Error(class, message) => {
-            MagnusError::new(*class, format!("{context}: {message}"))
-        }
-        ErrorType::Exception(exception) => MagnusError::new(
-            exception.exception_class(),
-            format!("{context}: {exception}"),
-        ),
-        ErrorType::Jump(_) => err,
-    }
 }
 
 /// Add an option name while preserving the original Ruby exception class.

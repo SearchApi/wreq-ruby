@@ -112,6 +112,13 @@ test_emulation!(
     "6ea73faa8fc5aac76bded7bd238f6433"
 );
 
+test_emulation!(
+    test_firefox_160,
+    Emulation::Firefox160,
+    ["t13d1517h2_8daaf6152771_3cbfd9057e0d"],
+    "6ea73faa8fc5aac76bded7bd238f6433"
+);
+
 /// Firefox 147 changed the generated `Accept-Language` q-value: the list used to divide 1.0
 /// across its entries, giving `q=0.5` for two, and now decrements by 0.1 per entry, giving
 /// `q=0.9`. See Bugzilla 2000765, landed in mozilla-firefox 0e050ae5116d.
@@ -146,6 +153,14 @@ async fn firefox_accept_language_matches_the_profile_version() {
         ("Firefox150", Emulation::Firefox150),
         ("Firefox151", Emulation::Firefox151),
         ("Firefox152", Emulation::Firefox152),
+        ("Firefox153", Emulation::Firefox153),
+        ("Firefox154", Emulation::Firefox154),
+        ("Firefox155", Emulation::Firefox155),
+        ("Firefox156", Emulation::Firefox156),
+        ("Firefox157", Emulation::Firefox157),
+        ("Firefox158", Emulation::Firefox158),
+        ("Firefox159", Emulation::Firefox159),
+        ("Firefox160", Emulation::Firefox160),
     ];
 
     let server = support::server::http(|request| async move {

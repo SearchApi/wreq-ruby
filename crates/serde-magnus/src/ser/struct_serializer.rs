@@ -1,8 +1,8 @@
-use ::serde::{Serialize, ser::SerializeStruct};
 use magnus::{Integer, IntoValue, RHash, RString, Ruby, Value, value::ReprValue};
+use serde::{Serialize, ser::SerializeStruct};
 
-use super::Serializer;
-use crate::serde::{Error, JSON_NUMBER_TOKEN};
+use super::serializer::{Serializer, hash_with_capacity};
+use crate::{JSON_NUMBER_TOKEN, error::Error};
 
 /// Serde struct serializer, including `serde_json` arbitrary-precision numbers.
 pub(super) enum StructSerializer<'ruby> {
@@ -24,7 +24,7 @@ impl<'ruby> StructSerializer<'ruby> {
         } else {
             Self::Map {
                 ruby,
-                hash: ruby.hash_new_capa(len),
+                hash: hash_with_capacity(ruby, len),
             }
         }
     }

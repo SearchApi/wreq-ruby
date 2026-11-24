@@ -122,6 +122,14 @@ module Wreq
       Firefox150 = nil
       Firefox151 = nil
       Firefox152 = nil
+      Firefox153 = nil
+      Firefox154 = nil
+      Firefox155 = nil
+      Firefox156 = nil
+      Firefox157 = nil
+      Firefox158 = nil
+      Firefox159 = nil
+      Firefox160 = nil
 
       SafariIos17_2 = nil
       SafariIos17_4_1 = nil
@@ -178,6 +186,15 @@ module Wreq
       Opera129 = nil
       Opera130 = nil
       Opera131 = nil
+      Opera132 = nil
+      Opera133 = nil
+      Opera134 = nil
+      Opera135 = nil
+      Opera136 = nil
+      Opera137 = nil
+      Opera138 = nil
+      Opera139 = nil
+      Opera140 = nil
     end
 
     unless method_defined?(:to_s)

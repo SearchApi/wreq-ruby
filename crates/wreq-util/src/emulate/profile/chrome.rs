@@ -1,13 +1,14 @@
 #[macro_use]
 mod http2;
-#[macro_use]
-mod tls;
 mod header;
+pub(super) mod tls;
 
 use header::*;
 use tls::*;
 
 use super::*;
+
+pub(super) use header::header_initializer_chrome155 as chromium_jxl_headers;
 
 mod_generator!(
     v100,
@@ -905,7 +906,7 @@ mod_generator!(
 
 mod_generator!(
     v132,
-    tls_options!(7, CURVES_3),
+    tls_options!(7),
     http2_options!(3),
     header_initializer_with_zstd_priority,
     [
@@ -1797,7 +1798,7 @@ mod_generator!(
 
 mod_generator!(
     v150,
-    tls_options!(8, CURVES_3, NEW_SIGALGS_LIST),
+    tls_options!(8),
     http2_options!(3),
     header_initializer_with_zstd_priority,
     [
@@ -1864,7 +1865,7 @@ mod_generator!(
 
 mod_generator!(
     v152,
-    tls_options!(9, CURVES_3),
+    tls_options!(9),
     http2_options!(3),
     header_initializer_chrome152,
     [
@@ -1931,7 +1932,7 @@ mod_generator!(
 
 mod_generator!(
     v154,
-    tls_options!(9, CURVES_3, sorted_trust_anchors()),
+    tls_options!(10),
     http2_options!(3),
     header_initializer_with_zstd_priority,
     [

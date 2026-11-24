@@ -264,7 +264,7 @@ impl Response {
         let response = rb_self.response(ruby, false)?;
         let json =
             rt::block_on(ruby, response.json::<Json>())?.map_err(|err| wreq_error(ruby, err))?;
-        crate::serde::serialize(ruby, &json)
+        serde_magnus::serialize(ruby, &json)
     }
 
     /// Yield response body chunks to the given Ruby block.

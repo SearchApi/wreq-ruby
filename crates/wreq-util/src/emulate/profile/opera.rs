@@ -7,6 +7,7 @@ mod header;
 use header::*;
 use tls::*;
 
+use super::chrome::chromium_jxl_headers;
 use super::*;
 
 mod_generator!(
@@ -294,6 +295,184 @@ mod_generator!(
             Windows,
             r#""Opera";v="131", "Not.A/Brand";v="8", "Chromium";v="147""#,
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 OPR/131.0.0.0"
+        )
+    ]
+);
+
+// Reuse Chromium's TLS defaults with Opera's existing HTTP/2 settings.
+// Brand hints use Chromium's milestone seed with Opera as the product brand.
+mod_generator!(
+    opera132,
+    chrome::tls::tls_options!(7),
+    http2_options!(),
+    header_initializer_with_zstd_priority,
+    [
+        (
+            MacOS,
+            r#""Chromium";v="148", "Opera";v="132", "Not/A)Brand";v="99""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 OPR/132.0.0.0"
+        ),
+        (
+            Windows,
+            r#""Chromium";v="148", "Opera";v="132", "Not/A)Brand";v="99""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 OPR/132.0.0.0"
+        )
+    ]
+);
+
+mod_generator!(
+    opera133,
+    opera132::build_emulation,
+    header_initializer_with_zstd_priority,
+    [
+        (
+            MacOS,
+            r#""Opera";v="133", "Chromium";v="149", "Not)A;Brand";v="24""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 OPR/133.0.0.0"
+        ),
+        (
+            Windows,
+            r#""Opera";v="133", "Chromium";v="149", "Not)A;Brand";v="24""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 OPR/133.0.0.0"
+        )
+    ]
+);
+
+mod_generator!(
+    opera134,
+    chrome::tls::tls_options!(8),
+    http2_options!(),
+    header_initializer_with_zstd_priority,
+    [
+        (
+            MacOS,
+            r#""Not;A=Brand";v="8", "Chromium";v="150", "Opera";v="134""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 OPR/134.0.0.0"
+        ),
+        (
+            Windows,
+            r#""Not;A=Brand";v="8", "Chromium";v="150", "Opera";v="134""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 OPR/134.0.0.0"
+        )
+    ]
+);
+
+mod_generator!(
+    opera135,
+    opera134::build_emulation,
+    header_initializer_with_zstd_priority,
+    [
+        (
+            MacOS,
+            r#""Not=A?Brand";v="99", "Opera";v="135", "Chromium";v="151""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0"
+        ),
+        (
+            Windows,
+            r#""Not=A?Brand";v="99", "Opera";v="135", "Chromium";v="151""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0"
+        )
+    ]
+);
+
+mod_generator!(
+    opera136,
+    chrome::tls::tls_options!(9),
+    http2_options!(),
+    header_initializer_with_zstd_priority,
+    [
+        (
+            MacOS,
+            r#""Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 OPR/136.0.0.0"
+        ),
+        (
+            Windows,
+            r#""Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 OPR/136.0.0.0"
+        )
+    ]
+);
+
+mod_generator!(
+    opera137,
+    opera136::build_emulation,
+    header_initializer_with_zstd_priority,
+    [
+        (
+            MacOS,
+            r#""Opera";v="137", "Not_A Brand";v="8", "Chromium";v="153""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 OPR/137.0.0.0"
+        ),
+        (
+            Windows,
+            r#""Opera";v="137", "Not_A Brand";v="8", "Chromium";v="153""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 OPR/137.0.0.0"
+        )
+    ]
+);
+
+mod_generator!(
+    opera138,
+    chrome::tls::tls_options!(10),
+    http2_options!(),
+    header_initializer_with_zstd_priority,
+    [
+        (
+            MacOS,
+            r#""Chromium";v="154", "Opera";v="138", "Not A(Brand";v="99""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 OPR/138.0.0.0"
+        ),
+        (
+            Windows,
+            r#""Chromium";v="154", "Opera";v="138", "Not A(Brand";v="99""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 OPR/138.0.0.0"
+        )
+    ]
+);
+
+mod_generator!(
+    opera139,
+    opera138::build_emulation,
+    chromium_jxl_headers,
+    [
+        (
+            MacOS,
+            r#""Opera";v="139", "Chromium";v="155", "Not(A:Brand";v="24""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 OPR/139.0.0.0"
+        ),
+        (
+            Windows,
+            r#""Opera";v="139", "Chromium";v="155", "Not(A:Brand";v="24""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 OPR/139.0.0.0"
+        ),
+        (
+            Linux,
+            r#""Opera";v="139", "Chromium";v="155", "Not(A:Brand";v="24""#,
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 OPR/139.0.0.0"
+        )
+    ]
+);
+
+mod_generator!(
+    opera140,
+    opera138::build_emulation,
+    chromium_jxl_headers,
+    [
+        (
+            MacOS,
+            r#""Not-A.Brand";v="99", "Opera";v="140", "Chromium";v="157""#,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 OPR/140.0.0.0"
+        ),
+        (
+            Windows,
+            r#""Not-A.Brand";v="99", "Opera";v="140", "Chromium";v="157""#,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 OPR/140.0.0.0"
+        ),
+        (
+            Linux,
+            r#""Not-A.Brand";v="99", "Opera";v="140", "Chromium";v="157""#,
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 OPR/140.0.0.0"
         )
     ]
 );
