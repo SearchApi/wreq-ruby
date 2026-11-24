@@ -1,4 +1,8 @@
-use super::*;
+#[cfg(feature = "emulation-compression")]
+use super::super::ACCEPT_ENCODING;
+use super::super::{
+    ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderName, HeaderValue, Platform, USER_AGENT,
+};
 
 pub(super) fn navigation_headers(
     sec_ch_ua: &'static str,
@@ -73,7 +77,7 @@ pub(super) fn navigation_headers_with_zstd_and_priority(
     headers
 }
 
-pub(in crate::emulate::profile) fn navigation_headers_with_jxl(
+pub(super) fn navigation_headers_with_jxl(
     sec_ch_ua: &'static str,
     ua: &'static str,
     emulation_os: Platform,

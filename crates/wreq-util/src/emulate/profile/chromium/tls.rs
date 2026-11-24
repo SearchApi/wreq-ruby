@@ -1,4 +1,7 @@
-use super::*;
+use super::super::{
+    AlpsProtocol, BrotliCompressor, CertificateCompressor, EchGrease, EchGreaseAead, Tls13Cipher,
+    TlsOptions, TlsVersion, TypedBuilder,
+};
 
 pub(super) fn classic_groups() -> TlsOptions {
     ChromeTlsConfig::builder().build().into()
@@ -53,7 +56,7 @@ fn resumption_with_groups(groups: &'static str) -> TlsOptions {
         .into()
 }
 
-pub(in crate::emulate::profile) fn mlkem_new_alps() -> TlsOptions {
+pub(super) fn mlkem_new_alps() -> TlsOptions {
     ChromeTlsConfig::builder()
         .permute_extensions(true)
         .enable_ech_grease(true)
@@ -64,7 +67,7 @@ pub(in crate::emulate::profile) fn mlkem_new_alps() -> TlsOptions {
         .into()
 }
 
-pub(in crate::emulate::profile) fn mlkem_new_alps_with_mldsa() -> TlsOptions {
+pub(super) fn mlkem_new_alps_with_mldsa() -> TlsOptions {
     ChromeTlsConfig::builder()
         .permute_extensions(true)
         .enable_ech_grease(true)
@@ -76,11 +79,11 @@ pub(in crate::emulate::profile) fn mlkem_new_alps_with_mldsa() -> TlsOptions {
         .into()
 }
 
-pub(in crate::emulate::profile) fn shuffled_trust_anchor_ids() -> TlsOptions {
+pub(super) fn shuffled_trust_anchor_ids() -> TlsOptions {
     with_trust_anchor_ids(|| shuffled_trust_anchors(crate::rand::fast_random))
 }
 
-pub(in crate::emulate::profile) fn sorted_trust_anchor_ids() -> TlsOptions {
+pub(super) fn sorted_trust_anchor_ids() -> TlsOptions {
     with_trust_anchor_ids(sorted_trust_anchors)
 }
 

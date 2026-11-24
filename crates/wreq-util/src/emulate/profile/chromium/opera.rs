@@ -4,8 +4,8 @@ mod tls;
 
 use header::navigation_headers_with_zstd_and_priority;
 
-use super::chrome::chromium_jxl_headers;
-use super::*;
+use super::super::{Emulation, HeaderMap, Platform, build_standard_emulation};
+use super::{header::navigation_headers_with_jxl, tls as chromium_tls};
 
 chromium_profile!(
     opera116,
@@ -300,7 +300,7 @@ chromium_profile!(
 // Brand hints use Chromium's milestone seed with Opera as the product brand.
 chromium_profile!(
     opera132,
-    tls: chrome::tls::mlkem_new_alps,
+    tls: chromium_tls::mlkem_new_alps,
     http2: http2::no_push,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -337,7 +337,7 @@ chromium_profile!(
 
 chromium_profile!(
     opera134,
-    tls: chrome::tls::mlkem_new_alps_with_mldsa,
+    tls: chromium_tls::mlkem_new_alps_with_mldsa,
     http2: http2::no_push,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -375,7 +375,7 @@ chromium_profile!(
 // Use Chromium's shuffled Trust Anchor IDs with Opera's existing HTTP/2 settings.
 chromium_profile!(
     opera136,
-    tls: chrome::tls::shuffled_trust_anchor_ids,
+    tls: chromium_tls::shuffled_trust_anchor_ids,
     http2: http2::no_push,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -413,7 +413,7 @@ chromium_profile!(
 // Switch from shuffled to sorted Trust Anchor IDs.
 chromium_profile!(
     opera138,
-    tls: chrome::tls::sorted_trust_anchor_ids,
+    tls: chromium_tls::sorted_trust_anchor_ids,
     http2: http2::no_push,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -434,7 +434,7 @@ chromium_profile!(
 chromium_profile!(
     opera139,
     transport: opera138::build_emulation,
-    headers: chromium_jxl_headers,
+    headers: navigation_headers_with_jxl,
     [
         (
             MacOS,
@@ -457,7 +457,7 @@ chromium_profile!(
 chromium_profile!(
     opera140,
     transport: opera138::build_emulation,
-    headers: chromium_jxl_headers,
+    headers: navigation_headers_with_jxl,
     [
         (
             MacOS,
