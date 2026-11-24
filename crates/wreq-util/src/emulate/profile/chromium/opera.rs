@@ -1,16 +1,15 @@
 mod header;
-mod http2;
 mod tls;
 
 use header::navigation_headers_with_zstd_and_priority;
 
 use super::super::{Emulation, HeaderMap, Platform, build_standard_emulation};
-use super::{header::navigation_headers_with_jxl, tls as chromium_tls};
+use super::{header::navigation_headers_with_jxl, http2, tls as chromium_tls};
 
 chromium_profile!(
     opera116,
     tls: tls::mlkem_resumption,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
         (
@@ -301,7 +300,7 @@ chromium_profile!(
 chromium_profile!(
     opera132,
     tls: chromium_tls::mlkem_new_alps,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
         (
@@ -338,7 +337,7 @@ chromium_profile!(
 chromium_profile!(
     opera134,
     tls: chromium_tls::mlkem_new_alps_with_mldsa,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
         (
@@ -376,7 +375,7 @@ chromium_profile!(
 chromium_profile!(
     opera136,
     tls: chromium_tls::shuffled_trust_anchor_ids,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
         (
@@ -414,7 +413,7 @@ chromium_profile!(
 chromium_profile!(
     opera138,
     tls: chromium_tls::sorted_trust_anchor_ids,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
         (

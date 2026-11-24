@@ -692,7 +692,7 @@ edge_desktop_profile!(
     "152",
     r#""Chromium";v="152", "Not?A_Brand";v="24", "Microsoft Edge";v="152""#,
     tls: tls::edge_signature_grease,
-    http2: http2::no_push
+    http2: http2::Preset::NoPush
 );
 edge_desktop_profile!(
     edge153,

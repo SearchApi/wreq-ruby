@@ -345,7 +345,7 @@ macro_rules! chromium_profile {
         standard_mod_generator!(
             $name,
             $tls(),
-            $http2(),
+            ($http2).build(),
             |emulation: &Emulation| platform_headers!(emulation, $headers, $platforms)
         );
     };

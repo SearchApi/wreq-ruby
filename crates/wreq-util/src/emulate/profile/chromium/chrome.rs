@@ -11,7 +11,7 @@ use super::{
 chromium_profile!(
     v100,
     tls: tls::classic_groups,
-    http2: http2::stream_limit,
+    http2: http2::Preset::StreamLimit,
     headers: navigation_headers,
     [
         (
@@ -111,7 +111,7 @@ chromium_profile!(
 chromium_profile!(
     v105,
     tls: tls::ech_grease,
-    http2: http2::stream_limit,
+    http2: http2::Preset::StreamLimit,
     headers: navigation_headers,
     [
         (
@@ -146,7 +146,7 @@ chromium_profile!(
 chromium_profile!(
     v106,
     tls: tls::permuted_extensions,
-    http2: http2::stream_limit_without_push,
+    http2: http2::Preset::StreamLimitNoPush,
     headers: navigation_headers,
     [
         (
@@ -341,7 +341,7 @@ chromium_profile!(
 chromium_profile!(
     v116,
     tls: tls::permuted_extensions_with_ech_grease,
-    http2: http2::stream_limit_without_push,
+    http2: http2::Preset::StreamLimitNoPush,
     headers: navigation_headers,
     [
         (
@@ -376,7 +376,7 @@ chromium_profile!(
 chromium_profile!(
     v117,
     tls: tls::resumption,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers,
     [
         (
@@ -472,7 +472,7 @@ chromium_profile!(
 chromium_profile!(
     v118,
     tls: tls::permuted_extensions_with_ech_grease,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers,
     [
         (
@@ -539,7 +539,7 @@ chromium_profile!(
 chromium_profile!(
     v124,
     tls: tls::resumption_with_kyber,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd,
     [
         (
@@ -739,7 +739,7 @@ chromium_profile!(
 chromium_profile!(
     v131,
     tls: tls::resumption_with_mlkem,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
         (
@@ -773,7 +773,7 @@ chromium_profile!(
 chromium_profile!(
     v132,
     tls: tls::mlkem_new_alps,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
         (
@@ -1369,7 +1369,7 @@ chromium_profile!(
 chromium_profile!(
     v150,
     tls: tls::mlkem_new_alps_with_mldsa,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
         (
@@ -1437,7 +1437,7 @@ chromium_profile!(
 chromium_profile!(
     v152,
     tls: tls::shuffled_trust_anchor_ids,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_language_and_zstd_only,
     [
         (
@@ -1506,7 +1506,7 @@ chromium_profile!(
 chromium_profile!(
     v154,
     tls: tls::sorted_trust_anchor_ids,
-    http2: http2::no_push,
+    http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
         (
