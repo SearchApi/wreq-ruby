@@ -1,20 +1,17 @@
-#[macro_use]
-mod http2;
-#[macro_use]
-mod tls;
 mod header;
+mod http2;
+mod tls;
 
-use header::*;
-use tls::*;
+use header::navigation_headers_with_zstd_and_priority;
 
 use super::chrome::chromium_jxl_headers;
 use super::*;
 
-mod_generator!(
+chromium_profile!(
     opera116,
-    tls_options!(CURVES),
-    http2_options!(),
-    header_initializer_with_zstd_priority,
+    tls: tls::mlkem_resumption,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -29,10 +26,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera117,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -47,10 +44,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera118,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -65,10 +62,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera119,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -83,10 +80,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera120,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -101,10 +98,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera121,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -119,10 +116,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera122,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -137,10 +134,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera123,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -155,10 +152,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera124,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -173,10 +170,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera125,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -191,10 +188,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera126,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -209,10 +206,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera127,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -227,10 +224,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera128,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -245,10 +242,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera129,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -263,10 +260,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera130,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -281,10 +278,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera131,
-    opera116::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera116::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -301,11 +298,11 @@ mod_generator!(
 
 // Reuse Chromium's TLS defaults with Opera's existing HTTP/2 settings.
 // Brand hints use Chromium's milestone seed with Opera as the product brand.
-mod_generator!(
+chromium_profile!(
     opera132,
-    chrome::tls::tls_options!(7),
-    http2_options!(),
-    header_initializer_with_zstd_priority,
+    tls: chrome::tls::mlkem_new_alps,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -320,10 +317,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera133,
-    opera132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -338,11 +335,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera134,
-    chrome::tls::tls_options!(8),
-    http2_options!(),
-    header_initializer_with_zstd_priority,
+    tls: chrome::tls::mlkem_new_alps_with_mldsa,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -357,10 +354,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera135,
-    opera134::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera134::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -375,11 +372,12 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Use Chromium's shuffled Trust Anchor IDs with Opera's existing HTTP/2 settings.
+chromium_profile!(
     opera136,
-    chrome::tls::tls_options!(9),
-    http2_options!(),
-    header_initializer_with_zstd_priority,
+    tls: chrome::tls::shuffled_trust_anchor_ids,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -394,10 +392,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera137,
-    opera136::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: opera136::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -412,11 +410,12 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Switch from shuffled to sorted Trust Anchor IDs.
+chromium_profile!(
     opera138,
-    chrome::tls::tls_options!(10),
-    http2_options!(),
-    header_initializer_with_zstd_priority,
+    tls: chrome::tls::sorted_trust_anchor_ids,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -431,10 +430,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Reuse Chromium's JPEG XL navigation headers without changing the Opera transport.
+chromium_profile!(
     opera139,
-    opera138::build_emulation,
-    chromium_jxl_headers,
+    transport: opera138::build_emulation,
+    headers: chromium_jxl_headers,
     [
         (
             MacOS,
@@ -454,10 +454,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     opera140,
-    opera138::build_emulation,
-    chromium_jxl_headers,
+    transport: opera138::build_emulation,
+    headers: chromium_jxl_headers,
     [
         (
             MacOS,

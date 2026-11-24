@@ -1,20 +1,22 @@
-#[macro_use]
-mod http2;
 mod header;
+mod http2;
 pub(super) mod tls;
 
-use header::*;
-use tls::*;
+use header::{
+    navigation_headers, navigation_headers_with_jxl,
+    navigation_headers_with_language_and_zstd_only, navigation_headers_with_zstd,
+    navigation_headers_with_zstd_and_priority,
+};
 
 use super::*;
 
-pub(super) use header::header_initializer_chrome155 as chromium_jxl_headers;
+pub(super) use header::navigation_headers_with_jxl as chromium_jxl_headers;
 
-mod_generator!(
+chromium_profile!(
     v100,
-    tls_options!(1),
-    http2_options!(1),
-    header_initializer,
+    tls: tls::classic_groups,
+    http2: http2::stream_limit,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -44,10 +46,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v101,
-    v100::build_emulation,
-    header_initializer,
+    transport: v100::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -77,10 +79,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge101,
-    v100::build_emulation,
-    header_initializer,
+    transport: v100::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -112,10 +114,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v104,
-    v100::build_emulation,
-    header_initializer,
+    transport: v100::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -145,11 +147,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v105,
-    tls_options!(2),
-    http2_options!(1),
-    header_initializer,
+    tls: tls::ech_grease,
+    http2: http2::stream_limit,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -179,11 +181,12 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// This preset explicitly disables HTTP/2 push; earlier presets leave ENABLE_PUSH unset.
+chromium_profile!(
     v106,
-    tls_options!(3),
-    http2_options!(2),
-    header_initializer,
+    tls: tls::permuted_extensions,
+    http2: http2::stream_limit_without_push,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -213,10 +216,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v107,
-    v106::build_emulation,
-    header_initializer,
+    transport: v106::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -246,10 +249,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v108,
-    v106::build_emulation,
-    header_initializer,
+    transport: v106::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -279,10 +282,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v109,
-    v106::build_emulation,
-    header_initializer,
+    transport: v106::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -312,10 +315,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Chrome 110 uses the earlier transport, including no explicit HTTP/2 ENABLE_PUSH.
+chromium_profile!(
     v110,
-    v100::build_emulation,
-    header_initializer,
+    transport: v100::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -345,10 +349,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v114,
-    v106::build_emulation,
-    header_initializer,
+    transport: v106::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -373,11 +377,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v116,
-    tls_options!(4),
-    http2_options!(2),
-    header_initializer,
+    tls: tls::permuted_extensions_with_ech_grease,
+    http2: http2::stream_limit_without_push,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -407,11 +411,12 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// The HTTP/2 stream limit is omitted here, while ENABLE_PUSH stays explicitly disabled.
+chromium_profile!(
     v117,
-    tls_options!(5),
-    http2_options!(3),
-    header_initializer,
+    tls: tls::resumption,
+    http2: http2::no_push,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -441,10 +446,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v120,
-    v117::build_emulation,
-    header_initializer,
+    transport: v117::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -474,10 +479,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge122,
-    v117::build_emulation,
-    header_initializer,
+    transport: v117::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -508,10 +513,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v123,
-    v117::build_emulation,
-    header_initializer_with_zstd,
+    transport: v117::build_emulation,
+    headers: navigation_headers_with_zstd,
     [
         (
             MacOS,
@@ -536,11 +541,12 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Chrome 118 keeps the no-push HTTP/2 settings but leaves TLS resumption off.
+chromium_profile!(
     v118,
-    tls_options!(4),
-    http2_options!(3),
-    header_initializer,
+    tls: tls::permuted_extensions_with_ech_grease,
+    http2: http2::no_push,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -570,10 +576,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v119,
-    v118::build_emulation,
-    header_initializer,
+    transport: v118::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -603,11 +609,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v124,
-    tls_options!(6, CURVES_2),
-    http2_options!(3),
-    header_initializer_with_zstd,
+    tls: tls::resumption_with_kyber,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd,
     [
         (
             MacOS,
@@ -637,10 +643,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v126,
-    v124::build_emulation,
-    header_initializer_with_zstd,
+    transport: v124::build_emulation,
+    headers: navigation_headers_with_zstd,
     [
         (
             MacOS,
@@ -670,10 +676,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v127,
-    v124::build_emulation,
-    header_initializer_with_zstd,
+    transport: v124::build_emulation,
+    headers: navigation_headers_with_zstd,
     [
         (
             MacOS,
@@ -703,10 +709,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge127,
-    v124::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v124::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -737,10 +743,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Chrome 128 uses the earlier navigation headers despite sharing Chrome 124's transport.
+chromium_profile!(
     v128,
-    v124::build_emulation,
-    header_initializer,
+    transport: v124::build_emulation,
+    headers: navigation_headers,
     [
         (
             MacOS,
@@ -770,10 +777,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v129,
-    v124::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v124::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -803,10 +810,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v130,
-    v124::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v124::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -836,11 +843,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v131,
-    tls_options!(6, CURVES_3),
-    http2_options!(3),
-    header_initializer_with_zstd_priority,
+    tls: tls::resumption_with_mlkem,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -870,10 +877,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge131,
-    v131::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v131::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -904,11 +911,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v132,
-    tls_options!(7),
-    http2_options!(3),
-    header_initializer_with_zstd_priority,
+    tls: tls::mlkem_new_alps,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -938,10 +945,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v133,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -971,10 +978,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v134,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1004,10 +1011,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Unlike Chrome 134, this Edge preset retains the earlier ALPS codepoint.
+chromium_profile!(
     edge134,
-    v131::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v131::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1037,10 +1045,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge135,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1070,10 +1078,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge136,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1103,10 +1111,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge137,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1136,10 +1144,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge138,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1169,10 +1177,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge139,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1202,10 +1210,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge140,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1235,10 +1243,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge141,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1268,10 +1276,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v135,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1301,10 +1309,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v136,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1334,10 +1342,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v137,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1367,10 +1375,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v138,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1400,10 +1408,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v139,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1433,10 +1441,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v140,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1466,10 +1474,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v141,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1499,10 +1507,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v142,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1532,10 +1540,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge142,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1565,10 +1573,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v143,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1598,10 +1606,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v144,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1631,10 +1639,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v145,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1664,10 +1672,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v146,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1697,10 +1705,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v147,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1730,10 +1738,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v148,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1763,10 +1771,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v149,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1796,11 +1804,12 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Add ML-DSA to the TLS signature list while leaving signature GREASE unset.
+chromium_profile!(
     v150,
-    tls_options!(8),
-    http2_options!(3),
-    header_initializer_with_zstd_priority,
+    tls: tls::mlkem_new_alps_with_mldsa,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1830,10 +1839,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     v151,
-    v150::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v150::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1863,11 +1872,12 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Shuffle Trust Anchor IDs per native configuration, and send Accept-Language earlier outside Linux.
+chromium_profile!(
     v152,
-    tls_options!(9),
-    http2_options!(3),
-    header_initializer_chrome152,
+    tls: tls::shuffled_trust_anchor_ids,
+    http2: http2::no_push,
+    headers: navigation_headers_with_language_and_zstd_only,
     [
         (
             MacOS,
@@ -1897,10 +1907,11 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Keep the shuffled Trust Anchor IDs, but use the regular zstd/priority headers on all platforms.
+chromium_profile!(
     v153,
-    v152::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v152::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1930,11 +1941,12 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+// Sort the raw Trust Anchor IDs before encoding them, instead of shuffling.
+chromium_profile!(
     v154,
-    tls_options!(10),
-    http2_options!(3),
-    header_initializer_with_zstd_priority,
+    tls: tls::sorted_trust_anchor_ids,
+    http2: http2::no_push,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -1964,13 +1976,13 @@ mod_generator!(
     ]
 );
 
-// Chrome 155 retains Chrome 154's TLS/HTTP2 configuration. Its UA-CH permutation
-// and GREASE brand are seeded by major version 155.
+// Advertise JPEG XL outside iOS while retaining Chrome 154's TLS and HTTP/2 settings.
+// The UA-CH permutation and GREASE brand are seeded by major version 155.
 // https://chromium.googlesource.com/chromium/src/+/cfaadc5a132d78e1828635aa8405a499f3e14864/components/embedder_support/user_agent_utils.cc
-mod_generator!(
+chromium_profile!(
     v155,
-    v154::build_emulation,
-    header_initializer_chrome155,
+    transport: v154::build_emulation,
+    headers: navigation_headers_with_jxl,
     [
         (
             MacOS,
@@ -2002,10 +2014,10 @@ mod_generator!(
 
 // Chrome 156 retains Chrome 155's TLS/HTTP2 and Accept configuration.
 // https://chromium.googlesource.com/chromium/src/+/29eb03535d5f2f4f899b95f22a92413ffde5284e/components/embedder_support/user_agent_utils.cc
-mod_generator!(
+chromium_profile!(
     v156,
-    v154::build_emulation,
-    header_initializer_chrome155,
+    transport: v154::build_emulation,
+    headers: navigation_headers_with_jxl,
     [
         (
             MacOS,
@@ -2038,10 +2050,10 @@ mod_generator!(
 // Chrome 157 retains Chrome 156's TLS/HTTP2 and Accept configuration.
 // Its UA-CH order and GREASE brand are seeded by major version 157.
 // https://chromium.googlesource.com/chromium/src/+/653674df293788cf4932c40d914e9e15b41a2d31/components/embedder_support/user_agent_utils.cc
-mod_generator!(
+chromium_profile!(
     v157,
-    v154::build_emulation,
-    header_initializer_chrome155,
+    transport: v154::build_emulation,
+    headers: navigation_headers_with_jxl,
     [
         (
             MacOS,
@@ -2073,10 +2085,10 @@ mod_generator!(
 
 // Chrome 158 retains the Chrome 157 TLS, HTTP/2 and Accept presets.
 // https://chromium.googlesource.com/chromium/src/+/b8c2be851f62f6a394ec57955d7f31335d7cb6d4/components/embedder_support/user_agent_utils.cc
-mod_generator!(
+chromium_profile!(
     v158,
-    v154::build_emulation,
-    header_initializer_chrome155,
+    transport: v154::build_emulation,
+    headers: navigation_headers_with_jxl,
     [
         (
             MacOS,
@@ -2106,10 +2118,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge143,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -2139,10 +2151,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge144,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -2172,10 +2184,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge145,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -2205,10 +2217,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge146,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -2238,10 +2250,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge147,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -2271,10 +2283,10 @@ mod_generator!(
     ]
 );
 
-mod_generator!(
+chromium_profile!(
     edge148,
-    v132::build_emulation,
-    header_initializer_with_zstd_priority,
+    transport: v132::build_emulation,
+    headers: navigation_headers_with_zstd_and_priority,
     [
         (
             MacOS,
@@ -2319,26 +2331,17 @@ macro_rules! edge_desktop_ua {
 }
 
 macro_rules! edge_desktop_profile {
-    ($name:ident, $major:literal, $brands:literal, $($transport:expr),+ $(,)?) => {
-        standard_mod_generator!($name, $($transport,)+ |emulation: &Emulation| {
-            emulation.headers.then(|| {
-                let (platform, ua) = match emulation.platform {
-                    Platform::Windows => (
-                        Platform::Windows,
-                        edge_desktop_ua!("Windows NT 10.0; Win64; x64", $major),
-                    ),
-                    Platform::Linux => (
-                        Platform::Linux,
-                        edge_desktop_ua!("X11; Linux x86_64", $major),
-                    ),
-                    _ => (
-                        Platform::MacOS,
-                        edge_desktop_ua!("Macintosh; Intel Mac OS X 10_15_7", $major),
-                    ),
-                };
-                header_initializer_with_zstd_priority($brands, ua, platform)
-            })
-        });
+    ($name:ident, $major:literal, $brands:literal, $($transport:tt)+) => {
+        chromium_profile!(
+            $name,
+            $($transport)+,
+            headers: navigation_headers_with_zstd_and_priority,
+            [
+                (MacOS, $brands, { edge_desktop_ua!("Macintosh; Intel Mac OS X 10_15_7", $major) }),
+                (Windows, $brands, { edge_desktop_ua!("Windows NT 10.0; Win64; x64", $major) }),
+                (Linux, $brands, { edge_desktop_ua!("X11; Linux x86_64", $major) })
+            ]
+        );
     };
 }
 
@@ -2347,60 +2350,61 @@ edge_desktop_profile!(
     edge149,
     "149",
     r#""Microsoft Edge";v="149", "Chromium";v="149", "Not)A;Brand";v="24""#,
-    v132::build_emulation
+    transport: v132::build_emulation
 );
 edge_desktop_profile!(
     edge150,
     "150",
     r#""Not;A=Brand";v="8", "Chromium";v="150", "Microsoft Edge";v="150""#,
-    v150::build_emulation
+    transport: v150::build_emulation
 );
 edge_desktop_profile!(
     edge151,
     "151",
     r#""Not=A?Brand";v="99", "Microsoft Edge";v="151", "Chromium";v="151""#,
-    v150::build_emulation
+    transport: v150::build_emulation
 );
+// Edge enables TLS signature-algorithm GREASE without sending Trust Anchor IDs.
 edge_desktop_profile!(
     edge152,
     "152",
     r#""Chromium";v="152", "Not?A_Brand";v="24", "Microsoft Edge";v="152""#,
-    tls_options!(edge),
-    http2_options!(3)
+    tls: tls::edge_signature_grease,
+    http2: http2::no_push
 );
 edge_desktop_profile!(
     edge153,
     "153",
     r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
-    edge152::build_emulation
+    transport: edge152::build_emulation
 );
 edge_desktop_profile!(
     edge154,
     "154",
     r#""Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99""#,
-    edge152::build_emulation
+    transport: edge152::build_emulation
 );
 edge_desktop_profile!(
     edge155,
     "155",
     r#""Microsoft Edge";v="155", "Chromium";v="155", "Not(A:Brand";v="24""#,
-    edge152::build_emulation
+    transport: edge152::build_emulation
 );
 edge_desktop_profile!(
     edge156,
     "156",
     r#""Not:A-Brand";v="8", "Chromium";v="156", "Microsoft Edge";v="156""#,
-    edge152::build_emulation
+    transport: edge152::build_emulation
 );
 edge_desktop_profile!(
     edge157,
     "157",
     r#""Not-A.Brand";v="99", "Microsoft Edge";v="157", "Chromium";v="157""#,
-    edge152::build_emulation
+    transport: edge152::build_emulation
 );
 edge_desktop_profile!(
     edge158,
     "158",
     r#""Chromium";v="158", "Not.A/Brand";v="24", "Microsoft Edge";v="158""#,
-    edge152::build_emulation
+    transport: edge152::build_emulation
 );

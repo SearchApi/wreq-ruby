@@ -1,7 +1,7 @@
 use super::*;
 
 #[inline]
-pub fn header_initializer_with_zstd_priority(
+pub(super) fn navigation_headers_with_zstd_and_priority(
     sec_ch_ua: &'static str,
     ua: &'static str,
     emulation_os: Platform,

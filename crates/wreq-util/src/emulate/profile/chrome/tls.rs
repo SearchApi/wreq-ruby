@@ -1,95 +1,119 @@
 use super::*;
 
-macro_rules! tls_options {
-    (@build $builder:expr) => {
-        $builder.build().into()
-    };
-
-    // Edge sends signature algorithm GREASE without Chromium's Trust Anchor IDs.
-    (edge) => {
-        tls_options!(@build ChromeTlsConfig::builder()
-            .permute_extensions(true)
-            .enable_ech_grease(true)
-            .pre_shared_key(true)
-            .curves(CURVES_3)
-            .sigalgs_list(NEW_SIGALGS_LIST)
-            .grease_sigalgs_enabled(true)
-            .alps_use_new_codepoint(true))
-    };
-
-    (1) => {
-        tls_options!(@build ChromeTlsConfig::builder())
-    };
-    (2) => {
-        tls_options!(@build ChromeTlsConfig::builder().enable_ech_grease(true))
-    };
-    (3) => {
-        tls_options!(@build ChromeTlsConfig::builder().permute_extensions(true))
-    };
-    (4) => {
-        tls_options!(@build ChromeTlsConfig::builder()
-            .permute_extensions(true)
-            .enable_ech_grease(true))
-    };
-    (5) => {
-        tls_options!(@build ChromeTlsConfig::builder()
-            .permute_extensions(true)
-            .enable_ech_grease(true)
-            .pre_shared_key(true))
-    };
-    (6, $curves:expr) => {
-        tls_options!(@build ChromeTlsConfig::builder()
-            .permute_extensions(true)
-            .enable_ech_grease(true)
-            .pre_shared_key(true)
-            .curves($curves))
-    };
-    (7) => {{
-        use $crate::emulate::profile::chrome::tls as chromium;
-        chromium::tls_options!(@build chromium::ChromeTlsConfig::builder()
-            .permute_extensions(true)
-            .enable_ech_grease(true)
-            .pre_shared_key(true)
-            .curves(chromium::CURVES_3)
-            .alps_use_new_codepoint(true))
-    }};
-    (8) => {{
-        use $crate::emulate::profile::chrome::tls as chromium;
-        chromium::tls_options!(@build chromium::ChromeTlsConfig::builder()
-            .permute_extensions(true)
-            .enable_ech_grease(true)
-            .pre_shared_key(true)
-            .curves(chromium::CURVES_3)
-            .sigalgs_list(chromium::NEW_SIGALGS_LIST)
-            .alps_use_new_codepoint(true))
-    }};
-    (9) => {{
-        use $crate::emulate::profile::chrome::tls as chromium;
-        chromium::tls_options!(@trust_anchors chromium::shuffled_trust_anchors($crate::rand::fast_random))
-    }};
-    (10) => {{
-        use $crate::emulate::profile::chrome::tls as chromium;
-        chromium::tls_options!(@trust_anchors chromium::sorted_trust_anchors())
-    }};
-    (@trust_anchors $trust_anchors:expr) => {{
-        use $crate::emulate::profile::chrome::tls as chromium;
-        chromium::tls_options!(@build chromium::ChromeTlsConfig::builder()
-            .permute_extensions(true)
-            .enable_ech_grease(true)
-            .pre_shared_key(true)
-            .curves(chromium::CURVES_3)
-            .sigalgs_list(chromium::NEW_SIGALGS_LIST)
-            .trust_anchors($trust_anchors)
-            .grease_sigalgs_enabled(true)
-            .alps_use_new_codepoint(true))
-    }};
+pub(super) fn classic_groups() -> TlsOptions {
+    ChromeTlsConfig::builder().build().into()
 }
 
-pub(in crate::emulate::profile) use tls_options;
+pub(super) fn ech_grease() -> TlsOptions {
+    ChromeTlsConfig::builder()
+        .enable_ech_grease(true)
+        .build()
+        .into()
+}
 
-pub const CURVES_1: &str = join!(":", "X25519", "P-256", "P-384");
-pub const CURVES_2: &str = join!(":", "X25519Kyber768Draft00", "X25519", "P-256", "P-384");
-pub const CURVES_3: &str = join!(":", "X25519MLKEM768", "X25519", "P-256", "P-384");
+pub(super) fn permuted_extensions() -> TlsOptions {
+    ChromeTlsConfig::builder()
+        .permute_extensions(true)
+        .build()
+        .into()
+}
+
+pub(super) fn permuted_extensions_with_ech_grease() -> TlsOptions {
+    ChromeTlsConfig::builder()
+        .permute_extensions(true)
+        .enable_ech_grease(true)
+        .build()
+        .into()
+}
+
+pub(super) fn resumption() -> TlsOptions {
+    ChromeTlsConfig::builder()
+        .permute_extensions(true)
+        .enable_ech_grease(true)
+        .pre_shared_key(true)
+        .build()
+        .into()
+}
+
+pub(super) fn resumption_with_kyber() -> TlsOptions {
+    resumption_with_groups(KYBER_DRAFT_GROUPS)
+}
+
+pub(super) fn resumption_with_mlkem() -> TlsOptions {
+    resumption_with_groups(MLKEM_GROUPS)
+}
+
+fn resumption_with_groups(groups: &'static str) -> TlsOptions {
+    ChromeTlsConfig::builder()
+        .permute_extensions(true)
+        .enable_ech_grease(true)
+        .pre_shared_key(true)
+        .curves(groups)
+        .build()
+        .into()
+}
+
+pub(in crate::emulate::profile) fn mlkem_new_alps() -> TlsOptions {
+    ChromeTlsConfig::builder()
+        .permute_extensions(true)
+        .enable_ech_grease(true)
+        .pre_shared_key(true)
+        .curves(MLKEM_GROUPS)
+        .alps_use_new_codepoint(true)
+        .build()
+        .into()
+}
+
+pub(in crate::emulate::profile) fn mlkem_new_alps_with_mldsa() -> TlsOptions {
+    ChromeTlsConfig::builder()
+        .permute_extensions(true)
+        .enable_ech_grease(true)
+        .pre_shared_key(true)
+        .curves(MLKEM_GROUPS)
+        .sigalgs_list(SIGALGS_WITH_MLDSA)
+        .alps_use_new_codepoint(true)
+        .build()
+        .into()
+}
+
+pub(in crate::emulate::profile) fn shuffled_trust_anchor_ids() -> TlsOptions {
+    with_trust_anchor_ids(|| shuffled_trust_anchors(crate::rand::fast_random))
+}
+
+pub(in crate::emulate::profile) fn sorted_trust_anchor_ids() -> TlsOptions {
+    with_trust_anchor_ids(sorted_trust_anchors)
+}
+
+fn with_trust_anchor_ids(trust_anchors: impl FnOnce() -> Vec<u8>) -> TlsOptions {
+    ChromeTlsConfig::builder()
+        .permute_extensions(true)
+        .enable_ech_grease(true)
+        .pre_shared_key(true)
+        .curves(MLKEM_GROUPS)
+        .sigalgs_list(SIGALGS_WITH_MLDSA)
+        .trust_anchors(trust_anchors())
+        .grease_sigalgs_enabled(true)
+        .alps_use_new_codepoint(true)
+        .build()
+        .into()
+}
+
+pub(super) fn edge_signature_grease() -> TlsOptions {
+    ChromeTlsConfig::builder()
+        .permute_extensions(true)
+        .enable_ech_grease(true)
+        .pre_shared_key(true)
+        .curves(MLKEM_GROUPS)
+        .sigalgs_list(SIGALGS_WITH_MLDSA)
+        .grease_sigalgs_enabled(true)
+        .alps_use_new_codepoint(true)
+        .build()
+        .into()
+}
+
+const CLASSIC_X25519_GROUPS: &str = join!(":", "X25519", "P-256", "P-384");
+const KYBER_DRAFT_GROUPS: &str = join!(":", "X25519Kyber768Draft00", "X25519", "P-256", "P-384");
+const MLKEM_GROUPS: &str = join!(":", "X25519MLKEM768", "X25519", "P-256", "P-384");
 
 pub const CIPHER_LIST: &str = join!(
     ":",
@@ -125,7 +149,7 @@ pub const SIGALGS_LIST: &str = join!(
     "rsa_pkcs1_sha512"
 );
 
-pub const NEW_SIGALGS_LIST: &str = join!(
+const SIGALGS_WITH_MLDSA: &str = join!(
     ":",
     "mldsa44",
     "mldsa65",
@@ -147,9 +171,7 @@ pub(super) const CHROME_TRUST_ANCHORS: &[u8] = &chromium_roots::encoded_trust_an
 // the root store's source order. Generate an order once per native configuration;
 // connections using that client configuration retain the order.
 // https://chromium.googlesource.com/chromium/src/+/f7b831a4e249fbd98eae4b391c69f70300a849d1/net/ssl/ssl_config_service.cc
-pub(in crate::emulate::profile) fn shuffled_trust_anchors(
-    mut random: impl FnMut() -> u64,
-) -> Vec<u8> {
+fn shuffled_trust_anchors(mut random: impl FnMut() -> u64) -> Vec<u8> {
     let mut ids = chromium_roots::trust_anchor_ids();
     for index in (1..ids.len()).rev() {
         let bound = (index + 1) as u64;
@@ -166,7 +188,7 @@ pub(in crate::emulate::profile) fn shuffled_trust_anchors(
 
 // Chrome 154 sorts the raw IDs before adding their length prefixes.
 // https://chromium.googlesource.com/chromium/src/+/731082f0a26ce4b3976c3d82943092f5d13daf13/net/cert/x509_util.cc
-pub(in crate::emulate::profile) fn sorted_trust_anchors() -> Vec<u8> {
+fn sorted_trust_anchors() -> Vec<u8> {
     let mut ids = chromium_roots::trust_anchor_ids();
     ids.sort_unstable();
     encode_trust_anchors(&ids)
@@ -187,7 +209,7 @@ pub const CERTIFICATE_COMPRESSORS: &[&'static dyn CertificateCompressor] = &[&Br
 
 #[derive(TypedBuilder)]
 pub struct ChromeTlsConfig {
-    #[builder(default = CURVES_1)]
+    #[builder(default = CLASSIC_X25519_GROUPS)]
     curves: &'static str,
 
     #[builder(default = SIGALGS_LIST)]

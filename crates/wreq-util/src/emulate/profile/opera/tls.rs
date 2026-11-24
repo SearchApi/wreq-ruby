@@ -1,18 +1,16 @@
 use super::*;
 
-macro_rules! tls_options {
-    ($curves:expr) => {
-        OperaTlsConfig::builder()
-            .curves($curves)
-            .permute_extensions(true)
-            .pre_shared_key(true)
-            .enable_ech_grease(true)
-            .build()
-            .into()
-    };
+pub(super) fn mlkem_resumption() -> TlsOptions {
+    OperaTlsConfig::builder()
+        .curves(MLKEM_GROUPS)
+        .permute_extensions(true)
+        .pre_shared_key(true)
+        .enable_ech_grease(true)
+        .build()
+        .into()
 }
 
-pub const CURVES: &str = join!(":", "X25519MLKEM768", "X25519", "P-256", "P-384");
+const MLKEM_GROUPS: &str = join!(":", "X25519MLKEM768", "X25519", "P-256", "P-384");
 
 pub const CIPHER_LIST: &str = join!(
     ":",
@@ -52,7 +50,7 @@ pub const CERTIFICATE_COMPRESSORS: &[&'static dyn CertificateCompressor] = &[&Br
 
 #[derive(TypedBuilder)]
 pub struct OperaTlsConfig {
-    #[builder(default = CURVES)]
+    #[builder(default = MLKEM_GROUPS)]
     curves: &'static str,
 
     #[builder(default = SIGALGS_LIST)]

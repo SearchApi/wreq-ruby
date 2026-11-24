@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn header_initializer(
+pub(super) fn navigation_headers(
     sec_ch_ua: &'static str,
     ua: &'static str,
     emulation_os: Platform,
@@ -23,7 +23,7 @@ pub fn header_initializer(
     headers
 }
 
-pub fn header_initializer_with_zstd(
+pub(super) fn navigation_headers_with_zstd(
     sec_ch_ua: &'static str,
     ua: &'static str,
     emulation_os: Platform,
@@ -46,7 +46,7 @@ pub fn header_initializer_with_zstd(
     headers
 }
 
-pub fn header_initializer_with_zstd_priority(
+pub(super) fn navigation_headers_with_zstd_and_priority(
     sec_ch_ua: &'static str,
     ua: &'static str,
     emulation_os: Platform,
@@ -73,12 +73,12 @@ pub fn header_initializer_with_zstd_priority(
     headers
 }
 
-pub fn header_initializer_chrome155(
+pub(in crate::emulate::profile) fn navigation_headers_with_jxl(
     sec_ch_ua: &'static str,
     ua: &'static str,
     emulation_os: Platform,
 ) -> HeaderMap {
-    let mut headers = header_initializer_with_zstd_priority(sec_ch_ua, ua, emulation_os);
+    let mut headers = navigation_headers_with_zstd_and_priority(sec_ch_ua, ua, emulation_os);
     // Chrome 155 enables JPEG XL in Blink; the iOS profile keeps its WebKit headers.
     // https://chromium.googlesource.com/chromium/src/+/cfaadc5a132d78e1828635aa8405a499f3e14864/content/common/content_constants_internal.h
     if !matches!(emulation_os, Platform::IOS) {
@@ -87,14 +87,14 @@ pub fn header_initializer_chrome155(
     headers
 }
 
-pub fn header_initializer_chrome152(
+pub(super) fn navigation_headers_with_language_and_zstd_only(
     sec_ch_ua: &'static str,
     ua: &'static str,
     emulation_os: Platform,
 ) -> HeaderMap {
     // Linux sends Accept-Language after Accept-Encoding for this profile.
     if matches!(emulation_os, Platform::Linux) {
-        return header_initializer_with_zstd_priority(sec_ch_ua, ua, emulation_os);
+        return navigation_headers_with_zstd_and_priority(sec_ch_ua, ua, emulation_os);
     }
 
     let mut headers = HeaderMap::new();

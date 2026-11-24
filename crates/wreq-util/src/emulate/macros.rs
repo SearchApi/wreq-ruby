@@ -273,26 +273,6 @@ macro_rules! mod_generator {
         $tls_options:expr,
         $http2_options:expr,
         $header_initializer:ident,
-        [($default_os:ident, $default_sec_ch_ua:tt, $default_ua:tt) $(, ($other_os:ident, $other_sec_ch_ua:tt, $other_ua:tt))*]
-    ) => {
-        standard_mod_generator!(
-            $mod_name,
-            $tls_options,
-            $http2_options,
-            |emulation: &Emulation| {
-                platform_headers!(
-                    emulation,
-                    $header_initializer,
-                    [($default_os, $default_sec_ch_ua, $default_ua) $(, ($other_os, $other_sec_ch_ua, $other_ua))*]
-                )
-            }
-        );
-    };
-    (
-        $mod_name:ident,
-        $tls_options:expr,
-        $http2_options:expr,
-        $header_initializer:ident,
         [($default_os:ident, $default_ua:tt) $(, ($other_os:ident, $other_ua:tt))*]
     ) => {
         standard_mod_generator!(
@@ -326,24 +306,6 @@ macro_rules! mod_generator {
         $mod_name:ident,
         $build_emulation:expr,
         $header_initializer:ident,
-        [($default_os:ident, $default_sec_ch_ua:tt, $default_ua:tt) $(, ($other_os:ident, $other_sec_ch_ua:tt, $other_ua:tt))*]
-    ) => {
-        standard_mod_generator!(
-            $mod_name,
-            $build_emulation,
-            |emulation: &Emulation| {
-                platform_headers!(
-                    emulation,
-                    $header_initializer,
-                    [($default_os, $default_sec_ch_ua, $default_ua) $(, ($other_os, $other_sec_ch_ua, $other_ua))*]
-                )
-            }
-        );
-    };
-    (
-        $mod_name:ident,
-        $build_emulation:expr,
-        $header_initializer:ident,
         [($default_os:ident, $default_ua:tt) $(, ($other_os:ident, $other_ua:tt))*]
     ) => {
         standard_mod_generator!(
@@ -369,5 +331,32 @@ macro_rules! mod_generator {
             $build_emulation,
             |emulation: &Emulation| fixed_headers!(emulation, $header_initializer, $ua)
         );
+    };
+}
+
+macro_rules! chromium_profile {
+    (
+        $name:ident,
+        tls: $tls:path,
+        http2: $http2:path,
+        headers: $headers:ident,
+        $platforms:tt $(,)?
+    ) => {
+        standard_mod_generator!(
+            $name,
+            $tls(),
+            $http2(),
+            |emulation: &Emulation| platform_headers!(emulation, $headers, $platforms)
+        );
+    };
+    (
+        $name:ident,
+        transport: $transport:path,
+        headers: $headers:ident,
+        $platforms:tt $(,)?
+    ) => {
+        standard_mod_generator!($name, $transport, |emulation: &Emulation| {
+            platform_headers!(emulation, $headers, $platforms)
+        });
     };
 }
