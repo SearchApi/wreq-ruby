@@ -114,7 +114,7 @@ edge_profile!(
 edge_profile!(
     edge135,
     transport: v132::build_emulation,
-    brands: r#""Chromium";v="135", "Not:A-Brand";v="24", "Microsoft Edge";v="135"#,
+    brands: r#""Chromium";v="135", "Not:A-Brand";v="24", "Microsoft Edge";v="135""#,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0"),
         (Android, "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0"),
@@ -127,7 +127,7 @@ edge_profile!(
 edge_profile!(
     edge136,
     transport: v132::build_emulation,
-    brands: r#""Chromium";v="136", "Not:A-Brand";v="24", "Microsoft Edge";v="136"#,
+    brands: r#""Chromium";v="136", "Not:A-Brand";v="24", "Microsoft Edge";v="136""#,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0"),
         (Android, "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0"),
@@ -140,7 +140,7 @@ edge_profile!(
 edge_profile!(
     edge137,
     transport: v132::build_emulation,
-    brands: r#""Chromium";v="137", "Not:A-Brand";v="24", "Microsoft Edge";v="137"#,
+    brands: r#""Chromium";v="137", "Not:A-Brand";v="24", "Microsoft Edge";v="137""#,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0"),
         (Android, "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0"),
@@ -153,7 +153,7 @@ edge_profile!(
 edge_profile!(
     edge138,
     transport: v132::build_emulation,
-    brands: r#""Chromium";v="138", "Not=A?Brand";v="24", "Microsoft Edge";v="138"#,
+    brands: r#""Chromium";v="138", "Not=A?Brand";v="24", "Microsoft Edge";v="138""#,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0"),
         (Android, "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0"),
@@ -166,7 +166,7 @@ edge_profile!(
 edge_profile!(
     edge139,
     transport: v132::build_emulation,
-    brands: r#""Chromium";v="139", "Not=A?Brand";v="24", "Microsoft Edge";v="139"#,
+    brands: r#""Chromium";v="139", "Not=A?Brand";v="24", "Microsoft Edge";v="139""#,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0"),
         (Android, "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0"),
@@ -179,7 +179,7 @@ edge_profile!(
 edge_profile!(
     edge140,
     transport: v132::build_emulation,
-    brands: r#""Chromium";v="140", "Not=A?Brand";v="24", "Microsoft Edge";v="140"#,
+    brands: r#""Chromium";v="140", "Not=A?Brand";v="24", "Microsoft Edge";v="140""#,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0"),
         (Android, "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0"),
@@ -192,7 +192,7 @@ edge_profile!(
 edge_profile!(
     edge141,
     transport: v132::build_emulation,
-    brands: r#""Chromium";v="141", "Not=A?Brand";v="24", "Microsoft Edge";v="141"#,
+    brands: r#""Chromium";v="141", "Not=A?Brand";v="24", "Microsoft Edge";v="141""#,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0"),
         (Android, "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0"),
