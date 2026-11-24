@@ -1,14 +1,13 @@
 mod header;
-mod tls;
 
 use header::navigation_headers_with_zstd_and_priority;
 
 use super::super::{Emulation, HeaderMap, Platform, build_standard_emulation};
-use super::{header::navigation_headers_with_jxl, http2, tls as chromium_tls};
+use super::{header::navigation_headers_with_jxl, http2, tls};
 
 chromium_profile!(
     opera116,
-    tls: tls::mlkem_resumption,
+    tls: tls::resumption_with_mlkem,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -299,7 +298,7 @@ chromium_profile!(
 // Brand hints use Chromium's milestone seed with Opera as the product brand.
 chromium_profile!(
     opera132,
-    tls: chromium_tls::mlkem_new_alps,
+    tls: tls::mlkem_new_alps,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -336,7 +335,7 @@ chromium_profile!(
 
 chromium_profile!(
     opera134,
-    tls: chromium_tls::mlkem_new_alps_with_mldsa,
+    tls: tls::mlkem_new_alps_with_mldsa,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -374,7 +373,7 @@ chromium_profile!(
 // Use Chromium's shuffled Trust Anchor IDs with Opera's existing HTTP/2 settings.
 chromium_profile!(
     opera136,
-    tls: chromium_tls::shuffled_trust_anchor_ids,
+    tls: tls::shuffled_trust_anchor_ids,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
@@ -412,7 +411,7 @@ chromium_profile!(
 // Switch from shuffled to sorted Trust Anchor IDs.
 chromium_profile!(
     opera138,
-    tls: chromium_tls::sorted_trust_anchor_ids,
+    tls: tls::sorted_trust_anchor_ids,
     http2: http2::Preset::NoPush,
     headers: navigation_headers_with_zstd_and_priority,
     [
