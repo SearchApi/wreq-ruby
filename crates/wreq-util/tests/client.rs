@@ -182,6 +182,46 @@ async fn test_edge158_desktop_headers() {
 }
 
 #[tokio::test]
+async fn test_edge158_mobile_headers() {
+    for (platform, platform_hint, user_agent) in [
+        (
+            Platform::Android,
+            "\"Android\"",
+            "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Mobile Safari/537.36 EdgA/158.0.0.0",
+        ),
+        (
+            Platform::IOS,
+            "\"iOS\"",
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 EdgiOS/158.0.0.0 Mobile/15E148 Safari/605.1.15",
+        ),
+    ] {
+        let server = server::http(move |request| async move {
+            let headers = request.headers();
+            assert_eq!(headers["user-agent"], user_agent);
+            assert_eq!(headers["sec-ch-ua-platform"], platform_hint);
+            assert_eq!(headers["sec-ch-ua-mobile"], "?1");
+            http::Response::default()
+        });
+
+        let response = Client::builder_tokio()
+            .emulation(
+                Emulation::builder()
+                    .profile(Emulation::Edge158)
+                    .platform(platform)
+                    .build(),
+            )
+            .no_proxy()
+            .build()
+            .unwrap()
+            .get(format!("http://{}/", server.addr()))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), wreq::StatusCode::OK);
+    }
+}
+
+#[tokio::test]
 async fn test_linux_navigation_emulation_headers() {
     let linux = |profile| {
         Emulation::builder()
@@ -235,6 +275,10 @@ async fn test_opera_default_header_order() {
 #[tokio::test]
 async fn test_opera_linux_headers() {
     for (profile, expected_user_agent) in [
+        (
+            Emulation::Opera138,
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 OPR/138.0.0.0",
+        ),
         (
             Emulation::Opera139,
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 OPR/139.0.0.0",

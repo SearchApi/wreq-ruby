@@ -89,7 +89,9 @@ Most browser device models share identical TLS and HTTP/2 configurations, differ
 - <details>
   <summary>Available browser emulations</summary>
 
-  Edge 149–158 are desktop profiles for Windows, macOS, and Linux.
+  Edge 149–158 provide request-header presets for Windows, macOS, Linux, Android, and iOS.
+  Their mobile User-Agent strings follow the format used by Edge 148.
+  Opera 116–140 provide desktop request-header presets for Windows, macOS, and Linux.
 
   | **Browser** | **Versions** |
   | ----------- | ------------ |
