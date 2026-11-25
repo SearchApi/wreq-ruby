@@ -12,11 +12,8 @@ use typed_builder::TypedBuilder;
 use wreq::header::ACCEPT_ENCODING;
 use wreq::{
     Group,
-    header::{ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderName, HeaderValue, USER_AGENT},
-    http2::{
-        HeadersDependency, HeadersPriority, Http2Options, Priorities, Priority, PseudoId,
-        PseudoOrder, SettingId, SettingsOrder, StreamDependency, StreamId,
-    },
+    header::{ACCEPT, ACCEPT_LANGUAGE, HeaderMap, HeaderValue, USER_AGENT},
+    http2::{Http2Options, PseudoId, PseudoOrder, SettingId, SettingsOrder},
     tls::{
         AlpnProtocol, AlpsProtocol, EchGrease, EchGreaseAead, ExtensionType, KeyShare, Tls13Cipher,
         TlsOptions, TlsVersion, compress::CertificateCompressor,

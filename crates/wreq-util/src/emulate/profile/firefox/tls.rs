@@ -1,64 +1,148 @@
-use super::*;
+use super::super::{
+    AlpnProtocol, BrotliCompressor, CertificateCompressor, EchGrease, ExtensionType, KeyShare,
+    Tls13Cipher, TlsOptions, TlsVersion, ZlibCompressor, ZstdCompressor,
+};
 
-macro_rules! tls_options {
-    (@build $builder:expr) => {
-        $builder.build().into()
-    };
-
-    (@base $builder:expr, $cipher_list:expr, $curves:expr) => {
-        $builder
-            .cipher_list($cipher_list)
-            .curves_list($curves)
-    };
-
-    (1, $cipher_list:expr, $curves:expr, $key_shares:expr) => {
-        tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
-            .ech_grease(EchGrease::NssPre3127)
-            .pre_shared_key(true)
-            .psk_skip_session_tickets(true)
-            .key_shares($key_shares)
-            .certificate_compressors(CERTIFICATE_COMPRESSORS))
-    };
-    (2, $cipher_list:expr, $curves:expr) => {
-        tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves))
-    };
-    (3, $cipher_list:expr, $curves:expr, $key_shares:expr) => {
-        tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
-            .session_ticket(false)
-            .ech_grease(EchGrease::NssPre3127)
-            .psk_dhe_ke(false)
-            .key_shares($key_shares))
-    };
-    (4, $cipher_list:expr, $curves:expr, $key_shares:expr, $ech_grease:expr) => {
-        tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
-            .ech_grease($ech_grease)
-            .enable_signed_cert_timestamps(true)
-            .session_ticket(true)
-            .pre_shared_key(true)
-            .psk_skip_session_tickets(true)
-            .key_shares($key_shares)
-            .certificate_compressors(CERTIFICATE_COMPRESSORS))
-    };
-    (5, $cipher_list:expr, $curves:expr, $key_shares:expr) => {
-        tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
-            .ech_grease(EchGrease::NssPre3127)
-            .pre_shared_key(true)
-            .psk_skip_session_tickets(true)
-            .key_shares($key_shares)
-            .certificate_compressors(CERTIFICATE_COMPRESSORS))
-    };
-    (6, $cipher_list:expr, $curves:expr, $key_shares:expr) => {
-        tls_options!(@build tls_options!(@base FirefoxTlsConfig::builder(), $cipher_list, $curves)
-            .ech_grease(EchGrease::NssPre3127)
-            .enable_signed_cert_timestamps(true)
-            .session_ticket(false)
-            .psk_dhe_ke(false)
-            .key_shares($key_shares)
-            .certificate_compressors(CERTIFICATE_COMPRESSORS))
-    };
+#[derive(Clone, Copy)]
+pub(super) enum Preset {
+    Legacy,
+    EchWithoutResumption,
+    MlkemResumption,
+    MlkemResumptionWithSct,
+    PrivateBrowsing,
+    AndroidResumption,
+    NoEcdsaAes128Cbc,
+    NoEcdsaCbc,
+    Nss3127Grease,
+    NoFfdhe,
 }
 
-pub const CURVES_1: &str = join!(
+struct Settings {
+    curves: &'static str,
+    ciphers: &'static str,
+    key_shares: Option<&'static [KeyShare]>,
+    session_ticket: bool,
+    ech_grease: Option<EchGrease>,
+    signed_cert_timestamps: bool,
+    pre_shared_key: bool,
+    psk_skip_session_ticket: bool,
+    psk_dhe_ke: bool,
+    certificate_compression: bool,
+}
+
+impl Preset {
+    pub(super) fn build(self) -> TlsOptions {
+        const LEGACY: Settings = Settings {
+            curves: CLASSIC_FFDHE_GROUPS,
+            ciphers: CIPHERS_WITH_ECDSA_CBC,
+            key_shares: None,
+            session_ticket: true,
+            ech_grease: None,
+            signed_cert_timestamps: false,
+            pre_shared_key: false,
+            psk_skip_session_ticket: false,
+            psk_dhe_ke: true,
+            certificate_compression: false,
+        };
+
+        const ECH: Settings = Settings {
+            key_shares: Some(CLASSIC_KEY_SHARES),
+            ech_grease: Some(EchGrease::NssPre3127),
+            ..LEGACY
+        };
+
+        const RESUMPTION: Settings = Settings {
+            pre_shared_key: true,
+            psk_skip_session_ticket: true,
+            certificate_compression: true,
+            ..ECH
+        };
+
+        const MLKEM_RESUMPTION: Settings = Settings {
+            curves: MLKEM_FFDHE_GROUPS,
+            key_shares: Some(MLKEM_KEY_SHARES),
+            ..RESUMPTION
+        };
+
+        const MLKEM_RESUMPTION_WITH_SCT: Settings = Settings {
+            signed_cert_timestamps: true,
+            ..MLKEM_RESUMPTION
+        };
+
+        const NO_ECDSA_CBC: Settings = Settings {
+            ciphers: CIPHERS_WITHOUT_ECDSA_CBC,
+            ..MLKEM_RESUMPTION_WITH_SCT
+        };
+
+        const NSS_3127_GREASE: Settings = Settings {
+            ech_grease: Some(EchGrease::Nss3127),
+            ..NO_ECDSA_CBC
+        };
+
+        let settings = match self {
+            Self::Legacy => LEGACY,
+            Self::EchWithoutResumption => Settings {
+                ciphers: CIPHERS_WITHOUT_ECDSA_CBC,
+                session_ticket: false,
+                psk_dhe_ke: false,
+                ..ECH
+            },
+            Self::MlkemResumption => MLKEM_RESUMPTION,
+            Self::MlkemResumptionWithSct => MLKEM_RESUMPTION_WITH_SCT,
+            Self::PrivateBrowsing => Settings {
+                curves: MLKEM_FFDHE_GROUPS,
+                key_shares: Some(MLKEM_KEY_SHARES),
+                session_ticket: false,
+                signed_cert_timestamps: true,
+                psk_dhe_ke: false,
+                certificate_compression: true,
+                ..ECH
+            },
+            Self::AndroidResumption => RESUMPTION,
+            Self::NoEcdsaAes128Cbc => Settings {
+                ciphers: CIPHERS_WITHOUT_ECDSA_AES_128_CBC,
+                ..MLKEM_RESUMPTION_WITH_SCT
+            },
+            Self::NoEcdsaCbc => NO_ECDSA_CBC,
+            Self::Nss3127Grease => NSS_3127_GREASE,
+            Self::NoFfdhe => Settings {
+                curves: MLKEM_GROUPS,
+                ..NSS_3127_GREASE
+            },
+        };
+
+        let mut builder = TlsOptions::builder()
+            .curves_list(settings.curves)
+            .sigalgs_list(SIGALGS_LIST)
+            .cipher_list(settings.ciphers)
+            .tls13_cipher_list(TLS13_CIPHER_LIST)
+            .session_ticket(settings.session_ticket)
+            .delegated_credentials(DELEGATED_CREDENTIALS)
+            .record_size_limit(RECORD_SIZE_LIMIT)
+            .enable_ocsp_stapling(true)
+            .ech_grease(settings.ech_grease)
+            .enable_signed_cert_timestamps(settings.signed_cert_timestamps)
+            .alpn_protocols([AlpnProtocol::HTTP2, AlpnProtocol::HTTP1])
+            .min_tls_version(TlsVersion::TLS_1_2)
+            .max_tls_version(TlsVersion::TLS_1_3)
+            .pre_shared_key(settings.pre_shared_key)
+            .psk_skip_session_ticket(settings.psk_skip_session_ticket)
+            .psk_dhe_ke(settings.psk_dhe_ke)
+            .extension_permutation(EXTENSION_PERMUTATION_INDICES);
+
+        if let Some(key_shares) = settings.key_shares {
+            builder = builder.key_shares(key_shares);
+        }
+
+        if settings.certificate_compression {
+            builder = builder.certificate_compressors(CERTIFICATE_COMPRESSORS);
+        }
+
+        builder.build()
+    }
+}
+
+const CLASSIC_FFDHE_GROUPS: &str = join!(
     ":",
     "X25519",
     "P-256",
@@ -68,7 +152,7 @@ pub const CURVES_1: &str = join!(
     "ffdhe3072"
 );
 
-pub const CURVES_2: &str = join!(
+const MLKEM_FFDHE_GROUPS: &str = join!(
     ":",
     "X25519MLKEM768",
     "X25519",
@@ -80,14 +164,14 @@ pub const CURVES_2: &str = join!(
 );
 
 // Firefox 156 stopped advertising FFDHE groups by default.
-pub const CURVES_3: &str = join!(":", "X25519MLKEM768", "X25519", "P-256", "P-384", "P-521");
+const MLKEM_GROUPS: &str = join!(":", "X25519MLKEM768", "X25519", "P-256", "P-384", "P-521");
 
-pub const KEY_SHARES_1: &[KeyShare] = &[KeyShare::X25519, KeyShare::P256];
+const CLASSIC_KEY_SHARES: &[KeyShare] = &[KeyShare::X25519, KeyShare::P256];
 
-pub const KEY_SHARES_2: &[KeyShare] =
+const MLKEM_KEY_SHARES: &[KeyShare] =
     &[KeyShare::X25519_MLKEM768, KeyShare::X25519, KeyShare::P256];
 
-pub const CIPHER_LIST_1: &str = join!(
+const CIPHERS_WITH_ECDSA_CBC: &str = join!(
     ":",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
@@ -105,7 +189,7 @@ pub const CIPHER_LIST_1: &str = join!(
     "TLS_RSA_WITH_AES_256_CBC_SHA"
 );
 
-pub const CIPHER_LIST_2: &str = join!(
+const CIPHERS_WITHOUT_ECDSA_CBC: &str = join!(
     ":",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
@@ -121,7 +205,7 @@ pub const CIPHER_LIST_2: &str = join!(
     "TLS_RSA_WITH_AES_256_CBC_SHA"
 );
 
-pub const CIPHER_LIST_3: &str = join!(
+const CIPHERS_WITHOUT_ECDSA_AES_128_CBC: &str = join!(
     ":",
     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
     "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
@@ -138,7 +222,7 @@ pub const CIPHER_LIST_3: &str = join!(
     "TLS_RSA_WITH_AES_256_CBC_SHA"
 );
 
-pub const SIGALGS_LIST: &str = join!(
+const SIGALGS_LIST: &str = join!(
     ":",
     "ecdsa_secp256r1_sha256",
     "ecdsa_secp384r1_sha384",
@@ -153,16 +237,16 @@ pub const SIGALGS_LIST: &str = join!(
     "rsa_pkcs1_sha1"
 );
 
-pub const TLS13_CIPHER_LIST: &[Tls13Cipher] = &[
+const TLS13_CIPHER_LIST: &[Tls13Cipher] = &[
     Tls13Cipher::AES_128_GCM_SHA256,
     Tls13Cipher::CHACHA20_POLY1305_SHA256,
     Tls13Cipher::AES_256_GCM_SHA384,
 ];
 
-pub const CERTIFICATE_COMPRESSORS: &[&'static dyn CertificateCompressor] =
+const CERTIFICATE_COMPRESSORS: &[&'static dyn CertificateCompressor] =
     &[&ZlibCompressor, &BrotliCompressor, &ZstdCompressor];
 
-pub const DELEGATED_CREDENTIALS: &str = join!(
+const DELEGATED_CREDENTIALS: &str = join!(
     ":",
     "ecdsa_secp256r1_sha256",
     "ecdsa_secp384r1_sha384",
@@ -170,9 +254,9 @@ pub const DELEGATED_CREDENTIALS: &str = join!(
     "ecdsa_sha1"
 );
 
-pub const RECORD_SIZE_LIMIT: u16 = 0x4001;
+const RECORD_SIZE_LIMIT: u16 = 0x4001;
 
-pub const EXTENSION_PERMUTATION_INDICES: &[ExtensionType] = &[
+const EXTENSION_PERMUTATION_INDICES: &[ExtensionType] = &[
     ExtensionType::SERVER_NAME,
     ExtensionType::EXTENDED_MASTER_SECRET,
     ExtensionType::RENEGOTIATE,
@@ -191,81 +275,3 @@ pub const EXTENSION_PERMUTATION_INDICES: &[ExtensionType] = &[
     ExtensionType::CERT_COMPRESSION,
     ExtensionType::ENCRYPTED_CLIENT_HELLO,
 ];
-
-#[derive(TypedBuilder)]
-pub struct FirefoxTlsConfig {
-    #[builder(default = SIGALGS_LIST)]
-    sigalgs_list: &'static str,
-
-    #[builder(setter(into))]
-    cipher_list: &'static str,
-
-    #[builder(setter(into))]
-    curves_list: &'static str,
-
-    #[builder(default, setter(into))]
-    key_shares: Option<&'static [KeyShare]>,
-
-    #[builder(default = true)]
-    session_ticket: bool,
-
-    #[builder(default, setter(into))]
-    ech_grease: Option<EchGrease>,
-
-    #[builder(default = false, setter(into))]
-    enable_signed_cert_timestamps: bool,
-
-    #[builder(default = false, setter(into))]
-    pre_shared_key: bool,
-
-    #[builder(default = false, setter(into))]
-    psk_skip_session_tickets: bool,
-
-    #[builder(default = DELEGATED_CREDENTIALS, setter(into))]
-    delegated_credentials: &'static str,
-
-    #[builder(default = RECORD_SIZE_LIMIT, setter(into))]
-    record_size_limit: u16,
-
-    #[builder(default = true, setter(into))]
-    psk_dhe_ke: bool,
-
-    #[builder(default, setter(into))]
-    certificate_compressors: Option<&'static [&'static dyn CertificateCompressor]>,
-
-    #[builder(default = EXTENSION_PERMUTATION_INDICES, setter(into))]
-    extension_permutation: &'static [ExtensionType],
-}
-
-impl From<FirefoxTlsConfig> for TlsOptions {
-    fn from(val: FirefoxTlsConfig) -> Self {
-        let mut builder = TlsOptions::builder()
-            .curves_list(val.curves_list)
-            .sigalgs_list(val.sigalgs_list)
-            .cipher_list(val.cipher_list)
-            .tls13_cipher_list(TLS13_CIPHER_LIST)
-            .session_ticket(val.session_ticket)
-            .delegated_credentials(val.delegated_credentials)
-            .record_size_limit(val.record_size_limit)
-            .enable_ocsp_stapling(true)
-            .ech_grease(val.ech_grease)
-            .enable_signed_cert_timestamps(val.enable_signed_cert_timestamps)
-            .alpn_protocols([AlpnProtocol::HTTP2, AlpnProtocol::HTTP1])
-            .min_tls_version(TlsVersion::TLS_1_2)
-            .max_tls_version(TlsVersion::TLS_1_3)
-            .pre_shared_key(val.pre_shared_key)
-            .psk_skip_session_ticket(val.psk_skip_session_tickets)
-            .psk_dhe_ke(val.psk_dhe_ke)
-            .extension_permutation(val.extension_permutation);
-
-        if let Some(key_shares) = val.key_shares {
-            builder = builder.key_shares(key_shares)
-        }
-
-        if let Some(certificate_compressors) = val.certificate_compressors {
-            builder = builder.certificate_compressors(certificate_compressors)
-        }
-
-        builder.build()
-    }
-}
