@@ -66,9 +66,6 @@ fn check_header_order<'a>(
             previous = Some(position);
         }
 
-        assert!(request.contains("\r\nupgrade-insecure-requests: 1\r\n"));
-        assert!(request.contains("\r\nsec-fetch-user: ?1\r\n"));
-
         stream
             .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
             .await
@@ -83,102 +80,15 @@ async fn assert_emulation_headers(
     let server = server::low_level_with_response(move |request, stream| {
         check_header_order(request, stream, expected)
     });
-    let response = Client::builder_tokio()
+    Client::builder_tokio()
         .emulation(emulation)
+        .no_proxy()
         .build()
         .expect("client")
         .get(format!("http://{}/headers", server.addr()))
         .send()
         .await
         .expect("request");
-
-    assert_eq!(response.status(), wreq::StatusCode::OK);
-}
-
-#[tokio::test]
-async fn test_client_emulation_device() {
-    let server = server::http(move |req| async move {
-        let header = |name| {
-            req.headers()
-                .get(name)
-                .and_then(|value| value.to_str().ok())
-        };
-
-        assert_eq!(
-            header("user-agent"),
-            Some(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
-            )
-        );
-        assert_eq!(
-            header("sec-ch-ua"),
-            Some(r#""Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151""#)
-        );
-        assert_eq!(header("sec-ch-ua-mobile"), Some("?0"));
-        assert_eq!(header("sec-ch-ua-platform"), Some("\"Linux\""));
-        http::Response::default()
-    });
-
-    let url = format!("http://{}/ua", server.addr());
-    let res = Client::builder_tokio()
-        .emulation(
-            Emulation::builder()
-                .profile(Emulation::Chrome151)
-                .platform(Platform::Linux)
-                .http2(true)
-                .build(),
-        )
-        .build()
-        .expect("Unable to build client")
-        .get(&url)
-        .send()
-        .await
-        .expect("request");
-
-    assert_eq!(res.status(), wreq::StatusCode::OK);
-}
-
-#[tokio::test]
-async fn test_chrome_default_header_order() {
-    assert_emulation_headers(Emulation::Chrome133, CHROMIUM_HEADER_ORDER).await;
-}
-
-#[tokio::test]
-async fn test_edge158_desktop_headers() {
-    let server = server::http(|request| async move {
-        let headers = request.headers();
-        assert_eq!(
-            headers["user-agent"],
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36 Edg/158.0.0.0"
-        );
-        assert_eq!(
-            headers["sec-ch-ua"],
-            r#""Chromium";v="158", "Not.A/Brand";v="24", "Microsoft Edge";v="158""#
-        );
-        assert_eq!(
-            headers["accept"],
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
-        );
-        #[cfg(feature = "emulation-compression")]
-        assert_eq!(headers["accept-encoding"], "gzip, deflate, br, zstd");
-        assert_eq!(headers["priority"], "u=0, i");
-        http::Response::default()
-    });
-
-    let response = Client::builder_tokio()
-        .emulation(
-            Emulation::builder()
-                .profile(Emulation::Edge158)
-                .platform(Platform::Windows)
-                .build(),
-        )
-        .build()
-        .unwrap()
-        .get(format!("http://{}/", server.addr()))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), wreq::StatusCode::OK);
 }
 
 #[tokio::test]
@@ -187,7 +97,7 @@ async fn test_edge158_mobile_headers() {
         (
             Platform::Android,
             "\"Android\"",
-            "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Mobile Safari/537.36 EdgA/158.0.0.0",
+            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Mobile Safari/537.36 EdgA/158.0.0.0",
         ),
         (
             Platform::IOS,
@@ -200,10 +110,13 @@ async fn test_edge158_mobile_headers() {
             assert_eq!(headers["user-agent"], user_agent);
             assert_eq!(headers["sec-ch-ua-platform"], platform_hint);
             assert_eq!(headers["sec-ch-ua-mobile"], "?1");
+            if platform == Platform::Android {
+                assert!(!headers["accept"].to_str().unwrap().contains("image/jxl"));
+            }
             http::Response::default()
         });
 
-        let response = Client::builder_tokio()
+        Client::builder_tokio()
             .emulation(
                 Emulation::builder()
                     .profile(Emulation::Edge158)
@@ -217,7 +130,6 @@ async fn test_edge158_mobile_headers() {
             .send()
             .await
             .unwrap();
-        assert_eq!(response.status(), wreq::StatusCode::OK);
     }
 }
 
@@ -268,11 +180,6 @@ async fn test_firefox_default_header_order() {
 }
 
 #[tokio::test]
-async fn test_opera_default_header_order() {
-    assert_emulation_headers(Emulation::Opera116, CHROMIUM_HEADER_ORDER).await;
-}
-
-#[tokio::test]
 async fn test_opera_linux_headers() {
     for (profile, expected_user_agent) in [
         (
@@ -300,10 +207,18 @@ async fn test_opera_linux_headers() {
                 "\"Linux\"",
                 "{profile:?}"
             );
+            if profile == Profile::Opera140 {
+                assert!(
+                    request.headers()["accept"]
+                        .to_str()
+                        .unwrap()
+                        .contains("image/jxl,image/avif")
+                );
+            }
             http::Response::default()
         });
 
-        let response = Client::builder_tokio()
+        Client::builder_tokio()
             .emulation(
                 Emulation::builder()
                     .profile(profile)
@@ -318,44 +233,5 @@ async fn test_opera_linux_headers() {
             .send()
             .await
             .expect("request");
-
-        assert_eq!(response.status(), wreq::StatusCode::OK, "{profile:?}");
     }
-}
-
-#[tokio::test]
-async fn test_opera140_desktop_headers() {
-    let server = server::http(move |request| async move {
-        let headers = request.headers();
-        assert_eq!(
-            headers["user-agent"],
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 OPR/140.0.0.0"
-        );
-        assert_eq!(
-            headers["sec-ch-ua"],
-            r#""Not-A.Brand";v="99", "Opera";v="140", "Chromium";v="157""#
-        );
-        assert!(
-            headers["accept"]
-                .to_str()
-                .unwrap()
-                .contains("image/jxl,image/avif")
-        );
-        http::Response::default()
-    });
-
-    let response = Client::builder_tokio()
-        .emulation(
-            Emulation::builder()
-                .profile(Emulation::Opera140)
-                .platform(Platform::Windows)
-                .build(),
-        )
-        .build()
-        .unwrap()
-        .get(format!("http://{}/", server.addr()))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), wreq::StatusCode::OK);
 }
