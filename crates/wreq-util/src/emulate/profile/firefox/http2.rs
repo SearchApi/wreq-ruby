@@ -1,113 +1,103 @@
-macro_rules! headers_priority {
-    (1) => {
-        HeadersPriority::new(HeadersDependency::Root, 41, false)
-    };
-    (2) => {
-        HeadersPriority::new(HeadersDependency::Declared(13_u32.into()), 41, false)
-    };
+use wreq::http2::{
+    HeadersDependency, HeadersPriority, Http2Options, Priorities, Priority, PseudoId, PseudoOrder,
+    SettingId, SettingsOrder, StreamDependency, StreamId,
+};
+
+#[derive(Clone, Copy)]
+pub(super) enum Preset {
+    NoPush,
+    PriorityTree,
+    ZeroConcurrentStreams,
+    AndroidWindow,
 }
 
-macro_rules! pseudo_order {
-    () => {
-        PseudoOrder::builder()
-            .extend([
-                PseudoId::Method,
-                PseudoId::Path,
-                PseudoId::Authority,
-                PseudoId::Scheme,
-            ])
-            .build()
-    };
-}
+impl Preset {
+    pub(super) fn build(self) -> Http2Options {
+        let (initial_window_size, header_table_size) = if matches!(self, Self::AndroidWindow) {
+            (32_768, 4_096)
+        } else {
+            (131_072, 65_536)
+        };
 
-macro_rules! settings_order {
-    () => {
-        SettingsOrder::builder()
-            .extend([
-                SettingId::HeaderTableSize,
-                SettingId::EnablePush,
-                SettingId::MaxConcurrentStreams,
-                SettingId::InitialWindowSize,
-                SettingId::MaxFrameSize,
-                SettingId::MaxHeaderListSize,
-                SettingId::EnableConnectProtocol,
-                SettingId::NoRfc7540Priorities,
-            ])
-            .build()
-    };
-}
-
-macro_rules! http2_options {
-    (@base $builder:expr) => {
-        $builder
-            .initial_window_size(131072)
-            .max_frame_size(16384)
-            .initial_connection_window_size(12517377 + 65535)
-            .headers_pseudo_order(pseudo_order!())
-            .settings_order(settings_order!())
-    };
-
-    (1) => {
-        http2_options!(@base Http2Options::builder())
-            .initial_stream_id(3)
-            .header_table_size(65536)
-            .enable_push(false)
-            .headers_priority(headers_priority!(1))
-            .build()
-    };
-    (2) => {
-        http2_options!(@base Http2Options::builder())
-            .initial_stream_id(15)
-            .header_table_size(65536)
-            .headers_priority(headers_priority!(2))
-            .priorities(
-                Priorities::builder()
+        let builder = Http2Options::builder()
+            .initial_window_size(initial_window_size)
+            .max_frame_size(16_384)
+            .initial_connection_window_size(12_517_377 + 65_535)
+            .header_table_size(header_table_size)
+            .headers_pseudo_order(
+                PseudoOrder::builder()
                     .extend([
-                        Priority::new(
-                            StreamId::from(3),
-                            StreamDependency::new(StreamId::from(0), 200, false),
-                        ),
-                        Priority::new(
-                            StreamId::from(5),
-                            StreamDependency::new(StreamId::from(0), 100, false),
-                        ),
-                        Priority::new(
-                            StreamId::from(7),
-                            StreamDependency::new(StreamId::from(0), 0, false),
-                        ),
-                        Priority::new(
-                            StreamId::from(9),
-                            StreamDependency::new(StreamId::from(7), 0, false),
-                        ),
-                        Priority::new(
-                            StreamId::from(11),
-                            StreamDependency::new(StreamId::from(3), 0, false),
-                        ),
-                        Priority::new(
-                            StreamId::from(13),
-                            StreamDependency::new(StreamId::from(0), 240, false),
-                        ),
+                        PseudoId::Method,
+                        PseudoId::Path,
+                        PseudoId::Authority,
+                        PseudoId::Scheme,
                     ])
                     .build(),
             )
-            .build()
-    };
-    (3) => {
-        http2_options!(@base Http2Options::builder())
+            .settings_order(
+                SettingsOrder::builder()
+                    .extend([
+                        SettingId::HeaderTableSize,
+                        SettingId::EnablePush,
+                        SettingId::MaxConcurrentStreams,
+                        SettingId::InitialWindowSize,
+                        SettingId::MaxFrameSize,
+                        SettingId::MaxHeaderListSize,
+                        SettingId::EnableConnectProtocol,
+                        SettingId::NoRfc7540Priorities,
+                    ])
+                    .build(),
+            );
+
+        // The priority-tree preset omits SETTINGS_ENABLE_PUSH.
+        if matches!(self, Self::PriorityTree) {
+            return builder
+                .initial_stream_id(15)
+                .headers_priority(HeadersPriority::new(
+                    HeadersDependency::Declared(13_u32.into()),
+                    41,
+                    false,
+                ))
+                .priorities(
+                    Priorities::builder()
+                        .extend([
+                            Priority::new(
+                                StreamId::from(3),
+                                StreamDependency::new(StreamId::from(0), 200, false),
+                            ),
+                            Priority::new(
+                                StreamId::from(5),
+                                StreamDependency::new(StreamId::from(0), 100, false),
+                            ),
+                            Priority::new(
+                                StreamId::from(7),
+                                StreamDependency::new(StreamId::from(0), 0, false),
+                            ),
+                            Priority::new(
+                                StreamId::from(9),
+                                StreamDependency::new(StreamId::from(7), 0, false),
+                            ),
+                            Priority::new(
+                                StreamId::from(11),
+                                StreamDependency::new(StreamId::from(3), 0, false),
+                            ),
+                            Priority::new(
+                                StreamId::from(13),
+                                StreamDependency::new(StreamId::from(0), 240, false),
+                            ),
+                        ])
+                        .build(),
+                )
+                .build();
+        }
+
+        let mut builder = builder
             .initial_stream_id(3)
-            .header_table_size(65536)
             .enable_push(false)
-            .max_concurrent_streams(0)
-            .headers_priority(headers_priority!(1))
-            .build()
-    };
-    (4) => {
-        http2_options!(@base Http2Options::builder())
-            .initial_stream_id(3)
-            .header_table_size(4096)
-            .enable_push(false)
-            .initial_window_size(32768)
-            .headers_priority(headers_priority!(1))
-            .build()
-    };
+            .headers_priority(HeadersPriority::new(HeadersDependency::Root, 41, false));
+        if matches!(self, Self::ZeroConcurrentStreams) {
+            builder = builder.max_concurrent_streams(0);
+        }
+        builder.build()
+    }
 }
