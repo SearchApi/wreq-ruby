@@ -3,7 +3,12 @@ mod macros;
 pub mod compress;
 pub mod profile;
 
-use profile::{chrome::*, firefox::*, okhttp::*, opera::*, safari::*};
+use profile::{
+    chromium::{chrome::*, edge::*, opera::*},
+    firefox::*,
+    okhttp::*,
+    safari::*,
+};
 #[cfg(feature = "emulation-serde")]
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;

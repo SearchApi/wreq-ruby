@@ -34,6 +34,16 @@ jobs:
     - name: Run cargo clippy
       run: cargo clippy --all-targets --all-features -- -D warnings
 
+    - name: Run wreq-util client tests
+      env:
+        NO_PROXY: 127.0.0.1
+      run: |
+        # Start with the shipping dependency versions; Cargo adds the test dependencies.
+        cp Cargo.lock crates/wreq-util/Cargo.lock
+        cargo test --manifest-path crates/wreq-util/Cargo.toml --test client \
+          --features emulation-compression --config Cargo.toml \
+          --config 'patch.crates-io.wreq-util.path="crates/wreq-util"'
+
   linux-tests:
     name: Linux Tests (${{ matrix.os }}, ${{ matrix.ruby }})
     runs-on: ${{ matrix.os }}

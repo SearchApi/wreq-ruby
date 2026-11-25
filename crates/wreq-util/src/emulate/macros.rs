@@ -84,62 +84,6 @@ macro_rules! define_enum {
     };
 }
 
-macro_rules! header_chrome_sec_ch_ua {
-    ($headers:expr, $ua:expr, $platform:expr, $is_mobile:expr) => {
-        let mobile = if $is_mobile { "?1" } else { "?0" };
-        $headers.insert("sec-ch-ua", HeaderValue::from_static($ua));
-        $headers.insert("sec-ch-ua-mobile", HeaderValue::from_static(mobile));
-        $headers.insert("sec-ch-ua-platform", HeaderValue::from_static($platform));
-    };
-}
-
-macro_rules! header_chrome_sec_fetch {
-    ($headers:expr) => {
-        $headers.insert("sec-fetch-site", HeaderValue::from_static("none"));
-        $headers.insert("sec-fetch-mode", HeaderValue::from_static("navigate"));
-        $headers.insert("sec-fetch-user", HeaderValue::from_static("?1"));
-        $headers.insert("sec-fetch-dest", HeaderValue::from_static("document"));
-    };
-}
-
-macro_rules! header_chrome_ua {
-    ($headers:expr, $ua:expr) => {
-        $headers.insert(USER_AGENT, HeaderValue::from_static($ua));
-    };
-}
-
-macro_rules! header_chrome_accept {
-    ($headers:expr) => {
-        $headers.insert(ACCEPT, HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"));
-    };
-}
-
-macro_rules! header_chrome_accept_encoding {
-    ($headers:expr) => {
-        #[cfg(feature = "emulation-compression")]
-        $headers.insert(
-            ACCEPT_ENCODING,
-            HeaderValue::from_static("gzip, deflate, br"),
-        );
-        $headers.insert(ACCEPT_LANGUAGE, HeaderValue::from_static("en-US,en;q=0.9"));
-    };
-    (zstd, $headers:expr) => {
-        #[cfg(feature = "emulation-compression")]
-        $headers.insert(
-            ACCEPT_ENCODING,
-            HeaderValue::from_static("gzip, deflate, br, zstd"),
-        );
-        $headers.insert(ACCEPT_LANGUAGE, HeaderValue::from_static("en-US,en;q=0.9"));
-    };
-    (zstd_only, $headers:expr) => {
-        #[cfg(feature = "emulation-compression")]
-        $headers.insert(
-            ACCEPT_ENCODING,
-            HeaderValue::from_static("gzip, deflate, br, zstd"),
-        );
-    };
-}
-
 macro_rules! header_firefox_sec_fetch {
     ($headers:expr) => {
         $headers.insert("sec-fetch-dest", HeaderValue::from_static("document"));
@@ -231,25 +175,17 @@ macro_rules! fixed_headers {
 macro_rules! platform_headers {
     (
         $emulation:expr,
-        $header_initializer:ident,
-        [($default_os:ident, $default_sec_ch_ua:tt, $default_ua:tt) $(, ($other_os:ident, $other_sec_ch_ua:tt, $other_ua:tt))*]
+        $header_preset:path,
+        $brands:literal,
+        [($default_os:ident, $default_ua:literal) $(, ($other_os:ident, $other_ua:literal))* $(,)?]
     ) => {{
         #[allow(unreachable_patterns)]
         $emulation.headers.then(|| {
-            match $emulation.platform {
-                $(
-                    Platform::$other_os => $header_initializer(
-                        $other_sec_ch_ua,
-                        $other_ua,
-                        $emulation.platform,
-                    ),
-                )*
-                _ => $header_initializer(
-                    $default_sec_ch_ua,
-                    $default_ua,
-                    Platform::$default_os,
-                ),
-            }
+            let (ua, platform) = match $emulation.platform {
+                $( Platform::$other_os => ($other_ua, Platform::$other_os), )*
+                _ => ($default_ua, Platform::$default_os),
+            };
+            ($header_preset).build($brands, ua, platform)
         })
     }};
 }
@@ -274,26 +210,6 @@ macro_rules! mod_generator {
         $tls_options:expr,
         $http2_options:expr,
         $header_initializer:ident,
-        [($default_os:ident, $default_sec_ch_ua:tt, $default_ua:tt) $(, ($other_os:ident, $other_sec_ch_ua:tt, $other_ua:tt))*]
-    ) => {
-        standard_mod_generator!(
-            $mod_name,
-            $tls_options,
-            $http2_options,
-            |emulation: &Emulation| {
-                platform_headers!(
-                    emulation,
-                    $header_initializer,
-                    [($default_os, $default_sec_ch_ua, $default_ua) $(, ($other_os, $other_sec_ch_ua, $other_ua))*]
-                )
-            }
-        );
-    };
-    (
-        $mod_name:ident,
-        $tls_options:expr,
-        $http2_options:expr,
-        $header_initializer:ident,
         [($default_os:ident, $default_ua:tt) $(, ($other_os:ident, $other_ua:tt))*]
     ) => {
         standard_mod_generator!(
@@ -327,24 +243,6 @@ macro_rules! mod_generator {
         $mod_name:ident,
         $build_emulation:expr,
         $header_initializer:ident,
-        [($default_os:ident, $default_sec_ch_ua:tt, $default_ua:tt) $(, ($other_os:ident, $other_sec_ch_ua:tt, $other_ua:tt))*]
-    ) => {
-        standard_mod_generator!(
-            $mod_name,
-            $build_emulation,
-            |emulation: &Emulation| {
-                platform_headers!(
-                    emulation,
-                    $header_initializer,
-                    [($default_os, $default_sec_ch_ua, $default_ua) $(, ($other_os, $other_sec_ch_ua, $other_ua))*]
-                )
-            }
-        );
-    };
-    (
-        $mod_name:ident,
-        $build_emulation:expr,
-        $header_initializer:ident,
         [($default_os:ident, $default_ua:tt) $(, ($other_os:ident, $other_ua:tt))*]
     ) => {
         standard_mod_generator!(
@@ -370,5 +268,34 @@ macro_rules! mod_generator {
             $build_emulation,
             |emulation: &Emulation| fixed_headers!(emulation, $header_initializer, $ua)
         );
+    };
+}
+
+macro_rules! chromium_profile {
+    (
+        $name:ident,
+        tls: $tls:path,
+        http2: $http2:path,
+        headers: $headers:path,
+        brands: $brands:literal,
+        $platforms:tt $(,)?
+    ) => {
+        standard_mod_generator!(
+            $name,
+            ($tls).build(),
+            ($http2).build(),
+            |emulation: &Emulation| platform_headers!(emulation, $headers, $brands, $platforms)
+        );
+    };
+    (
+        $name:ident,
+        transport: $transport:path,
+        headers: $headers:path,
+        brands: $brands:literal,
+        $platforms:tt $(,)?
+    ) => {
+        standard_mod_generator!($name, $transport, |emulation: &Emulation| {
+            platform_headers!(emulation, $headers, $brands, $platforms)
+        });
     };
 }

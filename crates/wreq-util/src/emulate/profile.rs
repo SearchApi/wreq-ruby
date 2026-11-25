@@ -1,10 +1,11 @@
 //! Emulation for different browsers.
 
-pub mod chrome;
+pub(super) mod chromium;
 pub mod firefox;
 pub mod okhttp;
-pub mod opera;
 pub mod safari;
+
+pub use chromium::{chrome, opera};
 
 use typed_builder::TypedBuilder;
 #[cfg(feature = "emulation-compression")]
