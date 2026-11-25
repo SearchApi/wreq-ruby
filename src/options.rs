@@ -1,20 +1,15 @@
 //! Parsing and validation for Ruby option hashes.
 
-use std::{fmt, marker::PhantomData};
+use std::fmt;
 
 use ::serde::{
     Deserialize, Deserializer,
     de::{DeserializeOwned, Visitor},
 };
 use magnus::{Error, RHash, Ruby, TryConvert, Value, value::ReprValue};
+use serde_magnus::options::{deserialize_options, validate_option_keys};
 
-use crate::{
-    error::{argument_error, option_value_error, type_error},
-    serde,
-};
-
-/// Private Serde newtype used to recognize values converted by Magnus.
-pub(crate) const NATIVE_OPTION_TOKEN: &str = "$wreq::private::NativeOption";
+use crate::error::{argument_error, option_value_error, type_error};
 
 /// An option represented in the Serde schema but converted through Magnus.
 ///
@@ -46,22 +41,29 @@ impl<'de, T> Deserialize<'de> for NativeOption<T> {
     where
         D: Deserializer<'de>,
     {
-        struct NativeOptionVisitor<T>(PhantomData<fn() -> T>);
+        struct NativeOptionVisitor;
 
-        impl<T> Visitor<'_> for NativeOptionVisitor<T> {
-            type Value = NativeOption<T>;
+        impl<'de> Visitor<'de> for NativeOptionVisitor {
+            type Value = ();
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str("a Ruby-native option")
             }
 
-            fn visit_unit<E>(self) -> Result<Self::Value, E> {
-                Ok(NativeOption::default())
+            fn visit_none<E>(self) -> Result<Self::Value, E> {
+                Ok(())
+            }
+
+            fn visit_some<D>(self, _deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                Ok(())
             }
         }
 
-        deserializer
-            .deserialize_newtype_struct(NATIVE_OPTION_TOKEN, NativeOptionVisitor(PhantomData))
+        deserializer.deserialize_option(NativeOptionVisitor)?;
+        Ok(Self::default())
     }
 }
 
@@ -114,7 +116,7 @@ impl<'ruby> Options<'ruby> {
     where
         T: DeserializeOwned,
     {
-        serde::validate_option_keys::<_, T>(self.ruby, self.hash)?;
+        validate_option_keys::<_, T>(self.ruby, self.hash)?;
         Ok(self)
     }
 
@@ -128,7 +130,7 @@ impl<'ruby> Options<'ruby> {
     where
         T: DeserializeOwned,
     {
-        serde::deserialize_options(self.ruby, self.hash)
+        deserialize_options(self.ruby, self.hash)
     }
 
     /// Return whether an option key is present, including a `nil` value.
