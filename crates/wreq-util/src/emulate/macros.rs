@@ -84,47 +84,6 @@ macro_rules! define_enum {
     };
 }
 
-macro_rules! header_firefox_sec_fetch {
-    ($headers:expr) => {
-        $headers.insert("sec-fetch-dest", HeaderValue::from_static("document"));
-        $headers.insert("sec-fetch-mode", HeaderValue::from_static("navigate"));
-        $headers.insert("sec-fetch-site", HeaderValue::from_static("none"));
-        $headers.insert("sec-fetch-user", HeaderValue::from_static("?1"));
-    };
-}
-
-macro_rules! header_firefox_accept {
-    ($headers:expr) => {
-        header_firefox_accept!(@build $headers, "en-US,en;q=0.5", "gzip, deflate, br");
-    };
-    (zstd, $headers:expr) => {
-        header_firefox_accept!(@build $headers, "en-US,en;q=0.5", "gzip, deflate, br, zstd");
-    };
-    // Firefox 147 changed the generated q-value from dividing 1.0 across the list to
-    // decrementing by 0.1 per entry, so a two-entry list became q=0.9 (Bugzilla 2000765,
-    // landed in 0e050ae5116d).
-    (zstd_q09, $headers:expr) => {
-        header_firefox_accept!(@build $headers, "en-US,en;q=0.9", "gzip, deflate, br, zstd");
-    };
-    (@build $headers:expr, $accept_language:expr, $accept_encoding:expr) => {
-        $headers.insert(
-            ACCEPT,
-            HeaderValue::from_static(
-                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            ),
-        );
-        $headers.insert(ACCEPT_LANGUAGE, HeaderValue::from_static($accept_language));
-        #[cfg(feature = "emulation-compression")]
-        $headers.insert(ACCEPT_ENCODING, HeaderValue::from_static($accept_encoding));
-    };
-}
-
-macro_rules! header_firefox_ua {
-    ($headers:expr, $ua:expr) => {
-        $headers.insert(USER_AGENT, HeaderValue::from_static($ua));
-    };
-}
-
 macro_rules! join {
     ($sep:expr, $first:expr $(, $rest:expr)*) => {
         concat!($first $(, $sep, $rest)*)
@@ -189,41 +148,7 @@ macro_rules! platform_headers {
     }};
 }
 
-macro_rules! firefox_platform_headers {
-    ($emulation:expr, $header_initializer:ident, [($default_os:ident, $default_ua:tt) $(, ($other_os:ident, $other_ua:tt))*]) => {{
-        #[allow(unreachable_patterns)]
-        $emulation.headers.then(|| {
-            match $emulation.platform {
-                $(
-                    Platform::$other_os => $header_initializer($other_ua),
-                )*
-                _ => $header_initializer($default_ua),
-            }
-        })
-    }};
-}
-
 macro_rules! mod_generator {
-    (
-        $mod_name:ident,
-        $tls_options:expr,
-        $http2_options:expr,
-        $header_initializer:ident,
-        [($default_os:ident, $default_ua:tt) $(, ($other_os:ident, $other_ua:tt))*]
-    ) => {
-        standard_mod_generator!(
-            $mod_name,
-            $tls_options,
-            $http2_options,
-            |emulation: &Emulation| {
-                firefox_platform_headers!(
-                    emulation,
-                    $header_initializer,
-                    [($default_os, $default_ua) $(, ($other_os, $other_ua))*]
-                )
-            }
-        );
-    };
     (
         $mod_name:ident,
         $tls_options:expr,
@@ -236,24 +161,6 @@ macro_rules! mod_generator {
             $tls_options,
             $http2_options,
             |emulation: &Emulation| fixed_headers!(emulation, $header_initializer, $ua)
-        );
-    };
-    (
-        $mod_name:ident,
-        $build_emulation:expr,
-        $header_initializer:ident,
-        [($default_os:ident, $default_ua:tt) $(, ($other_os:ident, $other_ua:tt))*]
-    ) => {
-        standard_mod_generator!(
-            $mod_name,
-            $build_emulation,
-            |emulation: &Emulation| {
-                firefox_platform_headers!(
-                    emulation,
-                    $header_initializer,
-                    [($default_os, $default_ua) $(, ($other_os, $other_ua))*]
-                )
-            }
         );
     };
     (

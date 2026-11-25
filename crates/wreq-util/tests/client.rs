@@ -180,6 +180,57 @@ async fn test_firefox_default_header_order() {
 }
 
 #[tokio::test]
+async fn test_firefox_mobile_headers() {
+    let server = server::http(|request| async move {
+        let mut response = http::Response::default();
+        for name in ["user-agent", "accept-language"] {
+            response
+                .headers_mut()
+                .insert(name, request.headers()[name].clone());
+        }
+        response
+    });
+    let client = Client::builder_tokio()
+        .http2_only()
+        .no_proxy()
+        .build()
+        .expect("client");
+
+    for (profile, platform, user_agent, language) in [
+        (
+            Profile::Firefox160,
+            Platform::Android,
+            "Mozilla/5.0 (Android 16; Mobile; rv:160.0) Gecko/160.0 Firefox/160.0",
+            "en-US",
+        ),
+        (
+            Profile::Firefox153,
+            Platform::IOS,
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/153.3 Mobile/15E148 Safari/604.1",
+            "en-US,en;q=0.9",
+        ),
+    ] {
+        let response = client
+            .get(format!("http://{}/headers", server.addr()))
+            .emulation(
+                Emulation::builder()
+                    .profile(profile)
+                    .platform(platform)
+                    .build(),
+            )
+            .send()
+            .await
+            .expect("request");
+        assert_eq!(response.headers()["user-agent"], user_agent, "{profile:?}");
+        assert_eq!(
+            response.headers()["accept-language"],
+            language,
+            "{profile:?}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn test_opera_linux_headers() {
     for (profile, expected_user_agent) in [
         (

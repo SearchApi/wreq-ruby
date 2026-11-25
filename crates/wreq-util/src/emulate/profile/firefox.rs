@@ -1,40 +1,55 @@
-#[macro_use]
-mod http2;
-#[macro_use]
-mod tls;
 mod header;
+mod http2;
+mod tls;
 
-use header::*;
-use tls::*;
-
-use super::*;
+use super::{Emulation, HeaderMap, Platform, build_standard_emulation};
 
 // The first platform entry supplies the UA when a platform is not listed.
 macro_rules! firefox_profile {
     (
         $name:ident,
-        tls: $tls:expr,
-        http2: $http2:expr,
-        headers: $headers:ident,
-        [$(($platform:ident, $ua:literal)),+ $(,)?] $(,)?
+        tls: $tls:path,
+        http2: $http2:path,
+        headers: $headers:path,
+        $platforms:tt $(,)?
     ) => {
-        mod_generator!($name, $tls, $http2, $headers, [$(($platform, $ua)),+]);
+        standard_mod_generator!(
+            $name,
+            ($tls).build(),
+            ($http2).build(),
+            |emulation: &Emulation| firefox_profile!(@headers emulation, $headers, $platforms)
+        );
     };
     (
         $name:ident,
         transport: $transport:path,
-        headers: $headers:ident,
-        [$(($platform:ident, $ua:literal)),+ $(,)?] $(,)?
+        headers: $headers:path,
+        $platforms:tt $(,)?
     ) => {
-        mod_generator!($name, $transport, $headers, [$(($platform, $ua)),+]);
+        standard_mod_generator!($name, $transport, |emulation: &Emulation| {
+            firefox_profile!(@headers emulation, $headers, $platforms)
+        });
     };
+    (
+        @headers $emulation:expr,
+        $headers:path,
+        [($fallback_platform:ident, $fallback_ua:literal) $(, ($platform:ident, $ua:literal))* $(,)?]
+    ) => {{
+        $emulation.headers.then(|| {
+            let (platform, ua) = match $emulation.platform {
+                $(Platform::$platform => (Platform::$platform, $ua),)*
+                _ => (Platform::$fallback_platform, $fallback_ua),
+            };
+            ($headers).build(platform, ua)
+        })
+    }};
 }
 
 firefox_profile!(
     ff109,
-    tls: tls_options!(2, CIPHER_LIST_1, CURVES_1),
-    http2: http2_options!(2),
-    headers: header_initializer,
+    tls: tls::Preset::Legacy,
+    http2: http2::Preset::PriorityTree,
+    headers: header::Preset::Legacy,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_17; rv:109.0) Gecko/20000101 Firefox/109.0"),
@@ -47,7 +62,7 @@ firefox_profile!(
 firefox_profile!(
     ff117,
     transport: ff109::build_emulation,
-    headers: header_initializer,
+    headers: header::Preset::Legacy,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:117.0) Gecko/20100101 Firefox/117.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_16_1; rv:117.0) Gecko/20010101 Firefox/117.0"),
@@ -59,9 +74,9 @@ firefox_profile!(
 
 firefox_profile!(
     ff128,
-    tls: tls_options!(3, CIPHER_LIST_2, CURVES_1, KEY_SHARES_1),
-    http2: http2_options!(3),
-    headers: header_initializer_with_zstd,
+    tls: tls::Preset::EchWithoutResumption,
+    http2: http2::Preset::ZeroConcurrentStreams,
+    headers: header::Preset::ZstdWithPriority,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0"),
         (Windows, "Mozilla/5.0 (Windows NT 10.0; rv:128.0) Gecko/20100101 Firefox/128.0"),
@@ -73,9 +88,9 @@ firefox_profile!(
 
 firefox_profile!(
     ff133,
-    tls: tls_options!(1, CIPHER_LIST_1, CURVES_2, KEY_SHARES_2),
-    http2: http2_options!(1),
-    headers: header_initializer_with_zstd,
+    tls: tls::Preset::MlkemResumption,
+    http2: http2::Preset::NoPush,
+    headers: header::Preset::ZstdWithPriority,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0"),
         (Android, "Mozilla/5.0 (Android 13; Mobile; rv:133.0) Gecko/133.0 Firefox/133.0"),
@@ -87,15 +102,9 @@ firefox_profile!(
 
 firefox_profile!(
     ff135,
-    tls: tls_options!(
-        4,
-        CIPHER_LIST_1,
-        CURVES_2,
-        KEY_SHARES_2,
-        EchGrease::NssPre3127
-    ),
-    http2: http2_options!(1),
-    headers: header_initializer_with_zstd,
+    tls: tls::Preset::MlkemResumptionWithSct,
+    http2: http2::Preset::NoPush,
+    headers: header::Preset::ZstdWithPriority,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0"),
         (Windows, "Mozilla/5.0 (Windows NT 10.0; rv:135.0) Gecko/20100101 Firefox/135.0"),
@@ -105,9 +114,9 @@ firefox_profile!(
 
 firefox_profile!(
     ff_private_135,
-    tls: tls_options!(6, CIPHER_LIST_1, CURVES_2, KEY_SHARES_2),
-    http2: http2_options!(1),
-    headers: header_initializer_with_zstd,
+    tls: tls::Preset::PrivateBrowsing,
+    http2: http2::Preset::NoPush,
+    headers: header::Preset::ZstdWithPriority,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0"),
         (Windows, "Mozilla/5.0 (Windows NT 10.0; rv:135.0) Gecko/20100101 Firefox/135.0"),
@@ -117,9 +126,9 @@ firefox_profile!(
 
 firefox_profile!(
     ff_android_135,
-    tls: tls_options!(5, CIPHER_LIST_1, CURVES_1, KEY_SHARES_1),
-    http2: http2_options!(4),
-    headers: header_initializer_with_zstd,
+    tls: tls::Preset::AndroidResumption,
+    http2: http2::Preset::AndroidWindow,
+    headers: header::Preset::ZstdWithPriority,
     [
         (Android, "Mozilla/5.0 (Android 13; Mobile; rv:135.0) Gecko/135.0 Firefox/135.0")
     ]
@@ -128,7 +137,7 @@ firefox_profile!(
 firefox_profile!(
     ff136,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd,
+    headers: header::Preset::ZstdWithPriority,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:136.0) Gecko/20100101 Firefox/136.0"),
         (Windows, "Mozilla/5.0 (Windows NT 10.0; rv:136.0) Gecko/20100101 Firefox/136.0"),
@@ -139,7 +148,7 @@ firefox_profile!(
 firefox_profile!(
     ff_private_136,
     transport: ff_private_135::build_emulation,
-    headers: header_initializer_with_zstd,
+    headers: header::Preset::ZstdWithPriority,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:136.0) Gecko/20100101 Firefox/136.0"),
         (Windows, "Mozilla/5.0 (Windows NT 10.0; rv:136.0) Gecko/20100101 Firefox/136.0"),
@@ -150,7 +159,7 @@ firefox_profile!(
 firefox_profile!(
     ff139,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd,
+    headers: header::Preset::ZstdWithPriority,
     [
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:139.0) Gecko/20100101 Firefox/139.0"),
         (Windows, "Mozilla/5.0 (Windows NT 10.0; rv:136.0) Gecko/20100101 Firefox/139.0"),
@@ -161,7 +170,7 @@ firefox_profile!(
 firefox_profile!(
     ff142,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd,
+    headers: header::Preset::ZstdWithPriority,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:142.0) Gecko/20100101 Firefox/142.0"),
@@ -174,7 +183,7 @@ firefox_profile!(
 firefox_profile!(
     ff143,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd,
+    headers: header::Preset::ZstdWithPriority,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:143.0) Gecko/20100101 Firefox/143.0"),
@@ -187,7 +196,7 @@ firefox_profile!(
 firefox_profile!(
     ff144,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd,
+    headers: header::Preset::ZstdWithPriority,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:144.0) Gecko/20100101 Firefox/144.0"),
@@ -200,7 +209,7 @@ firefox_profile!(
 firefox_profile!(
     ff145,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd,
+    headers: header::Preset::ZstdWithPriority,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:145.0) Gecko/20100101 Firefox/145.0"),
@@ -213,7 +222,7 @@ firefox_profile!(
 firefox_profile!(
     ff146,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd,
+    headers: header::Preset::ZstdWithPriority,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0"),
@@ -226,7 +235,7 @@ firefox_profile!(
 firefox_profile!(
     ff147,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:147.0) Gecko/20100101 Firefox/147.0"),
@@ -239,7 +248,7 @@ firefox_profile!(
 firefox_profile!(
     ff148,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:148.0) Gecko/20100101 Firefox/148.0"),
@@ -252,7 +261,7 @@ firefox_profile!(
 firefox_profile!(
     ff149,
     transport: ff135::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:149.0) Gecko/20100101 Firefox/149.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0"),
@@ -264,15 +273,9 @@ firefox_profile!(
 
 firefox_profile!(
     ff150,
-    tls: tls_options!(
-        4,
-        CIPHER_LIST_3,
-        CURVES_2,
-        KEY_SHARES_2,
-        EchGrease::NssPre3127
-    ),
-    http2: http2_options!(1),
-    headers: header_initializer_with_zstd_q09,
+    tls: tls::Preset::NoEcdsaAes128Cbc,
+    http2: http2::Preset::NoPush,
+    headers: header::Preset::LanguageQ09,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:150.0) Gecko/20100101 Firefox/150.0"),
@@ -285,7 +288,7 @@ firefox_profile!(
 firefox_profile!(
     ff151,
     transport: ff150::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:151.0) Gecko/20100101 Firefox/151.0"),
@@ -298,7 +301,7 @@ firefox_profile!(
 firefox_profile!(
     ff152,
     transport: ff150::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:152.0) Gecko/20100101 Firefox/152.0"),
@@ -311,96 +314,106 @@ firefox_profile!(
 firefox_profile!(
     ff153,
     transport: ff150::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09WithAndroidLocale,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:153.0) Gecko/20100101 Firefox/153.0"),
-        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0")
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0"),
+        (Android, "Mozilla/5.0 (Android 16; Mobile; rv:153.0) Gecko/153.0 Firefox/153.0"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/153.3 Mobile/15E148 Safari/604.1")
     ]
 );
 
 firefox_profile!(
     ff154,
-    tls: tls_options!(
-        4,
-        CIPHER_LIST_2,
-        CURVES_2,
-        KEY_SHARES_2,
-        EchGrease::NssPre3127
-    ),
-    http2: http2_options!(1),
-    headers: header_initializer_with_zstd_q09,
+    tls: tls::Preset::NoEcdsaCbc,
+    http2: http2::Preset::NoPush,
+    headers: header::Preset::LanguageQ09WithAndroidLocale,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:154.0) Gecko/20100101 Firefox/154.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:154.0) Gecko/20100101 Firefox/154.0"),
-        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0")
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0"),
+        (Android, "Mozilla/5.0 (Android 16; Mobile; rv:154.0) Gecko/154.0 Firefox/154.0"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/154.1 Mobile/15E148 Safari/604.1")
     ]
 );
 
 firefox_profile!(
     ff155,
-    tls: tls_options!(4, CIPHER_LIST_2, CURVES_2, KEY_SHARES_2, EchGrease::Nss3127),
-    http2: http2_options!(1),
-    headers: header_initializer_with_zstd_q09,
+    tls: tls::Preset::Nss3127Grease,
+    http2: http2::Preset::NoPush,
+    headers: header::Preset::LanguageQ09WithAndroidLocale,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:155.0) Gecko/20100101 Firefox/155.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:155.0) Gecko/20100101 Firefox/155.0"),
-        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0")
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0"),
+        (Android, "Mozilla/5.0 (Android 16; Mobile; rv:155.0) Gecko/155.0 Firefox/155.0"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/155.1 Mobile/15E148 Safari/604.1")
     ]
 );
 
 firefox_profile!(
     ff156,
-    tls: tls_options!(4, CIPHER_LIST_2, CURVES_3, KEY_SHARES_2, EchGrease::Nss3127),
-    http2: http2_options!(1),
-    headers: header_initializer_with_zstd_q09,
+    tls: tls::Preset::NoFfdhe,
+    http2: http2::Preset::NoPush,
+    headers: header::Preset::LanguageQ09WithAndroidLocale,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0"),
-        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0")
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:156.0) Gecko/20100101 Firefox/156.0"),
+        (Android, "Mozilla/5.0 (Android 16; Mobile; rv:156.0) Gecko/156.0 Firefox/156.0"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/156.1 Mobile/15E148 Safari/604.1")
     ]
 );
 
 firefox_profile!(
     ff157,
     transport: ff156::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09WithAndroidLocale,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0"),
-        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:157.0) Gecko/20100101 Firefox/157.0")
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:157.0) Gecko/20100101 Firefox/157.0"),
+        (Android, "Mozilla/5.0 (Android 16; Mobile; rv:157.0) Gecko/157.0 Firefox/157.0"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/157.1 Mobile/15E148 Safari/604.1")
     ]
 );
 
 firefox_profile!(
     ff158,
     transport: ff156::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09WithAndroidLocale,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:158.0) Gecko/20100101 Firefox/158.0"),
-        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:158.0) Gecko/20100101 Firefox/158.0")
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:158.0) Gecko/20100101 Firefox/158.0"),
+        (Android, "Mozilla/5.0 (Android 16; Mobile; rv:158.0) Gecko/158.0 Firefox/158.0"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/158.1 Mobile/15E148 Safari/604.1")
     ]
 );
 
 firefox_profile!(
     ff159,
     transport: ff156::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09WithAndroidLocale,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:159.0) Gecko/20100101 Firefox/159.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0"),
-        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0")
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"),
+        (Android, "Mozilla/5.0 (Android 16; Mobile; rv:159.0) Gecko/159.0 Firefox/159.0"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/159.1 Mobile/15E148 Safari/604.1")
     ]
 );
 
 firefox_profile!(
     ff160,
     transport: ff156::build_emulation,
-    headers: header_initializer_with_zstd_q09,
+    headers: header::Preset::LanguageQ09WithAndroidLocale,
     [
         (Windows, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:160.0) Gecko/20100101 Firefox/160.0"),
         (MacOS, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:160.0) Gecko/20100101 Firefox/160.0"),
-        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0")
+        (Linux, "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"),
+        (Android, "Mozilla/5.0 (Android 16; Mobile; rv:160.0) Gecko/160.0 Firefox/160.0"),
+        (IOS, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/160.1 Mobile/15E148 Safari/604.1")
     ]
 );
