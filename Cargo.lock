@@ -763,7 +763,7 @@ dependencies = [
 [[package]]
 name = "netty"
 version = "0.2.5"
-source = "git+https://github.com/0x676e67/netty?branch=main#314db585d85e7ea9c15535f458e7324b800fc702"
+source = "git+https://github.com/0x676e67/netty?branch=main#fd7884894c556fcdd4cfdb0b1932c3a6a60ab860"
 dependencies = [
  "bytes",
  "futures-channel",
