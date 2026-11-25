@@ -44,17 +44,23 @@ end
 
 desc "Run Rust tests"
 task :cargo_test do
-  sh "cargo test"
+  test_env = {}
+  if RbConfig::CONFIG.fetch("host_os").start_with?("linux")
+    # Embedded Ruby tests need the active Ruby's shared library at startup.
+    test_env["LD_LIBRARY_PATH"] = [RbConfig::CONFIG.fetch("libdir"), ENV["LD_LIBRARY_PATH"]]
+      .compact.reject(&:empty?).join(File::PATH_SEPARATOR)
+  end
+  sh test_env, "cargo", "test", "--workspace", "--locked"
 end
 
 desc "Format Rust code"
 task :fmt do
-  sh "cargo fmt"
+  sh "cargo fmt --all"
 end
 
 desc "Run Clippy linter"
 task :lint do
-  sh "cargo clippy -- -D warnings"
+  sh "cargo clippy --workspace --locked -- -D warnings"
 end
 
 desc "Build native gem for platform (e.g., rake 'native[x86_64-linux]')"

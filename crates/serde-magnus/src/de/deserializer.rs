@@ -1,15 +1,17 @@
-use ::serde::forward_to_deserialize_any;
 use magnus::{
     Fixnum, Float, Integer, RArray, RBignum, RHash, RString, Ruby, Symbol, Value,
     value::{Qfalse, Qtrue, ReprValue},
 };
+use serde::forward_to_deserialize_any;
 
-use super::super::{Error, MAX_JSON_NESTING};
 use super::{
-    array_deserializer::ArrayDeserializer, enum_deserializer::EnumDeserializer,
+    array_deserializer::ArrayDeserializer, class_name, enum_deserializer::EnumDeserializer,
     hash_deserializer::HashDeserializer, number_deserializer::NumberDeserializer,
 };
-use crate::options::NATIVE_OPTION_TOKEN;
+use crate::error::Error;
+
+/// Maximum nesting of Ruby arrays and hashes in JSON input.
+const MAX_JSON_NESTING: usize = 100;
 
 /// Implement typed Serde integer entry points with Magnus's checked conversions.
 macro_rules! impl_deserialize_integers {
@@ -17,7 +19,7 @@ macro_rules! impl_deserialize_integers {
         $(
             fn $method<Visitor>(self, visitor: Visitor) -> Result<Visitor::Value, Self::Error>
             where
-                Visitor: ::serde::de::Visitor<'de>,
+                Visitor: serde::de::Visitor<'de>,
             {
                 match Integer::from_value(self.value) {
                     Some(value) => visitor.$visit(value.$convert()?),
@@ -47,7 +49,7 @@ impl Mode {
 }
 
 /// Serde deserializer over Ruby values.
-pub(in crate::serde) struct Deserializer<'ruby> {
+pub(crate) struct Deserializer<'ruby> {
     ruby: &'ruby Ruby,
     value: Value,
     depth: usize,
@@ -56,12 +58,12 @@ pub(in crate::serde) struct Deserializer<'ruby> {
 
 impl<'ruby> Deserializer<'ruby> {
     /// Create a deserializer with native `serde_magnus` Ruby behavior.
-    pub(in crate::serde) fn new_ruby(ruby: &'ruby Ruby, value: Value) -> Self {
+    pub(crate) fn new(ruby: &'ruby Ruby, value: Value) -> Self {
         Self::with_mode(ruby, value, 0, Mode::Ruby)
     }
 
     /// Create a deserializer that validates option keys without reading values.
-    pub(in crate::serde) fn new_option_keys(ruby: &'ruby Ruby, value: Value) -> Self {
+    pub(crate) fn new_option_keys(ruby: &'ruby Ruby, value: Value) -> Self {
         Self::with_mode(ruby, value, 0, Mode::OptionKeys)
     }
 
@@ -96,12 +98,12 @@ impl<'ruby> Deserializer<'ruby> {
     }
 }
 
-impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
+impl<'de> serde::Deserializer<'de> for Deserializer<'_> {
     type Error = Error;
 
     fn deserialize_any<Visitor>(self, visitor: Visitor) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
         if self.value.is_nil() {
             return visitor.visit_unit();
@@ -157,37 +159,34 @@ impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
 
         Err(Error::type_error(format!(
             "can't deserialize {}",
-            // SAFETY: conversion runs while the Ruby GVL is held.
-            unsafe { self.value.classname() }
+            class_name(self.value)
         )))
     }
 
     fn deserialize_bytes<Visitor>(self, _visitor: Visitor) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
         Err(Error::type_error("can't deserialize into byte slice"))
     }
 
     fn deserialize_byte_buf<Visitor>(self, visitor: Visitor) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
         if let Some(string) = RString::from_value(self.value) {
-            // SAFETY: the bytes are copied before any further Ruby API call.
-            visitor.visit_byte_buf(unsafe { string.as_slice() }.to_owned())
+            visitor.visit_byte_buf(string.to_bytes().into())
         } else {
             Err(Error::type_error(format!(
                 "no implicit conversion of {} to String",
-                // SAFETY: conversion runs while the Ruby GVL is held.
-                unsafe { self.value.classname() }
+                class_name(self.value)
             )))
         }
     }
 
     fn deserialize_option<Visitor>(self, visitor: Visitor) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
         if matches!(self.mode, Mode::OptionKeys) || self.value.is_nil() {
             visitor.visit_none()
@@ -203,7 +202,7 @@ impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
         visitor: Visitor,
     ) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
         if let Some(variant) = RString::from_value(self.value) {
             return visitor.visit_enum(EnumDeserializer::new(
@@ -234,24 +233,19 @@ impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
 
         Err(Error::type_error(format!(
             "can't deserialize {} to Enum",
-            // SAFETY: conversion runs while the Ruby GVL is held.
-            unsafe { self.value.classname() }
+            class_name(self.value)
         )))
     }
 
     fn deserialize_newtype_struct<Visitor>(
         self,
-        name: &'static str,
+        _name: &'static str,
         visitor: Visitor,
     ) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
-        if name == NATIVE_OPTION_TOKEN {
-            visitor.visit_unit()
-        } else {
-            visitor.visit_newtype_struct(self)
-        }
+        visitor.visit_newtype_struct(self)
     }
 
     fn deserialize_ignored_any<Visitor>(
@@ -259,7 +253,7 @@ impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
         visitor: Visitor,
     ) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
         visitor.visit_unit()
     }
@@ -269,7 +263,7 @@ impl<'de> ::serde::Deserializer<'de> for Deserializer<'_> {
         visitor: Visitor,
     ) -> Result<Visitor::Value, Self::Error>
     where
-        Visitor: ::serde::de::Visitor<'de>,
+        Visitor: serde::de::Visitor<'de>,
     {
         if matches!(self.mode, Mode::OptionKeys) {
             if let Some(value) = RString::from_value(self.value) {
