@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "pathname"
 require_relative "support/ca_tls_server"
+
+autoload :Pathname, "pathname" unless defined?(Pathname)
 
 class CustomCaTest < Minitest::Test
   SKIP_LOCAL_TLS = Gem.win_platform?
@@ -36,22 +37,23 @@ class CustomCaTest < Minitest::Test
     skip "Local TLS server not supported on Windows" if SKIP_LOCAL_TLS
     CaTlsServer.with_pem_file(CaTlsServer::OTHER_PEM) do |path|
       client = Wreq::Client.new(ca_file: path, timeout: 3)
-      assert_raises(Wreq::ConnectionError, Wreq::TimeoutError) { client.get(CaTlsServer.server_url) }
+      assert_raises(Wreq::ConnectionError) { client.get(CaTlsServer.server_url) }
     end
   end
 
-  def test_ca_pem_replaces_system_roots
-    client = Wreq::Client.new(ca_pem: CaTlsServer::CA_PEM, timeout: 3)
-    assert_raises(Wreq::ConnectionError) do
-      client.get("https://www.google.com")
-    end
-  end
-
-  def test_ca_file_does_not_set_verify_false
+  def test_additional_ca_pem_loads_the_default_certificate_file_and_ca_pem_replaces_it
     skip "Local TLS server not supported on Windows" if SKIP_LOCAL_TLS
-    CaTlsServer.with_pem_file(CaTlsServer::OTHER_PEM) do |path|
-      client = Wreq::Client.new(ca_file: path, timeout: 3)
-      assert_raises(Wreq::ConnectionError, Wreq::TimeoutError) { client.get(CaTlsServer.server_url) }
+    CaTlsServer.with_pem_file(CaTlsServer::CA_PEM) do |path|
+      original_ca_file = ENV["SSL_CERT_FILE"]
+      ENV["SSL_CERT_FILE"] = path
+
+      additional = Wreq::Client.new(additional_ca_pem: CaTlsServer::OTHER_PEM, no_proxy: true, timeout: 3)
+      assert_equal 200, additional.get(CaTlsServer.server_url).code
+
+      replacement = Wreq::Client.new(ca_pem: CaTlsServer::OTHER_PEM, no_proxy: true, timeout: 3)
+      assert_raises(Wreq::ConnectionError) { replacement.get(CaTlsServer.server_url) }
+    ensure
+      ENV["SSL_CERT_FILE"] = original_ca_file
     end
   end
 
@@ -59,24 +61,18 @@ class CustomCaTest < Minitest::Test
   # Augment semantics: additional_ca_file / additional_ca_pem
   # =================================================================
 
-  def test_additional_ca_pem_trusts_custom_ca_and_system_roots
+  def test_additional_ca_pem_trusts_custom_ca
     skip "Local TLS server not supported on Windows" if SKIP_LOCAL_TLS
     client = Wreq::Client.new(additional_ca_pem: CaTlsServer::CA_PEM, timeout: 3)
     resp = client.get(CaTlsServer.server_url)
     assert_equal 200, resp.code
-
-    resp = client.get("https://www.google.com")
-    assert_equal 200, resp.code
   end
 
-  def test_additional_ca_file_trusts_custom_ca_and_system_roots
+  def test_additional_ca_file_trusts_custom_ca
     skip "Local TLS server not supported on Windows" if SKIP_LOCAL_TLS
     CaTlsServer.with_pem_file(CaTlsServer::CA_PEM) do |path|
       client = Wreq::Client.new(additional_ca_file: path, timeout: 3)
       resp = client.get(CaTlsServer.server_url)
-      assert_equal 200, resp.code
-
-      resp = client.get("https://www.google.com")
       assert_equal 200, resp.code
     end
   end
@@ -106,33 +102,37 @@ class CustomCaTest < Minitest::Test
   # =================================================================
 
   def test_ca_file_accepts_pathname
-    skip "Local TLS server not supported on Windows" if SKIP_LOCAL_TLS
     CaTlsServer.with_pem_file(CaTlsServer::CA_PEM) do |path|
-      client = Wreq::Client.new(ca_file: Pathname.new(path), timeout: 3)
-      resp = client.get(CaTlsServer.server_url)
-      assert_equal 200, resp.code
+      client = Wreq::Client.new(ca_file: Pathname.new(path))
+      assert_instance_of Wreq::Client, client
     end
   end
 
   def test_additional_ca_file_accepts_pathname
-    skip "Local TLS server not supported on Windows" if SKIP_LOCAL_TLS
     CaTlsServer.with_pem_file(CaTlsServer::CA_PEM) do |path|
-      client = Wreq::Client.new(additional_ca_file: Pathname.new(path), timeout: 3)
-      resp = client.get(CaTlsServer.server_url)
-      assert_equal 200, resp.code
+      client = Wreq::Client.new(additional_ca_file: Pathname.new(path))
+      assert_instance_of Wreq::Client, client
     end
   end
 
   def test_ca_file_accepts_custom_to_path_object
-    skip "Local TLS server not supported on Windows" if SKIP_LOCAL_TLS
     CaTlsServer.with_pem_file(CaTlsServer::CA_PEM) do |path|
       path_like = Object.new
       path_like.define_singleton_method(:to_path) { path }
 
-      client = Wreq::Client.new(ca_file: path_like, timeout: 3)
-      resp = client.get(CaTlsServer.server_url)
-      assert_equal 200, resp.code
+      client = Wreq::Client.new(ca_file: path_like)
+      assert_instance_of Wreq::Client, client
     end
+  end
+
+  def test_ca_file_propagates_to_path_errors
+    path_error = Class.new(StandardError)
+    path_like = Object.new
+    path_like.define_singleton_method(:to_path) { raise path_error, "path conversion failed" }
+
+    error = assert_raises(path_error) { Wreq::Client.new(ca_file: path_like) }
+    assert_includes error.message, "ca_file"
+    assert_includes error.message, "path conversion failed"
   end
 
   # =================================================================
@@ -193,10 +193,11 @@ class CustomCaTest < Minitest::Test
 
   def test_all_four_ca_options_are_mutually_exclusive
     error = assert_raises(ArgumentError) do
-      Wreq::Client.new(ca_file: "/a", ca_pem: "b", additional_ca_pem: "c")
+      Wreq::Client.new(ca_file: "/a", ca_pem: "b", additional_ca_file: "/c", additional_ca_pem: "d")
     end
     assert_includes error.message, ":ca_file"
     assert_includes error.message, ":ca_pem"
+    assert_includes error.message, ":additional_ca_file"
     assert_includes error.message, ":additional_ca_pem"
   end
 

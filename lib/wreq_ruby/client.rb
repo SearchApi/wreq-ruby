@@ -44,6 +44,12 @@ unless defined?(Wreq)
       #
       # All options are optional. Time-related numeric values are expressed in seconds.
       #
+      # By default the client trusts the bundled Chromium root certificates.
+      # To select a different set of roots, pass one of `ca_file`, `ca_pem`,
+      # `additional_ca_file`, or `additional_ca_pem`. A nil value counts as
+      # omitted. The client reads CA files and builds the trust store during
+      # construction, even when certificate verification is disabled.
+      #
       # @param emulation [Wreq::Emulation, nil] Device and OS emulation settings.
       #   If specified, the client will modify request headers and behaviors
       #
@@ -156,37 +162,16 @@ unless defined?(Wreq)
       #   {Wreq::TlsInfo} object. Disabled by default because retaining
       #   certificate data uses additional memory.
       #
-      # @param ca_file [String, #to_path, nil] Path to a PEM-encoded CA bundle
-      #   that **replaces** the default system trust store. Only certificates
-      #   signed by CAs in this file will be trusted. Accepts any object
-      #   responding to +to_path+ (e.g. +Pathname+). The file is read during
-      #   client construction; a missing or unreadable file raises immediately.
-      #   Mutually exclusive with +ca_pem+, +additional_ca_file+, and
-      #   +additional_ca_pem+.
-      #
-      # @param ca_pem [String, nil] Raw PEM-encoded certificate content that
-      #   **replaces** the default system trust store. Useful when certificate
-      #   material comes from a secret store or environment variable rather
-      #   than a file on disk. Invalid PEM that the native store rejects raises
-      #   {Wreq::TlsError} during client construction.
-      #   Mutually exclusive with +ca_file+, +additional_ca_file+, and
-      #   +additional_ca_pem+.
-      #
-      # @param additional_ca_file [String, #to_path, nil] Path to a PEM-encoded
-      #   CA bundle loaded **alongside** the default system trust store.
-      #   Public roots remain available; the supplied certificates are added
-      #   on top. Accepts any object responding to +to_path+ (e.g. +Pathname+).
-      #   The file is read during client construction; a missing or unreadable
-      #   file raises immediately. Mutually exclusive with +ca_file+, +ca_pem+, 
-      #   and +additional_ca_pem+.
-      #
-      # @param additional_ca_pem [String, nil] Raw PEM-encoded certificate
-      #   content loaded **alongside** the default system trust store. Public
-      #   roots remain available; the supplied certificates are added on top.
-      #   Invalid PEM that the native store rejects raises
-      #   {Wreq::TlsError} during client construction.
-      #   Mutually exclusive with +ca_file+, +ca_pem+, and
-      #   +additional_ca_file+.
+      # @param ca_file [String, #to_path, nil] Path to a PEM file containing
+      #   all the CA certificates this client should trust.
+      # @param ca_pem [String, nil] PEM content containing all the CA
+      #   certificates this client should trust.
+      # @param additional_ca_file [String, #to_path, nil] Path to a PEM file
+      #   containing CAs to trust alongside the roots in BoringSSL's default
+      #   certificate locations. BoringSSL uses `SSL_CERT_FILE` and
+      #   `SSL_CERT_DIR` when set and its build-time paths otherwise.
+      # @param additional_ca_pem [String, nil] PEM content containing CAs to
+      #   trust alongside the same roots as `additional_ca_file`.
       #
       # @param no_proxy [Boolean, nil] Disable use of any configured proxy
       #   for this client, even if proxy settings are detected from the
@@ -220,6 +205,8 @@ unless defined?(Wreq)
       #
       # @raise [ArgumentError] if an option is unknown, conflicting,
       #   ineffective, or unavailable on the current platform.
+      # @raise [ArgumentError] if a supplied CA file cannot be read.
+      # @raise [Wreq::TlsError] if the trust store rejects the supplied PEM.
       # @raise [TypeError] if the option argument is not a Hash.
       # @raise [TypeError, ArgumentError, Wreq::BuilderError] if a known option
       #   value cannot be converted or validated.
@@ -300,15 +287,12 @@ unless defined?(Wreq)
       #     verify: false,  # WARNING: Do not use in production!
       #     timeout: 5
       #   )
-      # @example Client with custom CA (replace system roots)
-      #   client = Wreq::Client.new(
-      #     ca_file: "/etc/ssl/private/internal-ca.pem"
-      #   )
       #
-      # @example Client with additional CA (augment system roots)
-      #   client = Wreq::Client.new(
-      #     additional_ca_pem: File.binread("/etc/ssl/certs/extra-ca.pem")
-      #   )
+      # @example Trust only the CAs in a file
+      #   client = Wreq::Client.new(ca_file: "/etc/myapp/internal-ca.pem")
+      #
+      # @example Trust an internal CA alongside the roots in BoringSSL's default paths
+      #   client = Wreq::Client.new(additional_ca_pem: ENV.fetch("INTERNAL_CA_PEM"))
       def self.new(**options)
       end
 

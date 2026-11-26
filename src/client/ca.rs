@@ -1,70 +1,55 @@
-//! Custom CA trust-store resolution for [`super::Client`] construction.
+use std::{fs, path::PathBuf};
 
-use magnus::Ruby;
-
-use crate::error::argument_error;
+use magnus::{Error, Ruby};
+use wreq::tls::trust::CertStore;
 
 use super::Builder;
+use crate::{error::argument_error, gvl};
 
-/// PEM material used to build a custom [`wreq::tls::trust::CertStore`].
-pub(super) struct CaPem {
-    /// PEM-encoded certificate bytes (one cert or a bundle).
-    pub(super) pem: Vec<u8>,
-    /// When `true`, keep system roots and add these certs.
-    /// When `false`, replace the default trust store.
-    pub(super) augment: bool,
+pub(super) enum CaBundle {
+    Replace(Vec<u8>),
+    Additional(Vec<u8>),
 }
 
-/// Resolve the mutually exclusive CA client options into PEM bytes.
-///
-/// Reads `*_file` options here (with the GVL held) so missing/unreadable
-/// files raise `ArgumentError` before native client construction.
-pub(super) fn resolve(ruby: &Ruby, params: &mut Builder) -> Result<Option<CaPem>, magnus::Error> {
-    let mut pem: Option<Vec<u8>> = None;
-    let mut augment_flag: Option<bool> = None;
-
-    // ---- path options: ca_file / additional_ca_file ----
-    if let Some((path, additional)) = params
-        .ca_file
-        .take()
-        .map(|path| (path, false))
-        .or_else(|| params.additional_ca_file.take().map(|path| (path, true)))
-    {
-        let name = if additional {
-            "additional_ca_file"
+impl Builder {
+    /// Consume the CA option selected by `from_options`. File reads release the GVL.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ArgumentError` if the selected file cannot be read.
+    pub(super) fn take_ca_bundle(&mut self, ruby: &Ruby) -> Result<Option<CaBundle>, Error> {
+        let bundle = if let Some(path) = self.ca_file.take() {
+            CaBundle::Replace(read_ca_file(ruby, path, stringify!(ca_file))?)
+        } else if let Some(pem) = self.ca_pem.take() {
+            CaBundle::Replace(pem.into_bytes())
+        } else if let Some(path) = self.additional_ca_file.take() {
+            CaBundle::Additional(read_ca_file(ruby, path, stringify!(additional_ca_file))?)
+        } else if let Some(pem) = self.additional_ca_pem.take() {
+            CaBundle::Additional(pem.into_bytes())
         } else {
-            "ca_file"
+            return Ok(None);
         };
-        pem =
-            Some(std::fs::read(&path).map_err(|_| {
-                argument_error(ruby, format!("{name}: cannot read certificate file"))
-            })?);
-        augment_flag = Some(additional);
+        Ok(Some(bundle))
     }
-
-    // ---- string options: ca_pem / additional_ca_pem ----
-    if let Some((value, additional)) = params
-        .ca_pem
-        .take()
-        .map(|value| (value, false))
-        .or_else(|| params.additional_ca_pem.take().map(|value| (value, true)))
-    {
-        pem = Some(value.into_bytes());
-        augment_flag = Some(additional);
-    }
-
-    if let (Some(pem), Some(augment)) = (pem, augment_flag) {
-        return Ok(Some(CaPem { pem, augment }));
-    }
-
-    Ok(None)
 }
 
-/// Attach a custom certificate store to the native client builder.
-pub(super) fn into_cert_store(ca: CaPem) -> wreq::Result<wreq::tls::trust::CertStore> {
-    let mut store_builder = wreq::tls::trust::CertStore::builder();
-    if ca.augment {
-        store_builder = store_builder.set_default_paths();
+impl CaBundle {
+    /// Build the trust store on the native side of the GVL boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns a native error if loading the certificate paths or PEM bundle fails.
+    pub(super) fn into_cert_store(self) -> wreq::Result<CertStore> {
+        let builder = CertStore::builder();
+        let (builder, pem) = match self {
+            Self::Replace(pem) => (builder, pem),
+            Self::Additional(pem) => (builder.set_default_paths(), pem),
+        };
+        builder.add_stack_pem_certs(pem).build()
     }
-    store_builder.add_stack_pem_certs(&ca.pem).build()
+}
+
+fn read_ca_file(ruby: &Ruby, path: PathBuf, option: &str) -> Result<Vec<u8>, Error> {
+    gvl::nogvl(|| fs::read(path))
+        .map_err(|_| argument_error(ruby, format!("{option}: cannot read certificate file")))
 }
