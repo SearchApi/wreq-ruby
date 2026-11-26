@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use wreq::http2::{
     HeadersDependency, HeadersPriority, Http2Options, Priorities, Priority, PseudoId, PseudoOrder,
     SettingId, SettingsOrder, StreamDependency, StreamId,
@@ -29,6 +31,10 @@ impl Preset {
             .one_frame_per_write(true)
             .initial_connection_window_size(RECEIVE_WINDOW_SIZE)
             .initial_stream_window_size(RECEIVE_WINDOW_SIZE)
+            .keep_alive_interval(Duration::from_secs(58))
+            .keep_alive_timeout(Duration::from_secs(8))
+            .keep_alive_while_idle(true)
+            .ping_payload([0; 8])
             .header_table_size(header_table_size)
             .headers_pseudo_order(
                 PseudoOrder::builder()
