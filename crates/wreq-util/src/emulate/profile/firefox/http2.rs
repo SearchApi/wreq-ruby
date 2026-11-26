@@ -13,6 +13,8 @@ pub(super) enum Preset {
 
 impl Preset {
     pub(super) fn build(self) -> Http2Options {
+        const RECEIVE_WINDOW_SIZE: u32 = 12 * 1024 * 1024;
+
         let (initial_window_size, header_table_size) = if matches!(self, Self::AndroidWindow) {
             (32_768, 4_096)
         } else {
@@ -22,7 +24,8 @@ impl Preset {
         let builder = Http2Options::builder()
             .initial_window_size(initial_window_size)
             .max_frame_size(16_384)
-            .initial_connection_window_size(12_517_377 + 65_535)
+            .initial_connection_window_size(RECEIVE_WINDOW_SIZE)
+            .initial_stream_window_size(RECEIVE_WINDOW_SIZE)
             .header_table_size(header_table_size)
             .headers_pseudo_order(
                 PseudoOrder::builder()
