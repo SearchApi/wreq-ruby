@@ -124,8 +124,8 @@ impl<'ruby> Options<'ruby> {
     ///
     /// # Errors
     ///
-    /// Returns the Ruby exception produced while converting a known value and
-    /// includes its option path in the message.
+    /// Returns errors from [`deserialize_options`] with field context for
+    /// ordinary conversion failures.
     pub(crate) fn deserialize<T>(&self) -> Result<T, Error>
     where
         T: DeserializeOwned,
@@ -152,7 +152,8 @@ impl<'ruby> Options<'ruby> {
     ///
     /// # Errors
     ///
-    /// Returns the Ruby conversion error with the option name added.
+    /// Returns ordinary conversion errors with the option name. Ruby exceptions
+    /// outside `StandardError` propagate as originally raised.
     pub(crate) fn convert<T>(&self, name: &str) -> Result<Option<T>, Error>
     where
         T: TryConvert,
@@ -168,7 +169,7 @@ impl<'ruby> Options<'ruby> {
     ///
     /// # Errors
     ///
-    /// Returns the Ruby conversion error with the option name added.
+    /// Uses the same error handling as [`Self::convert`].
     pub(crate) fn convert_present<T>(&self, name: &str) -> Result<Option<T>, Error>
     where
         T: TryConvert,

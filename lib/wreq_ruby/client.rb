@@ -14,8 +14,9 @@ unless defined?(Wreq)
     # Client and request options are limited to the keys listed below. Unknown,
     # ambiguous, ineffective, and unavailable platform options raise
     # ArgumentError. Known values retain the error class from their Ruby or
-    # native conversion, such as TypeError or Wreq::BuilderError. Request
-    # validation finishes before network I/O.
+    # native conversion, such as TypeError or Wreq::BuilderError. If a CA
+    # path's `to_path` raises Interrupt or SystemExit, the caller receives the
+    # original exception. Request validation finishes before network I/O.
     #
     # A client belongs to the process that created it. An inherited client
     # raises Wreq::ForkError before its connection pool is accessed. Loading

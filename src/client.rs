@@ -152,8 +152,8 @@ impl Builder {
     /// # Errors
     ///
     /// Returns `ArgumentError` for unknown, duplicate, conflicting,
-    /// ineffective, or platform-specific options. Known values retain their
-    /// Ruby conversion error class and include the option name.
+    /// ineffective, or platform-specific options. Ordinary conversion errors
+    /// retain their Ruby class and include the option name.
     fn from_options(options: Options<'_>) -> Result<Self, magnus::Error> {
         let options = options.validate_keys::<Self>()?;
         let mut builder = options

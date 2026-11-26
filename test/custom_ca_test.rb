@@ -135,6 +135,23 @@ class CustomCaTest < Minitest::Test
     assert_includes error.message, "path conversion failed"
   end
 
+  def test_ca_file_preserves_interrupt_from_to_path
+    interrupt = Interrupt.new("stop reading CA path")
+    path_like = Object.new
+    path_like.define_singleton_method(:to_path) { raise interrupt }
+
+    error = assert_raises(Interrupt) { Wreq::Client.new(ca_file: path_like) }
+    assert_same interrupt, error
+  end
+
+  def test_additional_ca_file_preserves_exit_status_from_to_path
+    path_like = Object.new
+    path_like.define_singleton_method(:to_path) { exit 17 }
+
+    error = assert_raises(SystemExit) { Wreq::Client.new(additional_ca_file: path_like) }
+    assert_equal 17, error.status
+  end
+
   # =================================================================
   # Invalid inputs fail during construction
   # =================================================================
