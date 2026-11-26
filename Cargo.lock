@@ -124,7 +124,7 @@ dependencies = [
 [[package]]
 name = "btls"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?branch=main#8879c026b548c25441f83ff58b39d7e22ba1b5b1"
+source = "git+https://github.com/0x676e67/btls?branch=main#d88da9f11b2cc0384aae816f4aab103b783ca336"
 dependencies = [
  "bitflags",
  "btls-sys",
@@ -136,7 +136,7 @@ dependencies = [
 [[package]]
 name = "btls-sys"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?branch=main#8879c026b548c25441f83ff58b39d7e22ba1b5b1"
+source = "git+https://github.com/0x676e67/btls?branch=main#d88da9f11b2cc0384aae816f4aab103b783ca336"
 dependencies = [
  "bindgen 0.73.2",
  "cmake",
@@ -763,7 +763,7 @@ dependencies = [
 [[package]]
 name = "netty"
 version = "0.2.5"
-source = "git+https://github.com/0x676e67/netty?branch=main#fd7884894c556fcdd4cfdb0b1932c3a6a60ab860"
+source = "git+https://github.com/0x676e67/netty?branch=main#444022d808b3d55310a9d9fa0671a56b5b1a075c"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -1269,7 +1269,7 @@ dependencies = [
 [[package]]
 name = "tokio-btls"
 version = "0.5.6"
-source = "git+https://github.com/0x676e67/btls?branch=main#8879c026b548c25441f83ff58b39d7e22ba1b5b1"
+source = "git+https://github.com/0x676e67/btls?branch=main#d88da9f11b2cc0384aae816f4aab103b783ca336"
 dependencies = [
  "btls",
  "btls-sys",
