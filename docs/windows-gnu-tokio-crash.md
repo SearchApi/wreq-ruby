@@ -73,12 +73,15 @@ time and `src/arch.rs` provides the wrappers:
 ```
 
 - `__wrap_Sleep` forwards directly to `KERNEL32!SleepEx`.
-- `__wrap_fclose`, `__wrap_getenv`, `__wrap_round`, and `__wrap_strerror`
-  resolve and cache the real exports from `ucrtbase.dll` via `GetModuleHandleA`
-  / `GetProcAddress`, and the matching `__wrap___imp_*` function-pointer
-  statics intercept `dllimport` indirect calls (such as BoringSSL's
-  `err.cc` calling `*__imp_strerror`), ensuring `x64-ucrt-ruby*.dll` imports
-  only Ruby API symbols.
+- `__wrap_fclose`, `__wrap_round`, and `__wrap_strerror` resolve and cache the
+  real exports from `ucrtbase.dll` via `GetModuleHandleA` / `GetProcAddress`.
+  `__wrap_getenv` snapshots the value under UCRT's environment lock via
+  `ucrtbase.dll!_dupenv_s` and keeps a copy in a thread-local buffer so
+  concurrent environment changes on other threads do not invalidate a pointer
+  still in use by the caller. The matching `__wrap___imp_*` function-pointer
+  statics intercept `dllimport` indirect calls (such as BoringSSL's `err.cc`
+  calling `*__imp_strerror`), ensuring `x64-ucrt-ruby*.dll` imports only Ruby
+  API symbols.
 - `__wrap_pthread_rwlock_*` check for `PTHREAD_RWLOCK_INITIALIZER` (`-1`) with
   an atomic acquire load; on first use they serialize initialization under a
   Win32 `SRWLOCK`, call `pthread_rwlock_init` into a stack-local variable, and
@@ -93,7 +96,8 @@ time and `src/arch.rs` provides the wrappers:
 their own because `rb-sys`'s libruby link directive is emitted after dependency
 crates such as `btls-sys` and `quic-proto`, and problematic references also come
 from Rust `core`, BoringSSL, and MinGW CRT archives (`libmingwex.a`). Link-time
-`--wrap` intercepts every reference regardless of library scan order.
+`--wrap` redirects unresolved references to the wrapped symbols at final link
+time regardless of library scan order.
 
 Windows builds use the `x86_64-pc-windows-gnu` target and the RubyInstaller
 UCRT toolchain. The Rakefile configures that environment automatically, so the

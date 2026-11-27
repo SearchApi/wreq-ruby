@@ -193,9 +193,9 @@ mod windows_gnu {
     //! serializes lazy initialization safely before delegating to winpthreads.
 
     use std::{
-        cell::UnsafeCell,
+        cell::{RefCell, UnsafeCell},
         ffi::{CStr, c_char, c_int, c_void},
-        mem, ptr,
+        mem, ptr, slice,
         sync::atomic::{AtomicIsize, AtomicPtr, Ordering},
     };
 
@@ -247,10 +247,41 @@ mod windows_gnu {
 
     static UCRTBASE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static UCRT_FCLOSE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+    static UCRT_DUPENV_S: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+    static UCRT_FREE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static UCRT_GETENV: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static UCRT_ROUND: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static UCRT_STRERROR: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static RWLOCK_INIT_LOCK: SrwLock = SrwLock::new();
+
+    thread_local! {
+        // Holds the calling thread's copy of the most recent `getenv` result so
+        // concurrent environment updates on other threads cannot invalidate a
+        // pointer still in use (for example, BoringSSL loading `SSL_CERT_FILE`
+        // or `SSL_CERT_DIR` while the Ruby GVL is released).
+        // On `x86_64-pc-windows-gnu`, `thread_local!` expands through
+        // `os::Storage` even with `const { ... }`, which triggers a false
+        // positive in `missing_const_for_thread_local`.
+        #[allow(clippy::missing_const_for_thread_local)]
+        static GETENV_BUFFER: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+    }
+
+    struct UcrtAllocGuard {
+        ptr: *mut c_void,
+        free_fn: unsafe extern "C" fn(*mut c_void),
+    }
+
+    impl Drop for UcrtAllocGuard {
+        fn drop(&mut self) {
+            if !self.ptr.is_null() {
+                // SAFETY: `self.ptr` was allocated by `ucrtbase.dll!_dupenv_s`
+                // and `self.free_fn` is the matching `ucrtbase.dll!free`.
+                unsafe {
+                    (self.free_fn)(self.ptr);
+                }
+            }
+        }
+    }
 
     #[link(name = "kernel32")]
     unsafe extern "system" {
@@ -375,15 +406,89 @@ mod windows_gnu {
         }
     }
 
-    /// Linker wrapper for `getenv` that delegates to UCRT rather than Ruby's
-    /// exported `rb_w32_ugetenv`.
+    /// Linker wrapper for `getenv` that snapshots the value under UCRT's
+    /// internal environment lock via `_dupenv_s` and keeps a copy in the
+    /// calling thread's TLS buffer.
+    ///
+    /// Returning a raw pointer directly from UCRT `getenv` would expose callers
+    /// (such as BoringSSL reading `SSL_CERT_FILE` / `SSL_CERT_DIR` without the
+    /// Ruby GVL) to UCRT freeing or reallocating that environment entry when
+    /// another thread mutates the environment.
     ///
     /// # Safety
     ///
-    /// Caller must pass a valid NUL-terminated C string per the C `getenv`
-    /// contract.
+    /// Caller must pass `NULL` or a valid NUL-terminated C string per the C
+    /// `getenv` contract.
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn __wrap_getenv(name: *const c_char) -> *mut c_char {
+        if name.is_null() {
+            return ptr::null_mut();
+        }
+
+        if let (Some(dupenv_addr), Some(free_addr)) = (
+            resolve_ucrt_symbol(&UCRT_DUPENV_S, c"_dupenv_s"),
+            resolve_ucrt_symbol(&UCRT_FREE, c"free"),
+        ) {
+            // SAFETY: `dupenv_addr` and `free_addr` were resolved from
+            // `ucrtbase.dll!_dupenv_s` and `ucrtbase.dll!free` with matching
+            // C ABIs. `name` is non-null and NUL-terminated per the caller.
+            let dupenv_fn: unsafe extern "C" fn(
+                *mut *mut c_char,
+                *mut usize,
+                *const c_char,
+            ) -> c_int = unsafe { mem::transmute(dupenv_addr) };
+            let free_fn: unsafe extern "C" fn(*mut c_void) = unsafe { mem::transmute(free_addr) };
+
+            let mut raw_buf: *mut c_char = ptr::null_mut();
+            let mut raw_len: usize = 0;
+            // SAFETY: Output pointers are valid local storage and `name` is
+            // non-null per the check above.
+            let rc = unsafe { dupenv_fn(&mut raw_buf, &mut raw_len, name) };
+            let _guard = UcrtAllocGuard {
+                ptr: raw_buf.cast::<c_void>(),
+                free_fn,
+            };
+            if rc != 0 || raw_buf.is_null() {
+                return ptr::null_mut();
+            }
+
+            // SAFETY: `_dupenv_s` succeeded with non-null `raw_buf` holding a
+            // NUL-terminated string of `raw_len` bytes (including NUL).
+            let bytes = if raw_len > 0 {
+                let raw = unsafe { slice::from_raw_parts(raw_buf.cast::<u8>(), raw_len) };
+                match raw.iter().position(|&b| b == 0) {
+                    Some(nul_idx) => &raw[..=nul_idx],
+                    None => raw,
+                }
+            } else {
+                unsafe { CStr::from_ptr(raw_buf).to_bytes_with_nul() }
+            };
+
+            let copied = GETENV_BUFFER.try_with(|cell| {
+                let Ok(mut buf) = cell.try_borrow_mut() else {
+                    return ptr::null_mut();
+                };
+                let extra_nul = usize::from(bytes.last() != Some(&0));
+                let Some(required) = bytes.len().checked_add(extra_nul) else {
+                    return ptr::null_mut();
+                };
+                buf.clear();
+                if buf.try_reserve(required).is_err() {
+                    return ptr::null_mut();
+                }
+                buf.extend_from_slice(bytes);
+                if extra_nul != 0 {
+                    buf.push(0);
+                }
+                buf.as_mut_ptr().cast::<c_char>()
+            });
+            if let Ok(result) = copied {
+                return result;
+            }
+        }
+
+        // Fallback if thread-local storage is already torn down during thread
+        // exit (or if `_dupenv_s` could not be resolved).
         let Some(addr) = resolve_ucrt_symbol(&UCRT_GETENV, c"getenv") else {
             return ptr::null_mut();
         };
@@ -603,13 +708,22 @@ mod tests {
     #[cfg(all(target_os = "windows", target_env = "gnu"))]
     mod windows_gnu_tests {
         use std::{
+            cell::UnsafeCell,
             ffi::{CStr, c_char, c_int, c_void},
-            sync::{Arc, Barrier},
+            panic, ptr,
+            sync::Barrier,
             thread,
         };
 
         const PTHREAD_RWLOCK_INITIALIZER: isize = -1;
         const EBUSY: c_int = 16;
+
+        #[repr(transparent)]
+        struct TestRwlock(UnsafeCell<isize>);
+
+        // SAFETY: `pthread_rwlock_t` is synchronized across threads via the
+        // pthread rwlock APIs in this test.
+        unsafe impl Sync for TestRwlock {}
 
         unsafe extern "system" {
             fn Sleep(milliseconds: u32);
@@ -619,6 +733,7 @@ mod tests {
             fn fopen(filename: *const c_char, mode: *const c_char) -> *mut c_void;
             fn fclose(stream: *mut c_void) -> c_int;
             fn getenv(name: *const c_char) -> *mut c_char;
+            fn _putenv_s(name: *const c_char, value: *const c_char) -> c_int;
             fn round(x: f64) -> f64;
             fn strerror(errnum: c_int) -> *mut c_char;
             fn pthread_rwlock_rdlock(rwlock: *mut isize) -> c_int;
@@ -635,56 +750,81 @@ mod tests {
             const ROUNDS: usize = 256;
 
             for round_idx in 0..ROUNDS {
-                let rwlock = Box::new(std::cell::UnsafeCell::new(PTHREAD_RWLOCK_INITIALIZER));
-                let rwlock_addr = rwlock.get() as usize;
-                let barrier = Arc::new(Barrier::new(THREADS));
+                let rwlock = TestRwlock(UnsafeCell::new(PTHREAD_RWLOCK_INITIALIZER));
+                let barrier = Barrier::new(THREADS);
 
-                let mut handles = Vec::with_capacity(THREADS);
-                for thread_idx in 0..THREADS {
-                    let barrier = barrier.clone();
-                    handles.push(thread::spawn(move || {
-                        let ptr = rwlock_addr as *mut isize;
-                        barrier.wait();
+                let first_panic = thread::scope(|scope| {
+                    let mut handles = Vec::with_capacity(THREADS);
+                    for thread_idx in 0..THREADS {
+                        let rwlock = &rwlock;
+                        let barrier = &barrier;
+                        handles.push(scope.spawn(move || {
+                            barrier.wait();
 
-                        let mode = (round_idx + thread_idx) % 4;
-                        // SAFETY: `ptr` points to a live `pthread_rwlock_t` owned by
-                        // the main test thread until all spawned threads join.
-                        unsafe {
-                            match mode {
-                                0 => {
-                                    assert_eq!(pthread_rwlock_rdlock(ptr), 0);
-                                    assert_eq!(pthread_rwlock_unlock(ptr), 0);
-                                }
-                                1 => {
-                                    assert_eq!(pthread_rwlock_wrlock(ptr), 0);
-                                    assert_eq!(pthread_rwlock_unlock(ptr), 0);
-                                }
-                                2 => {
-                                    let rc = pthread_rwlock_tryrdlock(ptr);
-                                    assert!(rc == 0 || rc == EBUSY, "unexpected tryrdlock rc={rc}");
-                                    if rc == 0 {
+                            let ptr = rwlock.0.get();
+                            let mode = (round_idx + thread_idx) % 4;
+                            // SAFETY: `rwlock` outlives the enclosing
+                            // `thread::scope`, so `ptr` remains valid until
+                            // every worker thread has exited.
+                            unsafe {
+                                match mode {
+                                    0 => {
+                                        assert_eq!(pthread_rwlock_rdlock(ptr), 0);
                                         assert_eq!(pthread_rwlock_unlock(ptr), 0);
                                     }
-                                }
-                                _ => {
-                                    let rc = pthread_rwlock_trywrlock(ptr);
-                                    assert!(rc == 0 || rc == EBUSY, "unexpected trywrlock rc={rc}");
-                                    if rc == 0 {
+                                    1 => {
+                                        assert_eq!(pthread_rwlock_wrlock(ptr), 0);
                                         assert_eq!(pthread_rwlock_unlock(ptr), 0);
+                                    }
+                                    2 => {
+                                        let rc = pthread_rwlock_tryrdlock(ptr);
+                                        assert!(
+                                            rc == 0 || rc == EBUSY,
+                                            "unexpected tryrdlock rc={rc}"
+                                        );
+                                        if rc == 0 {
+                                            assert_eq!(pthread_rwlock_unlock(ptr), 0);
+                                        }
+                                    }
+                                    _ => {
+                                        let rc = pthread_rwlock_trywrlock(ptr);
+                                        assert!(
+                                            rc == 0 || rc == EBUSY,
+                                            "unexpected trywrlock rc={rc}"
+                                        );
+                                        if rc == 0 {
+                                            assert_eq!(pthread_rwlock_unlock(ptr), 0);
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }));
-                }
+                        }));
+                    }
 
-                for handle in handles {
-                    handle.join().expect("worker thread should not panic");
+                    // Join every worker before propagating any failure so no
+                    // thread can still touch `rwlock` while unwinding.
+                    let mut first_panic = None;
+                    for handle in handles {
+                        if let Err(err) = handle.join()
+                            && first_panic.is_none()
+                        {
+                            first_panic = Some(err);
+                        }
+                    }
+                    first_panic
+                });
+
+                if let Some(err) = first_panic {
+                    // SAFETY: All worker threads have joined inside `thread::scope`.
+                    unsafe {
+                        let _ = pthread_rwlock_destroy(rwlock.0.get());
+                    }
+                    panic::resume_unwind(err);
                 }
 
                 // SAFETY: All worker threads have joined and released the lock.
                 unsafe {
-                    assert_eq!(pthread_rwlock_destroy(rwlock.get()), 0);
+                    assert_eq!(pthread_rwlock_destroy(rwlock.0.get()), 0);
                 }
             }
         }
@@ -701,8 +841,26 @@ mod tests {
                     assert!(!file.is_null(), "UCRT fopen(NUL) should succeed");
                     assert_eq!(fclose(file), 0);
 
+                    assert!(getenv(ptr::null()).is_null());
                     assert!(!getenv(c"SystemRoot".as_ptr()).is_null());
                     assert!(getenv(c"WREQ_RUBY_NONEXISTENT_ENV_VAR_217".as_ptr()).is_null());
+
+                    // Verify `getenv` returns a calling-thread copy that stays
+                    // valid even after the underlying UCRT environment entry is
+                    // overwritten and deleted.
+                    let key = c"WREQ_RUBY_TEST_GETENV_COPY_221";
+                    assert_eq!(_putenv_s(key.as_ptr(), c"initial_value".as_ptr()), 0);
+                    let snapshot = getenv(key.as_ptr());
+                    assert!(!snapshot.is_null());
+                    assert_eq!(
+                        _putenv_s(
+                            key.as_ptr(),
+                            c"mutated_value_with_different_length".as_ptr()
+                        ),
+                        0
+                    );
+                    assert_eq!(_putenv_s(key.as_ptr(), c"".as_ptr()), 0);
+                    assert_eq!(CStr::from_ptr(snapshot), c"initial_value");
 
                     assert_eq!(round(2.5), 3.0);
                     assert_eq!(round(-2.5), -3.0);
