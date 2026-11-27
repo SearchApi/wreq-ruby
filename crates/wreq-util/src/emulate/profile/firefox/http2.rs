@@ -24,6 +24,8 @@ impl Preset {
         let builder = Http2Options::builder()
             .initial_window_size(initial_window_size)
             .max_frame_size(16_384)
+            .max_send_data_frame_size(16_000)
+            .max_send_header_frame_size(16_384)
             .initial_connection_window_size(RECEIVE_WINDOW_SIZE)
             .initial_stream_window_size(RECEIVE_WINDOW_SIZE)
             .header_table_size(header_table_size)
