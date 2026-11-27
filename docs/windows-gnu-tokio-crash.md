@@ -78,10 +78,11 @@ time and `src/arch.rs` provides the wrappers:
   `__wrap_getenv` snapshots the value under UCRT's environment lock via
   `ucrtbase.dll!_dupenv_s` and keeps a copy in a thread-local buffer so
   concurrent environment changes on other threads do not invalidate a pointer
-  still in use by the caller. The matching `__wrap___imp_*` function-pointer
-  statics intercept `dllimport` indirect calls (such as BoringSSL's `err.cc`
-  calling `*__imp_strerror`), ensuring `x64-ucrt-ruby*.dll` imports only Ruby
-  API symbols.
+  still in use by the caller. If the UCRT functions or thread-local storage
+  are unavailable, the wrapper returns `NULL`. The matching `__wrap___imp_*`
+  function-pointer statics intercept `dllimport` indirect calls (such as
+  BoringSSL's `err.cc` calling `*__imp_strerror`), ensuring `x64-ucrt-ruby*.dll`
+  imports only Ruby API symbols.
 - `__wrap_pthread_rwlock_*` check for `PTHREAD_RWLOCK_INITIALIZER` (`-1`) with
   an atomic acquire load; on first use they serialize initialization under a
   Win32 `SRWLOCK`, call `pthread_rwlock_init` into a stack-local variable, and

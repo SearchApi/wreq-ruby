@@ -249,7 +249,6 @@ mod windows_gnu {
     static UCRT_FCLOSE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static UCRT_DUPENV_S: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static UCRT_FREE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
-    static UCRT_GETENV: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static UCRT_ROUND: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static UCRT_STRERROR: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static RWLOCK_INIT_LOCK: SrwLock = SrwLock::new();
@@ -408,7 +407,7 @@ mod windows_gnu {
 
     /// Linker wrapper for `getenv` that snapshots the value under UCRT's
     /// internal environment lock via `_dupenv_s` and keeps a copy in the
-    /// calling thread's TLS buffer.
+    /// calling thread's TLS buffer. Returns null if a snapshot is unavailable.
     ///
     /// Returning a raw pointer directly from UCRT `getenv` would expose callers
     /// (such as BoringSSL reading `SSL_CERT_FILE` / `SSL_CERT_DIR` without the
@@ -482,25 +481,10 @@ mod windows_gnu {
                 }
                 buf.as_mut_ptr().cast::<c_char>()
             });
-            if let Ok(result) = copied {
-                return result;
-            }
+            return copied.unwrap_or(ptr::null_mut());
         }
 
-        // Fallback if thread-local storage is already torn down during thread
-        // exit (or if `_dupenv_s` could not be resolved).
-        let Some(addr) = resolve_ucrt_symbol(&UCRT_GETENV, c"getenv") else {
-            return ptr::null_mut();
-        };
-
-        // SAFETY: `addr` was resolved from `ucrtbase.dll!getenv`, whose ABI is
-        // `extern "C" fn(*const c_char) -> *mut c_char`, and `name` meets
-        // `getenv`'s contract per the caller.
-        unsafe {
-            let getenv_fn: unsafe extern "C" fn(*const c_char) -> *mut c_char =
-                mem::transmute(addr);
-            getenv_fn(name)
-        }
+        ptr::null_mut()
     }
 
     /// Linker wrapper for `round` that delegates to UCRT rather than Ruby's
@@ -711,7 +695,7 @@ mod tests {
             cell::UnsafeCell,
             ffi::{CStr, c_char, c_int, c_void},
             panic, ptr,
-            sync::Barrier,
+            sync::{Barrier, Mutex},
             thread,
         };
 
@@ -752,13 +736,20 @@ mod tests {
             for round_idx in 0..ROUNDS {
                 let rwlock = TestRwlock(UnsafeCell::new(PTHREAD_RWLOCK_INITIALIZER));
                 let barrier = Barrier::new(THREADS);
+                let all_workers_spawned = Mutex::new(false);
 
                 let first_panic = thread::scope(|scope| {
                     let mut handles = Vec::with_capacity(THREADS);
+                    // A partial spawn must release its workers before the scope joins them.
+                    let mut ready = all_workers_spawned.lock().expect("fresh startup mutex");
                     for thread_idx in 0..THREADS {
                         let rwlock = &rwlock;
                         let barrier = &barrier;
+                        let all_workers_spawned = &all_workers_spawned;
                         handles.push(scope.spawn(move || {
+                            if !all_workers_spawned.lock().is_ok_and(|ready| *ready) {
+                                return;
+                            }
                             barrier.wait();
 
                             let ptr = rwlock.0.get();
@@ -800,6 +791,9 @@ mod tests {
                             }
                         }));
                     }
+
+                    *ready = true;
+                    drop(ready);
 
                     // Join every worker before propagating any failure so no
                     // thread can still touch `rwlock` while unwinding.
