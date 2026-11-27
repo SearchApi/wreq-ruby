@@ -179,12 +179,165 @@ mod windows_gnu {
     //! Windows GNU support.
     //!
     //! RubyInstaller's GNU/UCRT Ruby exports some symbols with the same names as
-    //! Win32 APIs. When GNU ld links this extension against Ruby, those symbols
-    //! can shadow the real Windows APIs unless we pin the calls we care about.
+    //! Win32 and C runtime APIs. When GNU ld links this extension against Ruby,
+    //! `rb-sys`'s libruby flag can appear before UCRT and KERNEL32 on the link
+    //! line, causing calls from BoringSSL, Rust `core`, or MinGW CRT helpers to
+    //! bind to Ruby's compatibility wrappers instead of the real OS/UCRT APIs.
+    //!
+    //! BoringSSL also selects `OPENSSL_PTHREADS` on MinGW and initializes its
+    //! `StaticMutex`/`Mutex` locks with `PTHREAD_RWLOCK_INITIALIZER`. MinGW-w64
+    //! `winpthreads` builds prior to commit `fcc67d0d` (MinGW-w64 Bug #1044)
+    //! have a race on concurrent first use of a statically initialized rwlock
+    //! where losing threads receive `EINVAL`, causing BoringSSL's `BSSL_CHECK`
+    //! to abort the process. Wrapping the rwlock acquisition entry points
+    //! serializes lazy initialization safely before delegating to winpthreads.
+
+    use std::{
+        cell::UnsafeCell,
+        ffi::{CStr, c_char, c_int, c_void},
+        mem, ptr,
+        sync::atomic::{AtomicIsize, AtomicPtr, Ordering},
+    };
+
+    /// Matches MinGW-w64 `winpthreads`'s `typedef intptr_t pthread_rwlock_t;`.
+    type PthreadRwlock = isize;
+
+    /// Matches MinGW-w64 `winpthreads`'s `PTHREAD_RWLOCK_INITIALIZER`
+    /// (`GENERIC_INITIALIZER`, i.e. `-1`).
+    const PTHREAD_RWLOCK_INITIALIZER: PthreadRwlock = -1;
+
+    /// Win32 `LOAD_LIBRARY_SEARCH_SYSTEM32` flag for `LoadLibraryExA`.
+    const LOAD_LIBRARY_SEARCH_SYSTEM32: u32 = 0x0000_0800;
+
+    /// Win32 `SRWLOCK` (`RTL_SRWLOCK` is a single pointer-sized field; all-zero
+    /// matches `SRWLOCK_INIT` and needs no destruction).
+    #[repr(transparent)]
+    struct SrwLock(UnsafeCell<*mut c_void>);
+
+    // SAFETY: Win32 `SRWLOCK` is designed for cross-thread synchronization via
+    // `AcquireSRWLockExclusive` / `ReleaseSRWLockExclusive`.
+    unsafe impl Sync for SrwLock {}
+
+    impl SrwLock {
+        const fn new() -> Self {
+            Self(UnsafeCell::new(ptr::null_mut()))
+        }
+
+        fn lock_exclusive(&self) -> SrwLockExclusiveGuard<'_> {
+            // SAFETY: `self.0.get()` points to a valid, zero-initialized Win32
+            // `SRWLOCK` that lives for the duration of the returned guard.
+            unsafe {
+                AcquireSRWLockExclusive(self.0.get());
+            }
+            SrwLockExclusiveGuard(self)
+        }
+    }
+
+    struct SrwLockExclusiveGuard<'a>(&'a SrwLock);
+
+    impl Drop for SrwLockExclusiveGuard<'_> {
+        fn drop(&mut self) {
+            // SAFETY: The guard is only constructed after acquiring `self.0`
+            // exclusively on the current thread and drops at most once.
+            unsafe {
+                ReleaseSRWLockExclusive(self.0.0.get());
+            }
+        }
+    }
+
+    static UCRTBASE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+    static UCRT_FCLOSE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+    static UCRT_GETENV: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+    static UCRT_ROUND: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+    static UCRT_STRERROR: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+    static RWLOCK_INIT_LOCK: SrwLock = SrwLock::new();
 
     #[link(name = "kernel32")]
     unsafe extern "system" {
         fn SleepEx(milliseconds: u32, alertable: i32) -> u32;
+        fn AcquireSRWLockExclusive(srw_lock: *mut *mut c_void);
+        fn ReleaseSRWLockExclusive(srw_lock: *mut *mut c_void);
+        fn GetModuleHandleA(module_name: *const c_char) -> *mut c_void;
+        fn LoadLibraryExA(
+            lib_file_name: *const c_char,
+            file: *mut c_void,
+            flags: u32,
+        ) -> *mut c_void;
+        fn GetProcAddress(module: *mut c_void, proc_name: *const c_char) -> *mut c_void;
+    }
+
+    unsafe extern "C" {
+        fn pthread_rwlock_init(rwlock: *mut PthreadRwlock, attr: *const c_void) -> c_int;
+        fn __real_pthread_rwlock_rdlock(rwlock: *mut PthreadRwlock) -> c_int;
+        fn __real_pthread_rwlock_wrlock(rwlock: *mut PthreadRwlock) -> c_int;
+        fn __real_pthread_rwlock_tryrdlock(rwlock: *mut PthreadRwlock) -> c_int;
+        fn __real_pthread_rwlock_trywrlock(rwlock: *mut PthreadRwlock) -> c_int;
+    }
+
+    fn ucrtbase_module() -> *mut c_void {
+        let cached = UCRTBASE.load(Ordering::Acquire);
+        if !cached.is_null() {
+            return cached;
+        }
+
+        // SAFETY: `ucrtbase.dll` is a NUL-terminated static ASCII string and
+        // `GetModuleHandleA` / `LoadLibraryExA` are thread-safe Win32 APIs that
+        // require neither the Ruby GVL nor Ruby TLS. On RubyInstaller UCRT,
+        // `ucrtbase.dll` is already mapped for the lifetime of the process.
+        let mut handle = unsafe { GetModuleHandleA(c"ucrtbase.dll".as_ptr()) };
+        if handle.is_null() {
+            // SAFETY: Same preconditions as above; `LOAD_LIBRARY_SEARCH_SYSTEM32`
+            // restricts resolution to the Windows system directory.
+            handle = unsafe {
+                LoadLibraryExA(
+                    c"ucrtbase.dll".as_ptr(),
+                    ptr::null_mut(),
+                    LOAD_LIBRARY_SEARCH_SYSTEM32,
+                )
+            };
+        }
+
+        if !handle.is_null() {
+            UCRTBASE.store(handle, Ordering::Release);
+        }
+        handle
+    }
+
+    fn resolve_ucrt_symbol(cache: &AtomicPtr<c_void>, name: &CStr) -> Option<*mut c_void> {
+        let cached = cache.load(Ordering::Acquire);
+        if !cached.is_null() {
+            return Some(cached);
+        }
+
+        let module = ucrtbase_module();
+        if module.is_null() {
+            return None;
+        }
+
+        // SAFETY: `module` is a valid HMODULE for `ucrtbase.dll` and `name` is
+        // a valid NUL-terminated ASCII export name.
+        let symbol = unsafe { GetProcAddress(module, name.as_ptr()) };
+        if symbol.is_null() {
+            return None;
+        }
+
+        cache.store(symbol, Ordering::Release);
+        Some(symbol)
+    }
+
+    fn fallback_round(x: f64) -> f64 {
+        // Values at or above 2^52 already have no fractional part in IEEE-754
+        // binary64, so `x as i64` below cannot overflow.
+        if !x.is_finite() || x.abs() >= (1u64 << 52) as f64 {
+            return x;
+        }
+
+        let truncated = (x as i64 as f64).copysign(x);
+        if (x - truncated).abs() >= 0.5 {
+            truncated + 1.0_f64.copysign(x)
+        } else {
+            truncated
+        }
     }
 
     // RubyInstaller's GNU/UCRT Ruby exports a Ruby-aware Sleep symbol. GNU ld can
@@ -197,6 +350,226 @@ mod windows_gnu {
         // behavior, and any u32 duration is accepted by the API.
         unsafe {
             SleepEx(milliseconds, 0);
+        }
+    }
+
+    /// Linker wrapper for `fclose` that delegates to UCRT rather than Ruby's
+    /// exported `rb_w32_fclose`.
+    ///
+    /// # Safety
+    ///
+    /// Caller must pass a valid UCRT `FILE*` stream (or uphold the C `fclose`
+    /// contract).
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn __wrap_fclose(stream: *mut c_void) -> c_int {
+        let Some(addr) = resolve_ucrt_symbol(&UCRT_FCLOSE, c"fclose") else {
+            return -1;
+        };
+
+        // SAFETY: `addr` was resolved from `ucrtbase.dll!fclose`, whose ABI is
+        // `extern "C" fn(*mut FILE) -> c_int`, and `stream` meets `fclose`'s
+        // contract per the caller.
+        unsafe {
+            let fclose_fn: unsafe extern "C" fn(*mut c_void) -> c_int = mem::transmute(addr);
+            fclose_fn(stream)
+        }
+    }
+
+    /// Linker wrapper for `getenv` that delegates to UCRT rather than Ruby's
+    /// exported `rb_w32_ugetenv`.
+    ///
+    /// # Safety
+    ///
+    /// Caller must pass a valid NUL-terminated C string per the C `getenv`
+    /// contract.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn __wrap_getenv(name: *const c_char) -> *mut c_char {
+        let Some(addr) = resolve_ucrt_symbol(&UCRT_GETENV, c"getenv") else {
+            return ptr::null_mut();
+        };
+
+        // SAFETY: `addr` was resolved from `ucrtbase.dll!getenv`, whose ABI is
+        // `extern "C" fn(*const c_char) -> *mut c_char`, and `name` meets
+        // `getenv`'s contract per the caller.
+        unsafe {
+            let getenv_fn: unsafe extern "C" fn(*const c_char) -> *mut c_char =
+                mem::transmute(addr);
+            getenv_fn(name)
+        }
+    }
+
+    /// Linker wrapper for `round` that delegates to UCRT rather than Ruby's
+    /// exported `round`.
+    #[unsafe(no_mangle)]
+    pub extern "C" fn __wrap_round(x: f64) -> f64 {
+        let Some(addr) = resolve_ucrt_symbol(&UCRT_ROUND, c"round") else {
+            return fallback_round(x);
+        };
+
+        // SAFETY: `addr` was resolved from `ucrtbase.dll!round`, whose ABI is
+        // `extern "C" fn(f64) -> f64` and accepts any `f64`.
+        unsafe {
+            let round_fn: extern "C" fn(f64) -> f64 = mem::transmute(addr);
+            round_fn(x)
+        }
+    }
+
+    /// Linker wrapper for `strerror` that delegates to UCRT rather than Ruby's
+    /// exported `rb_w32_strerror`.
+    #[unsafe(no_mangle)]
+    pub extern "C" fn __wrap_strerror(errnum: c_int) -> *mut c_char {
+        let Some(addr) = resolve_ucrt_symbol(&UCRT_STRERROR, c"strerror") else {
+            return c"Unknown error".as_ptr().cast_mut();
+        };
+
+        // SAFETY: `addr` was resolved from `ucrtbase.dll!strerror`, whose ABI
+        // is `extern "C" fn(c_int) -> *mut c_char` and accepts any `c_int`.
+        unsafe {
+            let strerror_fn: extern "C" fn(c_int) -> *mut c_char = mem::transmute(addr);
+            strerror_fn(errnum)
+        }
+    }
+
+    // Also satisfy `dllimport` (`__imp_*`) indirect calls emitted by C/C++ code
+    // compiled with `_CRTIMP` or `DECLSPEC_IMPORT` (for example, BoringSSL's
+    // `err.cc` calls `*__imp_strerror`), so those references cannot pull
+    // shadowed symbols from `x64-ucrt-ruby*.dll` either.
+    #[allow(non_upper_case_globals)]
+    #[unsafe(no_mangle)]
+    pub static __wrap___imp_Sleep: extern "system" fn(u32) = __wrap_Sleep;
+
+    #[allow(non_upper_case_globals)]
+    #[unsafe(no_mangle)]
+    pub static __wrap___imp_fclose: unsafe extern "C" fn(*mut c_void) -> c_int = __wrap_fclose;
+
+    #[allow(non_upper_case_globals)]
+    #[unsafe(no_mangle)]
+    pub static __wrap___imp_getenv: unsafe extern "C" fn(*const c_char) -> *mut c_char =
+        __wrap_getenv;
+
+    #[allow(non_upper_case_globals)]
+    #[unsafe(no_mangle)]
+    pub static __wrap___imp_round: extern "C" fn(f64) -> f64 = __wrap_round;
+
+    #[allow(non_upper_case_globals)]
+    #[unsafe(no_mangle)]
+    pub static __wrap___imp_strerror: extern "C" fn(c_int) -> *mut c_char = __wrap_strerror;
+
+    /// Ensures a statically initialized `pthread_rwlock_t` is initialized
+    /// before entering winpthreads's lock path.
+    ///
+    /// Returns `0` when the slot is already initialized, was initialized here,
+    /// or is null/misaligned (delegating error reporting to winpthreads).
+    /// Returns the non-zero POSIX error code if `pthread_rwlock_init` fails.
+    ///
+    /// # Safety
+    ///
+    /// When `rwlock` is non-null and aligned, it must point to a valid,
+    /// writable `pthread_rwlock_t` whose lifetime covers this call and which is
+    /// not being concurrently destroyed.
+    unsafe fn ensure_rwlock_initialized(rwlock: *mut PthreadRwlock) -> c_int {
+        if rwlock.is_null() || !rwlock.is_aligned() {
+            return 0;
+        }
+
+        // SAFETY: `rwlock` is non-null, aligned to `align_of::<AtomicIsize>()`
+        // (same layout as `isize` / `intptr_t`), and valid per the caller's
+        // contract. The Acquire load pairs with the Release store below so all
+        // writes performed by `pthread_rwlock_init` are visible before
+        // winpthreads dereferences the handle.
+        let slot = unsafe { AtomicIsize::from_ptr(rwlock) };
+        if slot.load(Ordering::Acquire) != PTHREAD_RWLOCK_INITIALIZER {
+            return 0;
+        }
+
+        let _guard = RWLOCK_INIT_LOCK.lock_exclusive();
+        if slot.load(Ordering::Relaxed) != PTHREAD_RWLOCK_INITIALIZER {
+            return 0;
+        }
+
+        // Initialize into a local variable first because winpthreads zeroes
+        // `*rwlock` before allocating and populating the rwlock struct; writing
+        // directly to `rwlock` would expose a transient `0` to lock-free fast
+        // path readers.
+        let mut initialized: PthreadRwlock = 0;
+        // SAFETY: `&mut initialized` is a valid, aligned local `pthread_rwlock_t`
+        // and `NULL` selects default rwlock attributes.
+        let rc = unsafe { pthread_rwlock_init(&mut initialized, ptr::null()) };
+        if rc == 0 {
+            slot.store(initialized, Ordering::Release);
+        }
+        rc
+    }
+
+    /// Linker wrapper for `pthread_rwlock_rdlock`.
+    ///
+    /// # Safety
+    ///
+    /// Caller must uphold the POSIX `pthread_rwlock_rdlock` contract for `rwlock`.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn __wrap_pthread_rwlock_rdlock(rwlock: *mut PthreadRwlock) -> c_int {
+        // SAFETY: Preconditions match `ensure_rwlock_initialized` and
+        // `pthread_rwlock_rdlock`.
+        unsafe {
+            let rc = ensure_rwlock_initialized(rwlock);
+            if rc != 0 {
+                return rc;
+            }
+            __real_pthread_rwlock_rdlock(rwlock)
+        }
+    }
+
+    /// Linker wrapper for `pthread_rwlock_wrlock`.
+    ///
+    /// # Safety
+    ///
+    /// Caller must uphold the POSIX `pthread_rwlock_wrlock` contract for `rwlock`.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn __wrap_pthread_rwlock_wrlock(rwlock: *mut PthreadRwlock) -> c_int {
+        // SAFETY: Preconditions match `ensure_rwlock_initialized` and
+        // `pthread_rwlock_wrlock`.
+        unsafe {
+            let rc = ensure_rwlock_initialized(rwlock);
+            if rc != 0 {
+                return rc;
+            }
+            __real_pthread_rwlock_wrlock(rwlock)
+        }
+    }
+
+    /// Linker wrapper for `pthread_rwlock_tryrdlock`.
+    ///
+    /// # Safety
+    ///
+    /// Caller must uphold the POSIX `pthread_rwlock_tryrdlock` contract for `rwlock`.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn __wrap_pthread_rwlock_tryrdlock(rwlock: *mut PthreadRwlock) -> c_int {
+        // SAFETY: Preconditions match `ensure_rwlock_initialized` and
+        // `pthread_rwlock_tryrdlock`.
+        unsafe {
+            let rc = ensure_rwlock_initialized(rwlock);
+            if rc != 0 {
+                return rc;
+            }
+            __real_pthread_rwlock_tryrdlock(rwlock)
+        }
+    }
+
+    /// Linker wrapper for `pthread_rwlock_trywrlock`.
+    ///
+    /// # Safety
+    ///
+    /// Caller must uphold the POSIX `pthread_rwlock_trywrlock` contract for `rwlock`.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn __wrap_pthread_rwlock_trywrlock(rwlock: *mut PthreadRwlock) -> c_int {
+        // SAFETY: Preconditions match `ensure_rwlock_initialized` and
+        // `pthread_rwlock_trywrlock`.
+        unsafe {
+            let rc = ensure_rwlock_initialized(rwlock);
+            if rc != 0 {
+                return rc;
+            }
+            __real_pthread_rwlock_trywrlock(rwlock)
         }
     }
 }
@@ -225,5 +598,145 @@ mod tests {
         }
 
         assert_eq!(drops.get(), 1);
+    }
+
+    #[cfg(all(target_os = "windows", target_env = "gnu"))]
+    mod windows_gnu_tests {
+        use std::{
+            ffi::{CStr, c_char, c_int, c_void},
+            sync::{Arc, Barrier},
+            thread,
+        };
+
+        const PTHREAD_RWLOCK_INITIALIZER: isize = -1;
+        const EBUSY: c_int = 16;
+
+        unsafe extern "system" {
+            fn Sleep(milliseconds: u32);
+        }
+
+        unsafe extern "C" {
+            fn fopen(filename: *const c_char, mode: *const c_char) -> *mut c_void;
+            fn fclose(stream: *mut c_void) -> c_int;
+            fn getenv(name: *const c_char) -> *mut c_char;
+            fn round(x: f64) -> f64;
+            fn strerror(errnum: c_int) -> *mut c_char;
+            fn pthread_rwlock_rdlock(rwlock: *mut isize) -> c_int;
+            fn pthread_rwlock_wrlock(rwlock: *mut isize) -> c_int;
+            fn pthread_rwlock_tryrdlock(rwlock: *mut isize) -> c_int;
+            fn pthread_rwlock_trywrlock(rwlock: *mut isize) -> c_int;
+            fn pthread_rwlock_unlock(rwlock: *mut isize) -> c_int;
+            fn pthread_rwlock_destroy(rwlock: *mut isize) -> c_int;
+        }
+
+        #[test]
+        fn pthread_rwlock_static_initializer_concurrent_first_use() {
+            const THREADS: usize = 8;
+            const ROUNDS: usize = 256;
+
+            for round_idx in 0..ROUNDS {
+                let rwlock = Box::new(std::cell::UnsafeCell::new(PTHREAD_RWLOCK_INITIALIZER));
+                let rwlock_addr = rwlock.get() as usize;
+                let barrier = Arc::new(Barrier::new(THREADS));
+
+                let mut handles = Vec::with_capacity(THREADS);
+                for thread_idx in 0..THREADS {
+                    let barrier = barrier.clone();
+                    handles.push(thread::spawn(move || {
+                        let ptr = rwlock_addr as *mut isize;
+                        barrier.wait();
+
+                        let mode = (round_idx + thread_idx) % 4;
+                        // SAFETY: `ptr` points to a live `pthread_rwlock_t` owned by
+                        // the main test thread until all spawned threads join.
+                        unsafe {
+                            match mode {
+                                0 => {
+                                    assert_eq!(pthread_rwlock_rdlock(ptr), 0);
+                                    assert_eq!(pthread_rwlock_unlock(ptr), 0);
+                                }
+                                1 => {
+                                    assert_eq!(pthread_rwlock_wrlock(ptr), 0);
+                                    assert_eq!(pthread_rwlock_unlock(ptr), 0);
+                                }
+                                2 => {
+                                    let rc = pthread_rwlock_tryrdlock(ptr);
+                                    assert!(rc == 0 || rc == EBUSY, "unexpected tryrdlock rc={rc}");
+                                    if rc == 0 {
+                                        assert_eq!(pthread_rwlock_unlock(ptr), 0);
+                                    }
+                                }
+                                _ => {
+                                    let rc = pthread_rwlock_trywrlock(ptr);
+                                    assert!(rc == 0 || rc == EBUSY, "unexpected trywrlock rc={rc}");
+                                    if rc == 0 {
+                                        assert_eq!(pthread_rwlock_unlock(ptr), 0);
+                                    }
+                                }
+                            }
+                        }
+                    }));
+                }
+
+                for handle in handles {
+                    handle.join().expect("worker thread should not panic");
+                }
+
+                // SAFETY: All worker threads have joined and released the lock.
+                unsafe {
+                    assert_eq!(pthread_rwlock_destroy(rwlock.get()), 0);
+                }
+            }
+        }
+
+        #[test]
+        fn wrapped_crt_and_sleep_functions_run_on_native_threads() {
+            thread::spawn(|| {
+                // SAFETY: Calls wrapped Win32/UCRT symbols from a native OS thread
+                // without Ruby TLS to verify they do not bind to libruby wrappers.
+                unsafe {
+                    Sleep(0);
+
+                    let file = fopen(c"NUL".as_ptr(), c"rb".as_ptr());
+                    assert!(!file.is_null(), "UCRT fopen(NUL) should succeed");
+                    assert_eq!(fclose(file), 0);
+
+                    assert!(!getenv(c"SystemRoot".as_ptr()).is_null());
+                    assert!(getenv(c"WREQ_RUBY_NONEXISTENT_ENV_VAR_217".as_ptr()).is_null());
+
+                    assert_eq!(round(2.5), 3.0);
+                    assert_eq!(round(-2.5), -3.0);
+                    assert_eq!(round(2.4), 2.0);
+                    assert_eq!(round(-2.4), -2.0);
+                    assert!(round(-0.2).is_sign_negative());
+                    assert_eq!(round(-0.2), 0.0);
+
+                    let msg_ptr = strerror(2);
+                    assert!(!msg_ptr.is_null());
+                    let msg = CStr::from_ptr(msg_ptr).to_str().expect("valid UTF-8");
+                    assert!(!msg.is_empty());
+
+                    // Also exercise the `__imp_*` function-pointer slots used
+                    // by `dllimport` callers (e.g. BoringSSL's `err.cc`).
+                    (super::super::windows_gnu::__wrap___imp_Sleep)(0);
+                    let imp_file = fopen(c"NUL".as_ptr(), c"rb".as_ptr());
+                    assert!(!imp_file.is_null());
+                    assert_eq!(
+                        (super::super::windows_gnu::__wrap___imp_fclose)(imp_file),
+                        0
+                    );
+                    assert!(
+                        !(super::super::windows_gnu::__wrap___imp_getenv)(c"SystemRoot".as_ptr())
+                            .is_null()
+                    );
+                    assert_eq!((super::super::windows_gnu::__wrap___imp_round)(2.5), 3.0);
+                    let imp_msg_ptr = (super::super::windows_gnu::__wrap___imp_strerror)(2);
+                    assert!(!imp_msg_ptr.is_null());
+                    assert_eq!(CStr::from_ptr(imp_msg_ptr), CStr::from_ptr(msg_ptr));
+                }
+            })
+            .join()
+            .expect("native thread should not panic");
+        }
     }
 }

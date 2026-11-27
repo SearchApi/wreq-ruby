@@ -1,61 +1,99 @@
-# Windows GNU Tokio multi-thread crash
+# Windows GNU native extension crashes and linker workarounds
 
 ## Summary
 
-On RubyInstaller GNU/UCRT, Tokio's multi-thread runtime could crash when the
-native extension was loaded by Ruby. The issue was not Tokio's scheduler logic
-itself. It came from Windows symbol resolution while linking the Ruby extension.
+On RubyInstaller GNU/UCRT (`x64-mingw-ucrt`), the native extension hits two
+platform-specific hazards when linking and running multi-threaded code under
+Ruby:
 
-## Root cause
+1. **Ruby DLL symbol shadowing**: RubyInstaller's `x64-ucrt-ruby*.dll` exports
+   Win32 and C runtime compatibility wrappers (`Sleep`, `fclose`, `getenv`,
+   `round`, `strerror`, etc.) that can shadow `KERNEL32` and UCRT symbols when
+   GNU `ld` scans libruby before system libraries.
+2. **MinGW-w64 `winpthreads` rwlock lazy-init race**: BoringSSL builds with
+   `OPENSSL_PTHREADS` on MinGW and initializes its `StaticMutex` / `Mutex`
+   locks with `PTHREAD_RWLOCK_INITIALIZER`. MinGW-w64 `winpthreads` builds
+   prior to commit `fcc67d0d` ([MinGW-w64 Bug #1044](https://sourceforge.net/p/mingw-w64/bugs/1044/))
+   return `EINVAL` to losing threads on concurrent first use of a statically
+   initialized rwlock, causing BoringSSL's `BSSL_CHECK` to abort the process
+   with `0xC0000409` (reported by Ruby/Rake on Windows as `SignalException: SIGSEGV`).
 
-RubyInstaller GNU/UCRT exports a Ruby-aware `Sleep` symbol from
-`x64-ucrt-ruby400.dll`.
+## Root causes
 
-When the extension is linked with GNU ld, an unqualified `Sleep` reference can
-bind to Ruby's `Sleep` instead of `KERNEL32!Sleep`. Tokio's multi-thread runtime
-creates native worker threads that are not Ruby-managed threads. If one of those
-threads calls Ruby's `Sleep`, Ruby expects Ruby thread-local state to exist, but
-that TLS slot is empty on the Tokio worker thread. This can crash with an access
-violation or Ruby VM bug report.
+### 1. RubyInstaller DLL symbol shadowing
 
-The local investigation found the fault inside:
+RubyInstaller GNU/UCRT exports Ruby-aware wrappers for `Sleep` and several C
+runtime functions from `x64-ucrt-ruby*.dll` (including `fclose`, `getenv`,
+`round`, and `strerror`).
 
-```text
-x64-ucrt-ruby400.dll!Sleep + 0x40
-```
+Because `rb-sys` links `x64-ucrt-ruby*.dll` after dependency crates such as
+`btls-sys` (BoringSSL) and `quic-proto`, GNU `ld` can bind unqualified calls
+from Rust `core`, BoringSSL, or MinGW CRT helpers to Ruby's DLL instead of
+`KERNEL32.dll` or UCRT (`api-ms-win-crt-*.dll` / `ucrtbase.dll`):
 
-The import table also showed the bad binding:
+- `Sleep` on Tokio native worker threads crashes inside `x64-ucrt-ruby*.dll!Sleep`
+  because those threads have no Ruby TLS.
+- `fclose` can receive a UCRT `FILE*` opened by BoringSSL (`BIO_new_file`) and
+  pass it to Ruby's `rb_w32_fclose`.
+- `getenv`, `round`, and `strerror` route through Ruby's wrappers instead of
+  UCRT, which is unsafe or unexpected on non-Ruby / no-GVL threads.
 
-```text
-DLL Name: x64-ucrt-ruby400.dll
-  Sleep
-```
+### 2. MinGW-w64 `winpthreads` `PTHREAD_RWLOCK_INITIALIZER` race
+
+BoringSSL's `crypto/internal.h` selects `OPENSSL_PTHREADS` under `__MINGW32__`,
+so every `bssl::StaticMutex` and `bssl::Mutex` (including the per-`X509` mutex
+inside cached root certificates in `wreq`'s shared `BUNDLED_CERT_STORE` and
+custom `CertStore` instances) starts as `PTHREAD_RWLOCK_INITIALIZER` (`-1`).
+
+In MinGW-w64 `winpthreads` builds prior to upstream commit
+[`fcc67d0d78970c7c670e3094026c048ad732b769`](https://github.com/mingw-w64/mingw-w64/commit/fcc67d0d78970c7c670e3094026c048ad732b769)
+(such as MSYS2 `mingw-w64-ucrt-x86_64-winpthreads 14.0.0.r37.g2bfe61fba-1`),
+`rwlock_static_init()` returns `EINVAL` instead of `EBUSY` when two threads
+race to lazily initialize the same static rwlock. `rwl_ref()` propagates that
+`EINVAL` out of `pthread_rwlock_rdlock()` / `pthread_rwlock_wrlock()`, tripping
+`BSSL_CHECK(pthread_rwlock_rdlock(&lock_) == 0)` in `bssl::StaticMutex::LockRead()`
+and aborting the process via `ucrtbase!abort()` (`STATUS_STACK_BUFFER_OVERRUN`,
+`0xC0000409`).
 
 ## Fix
 
-For `x86_64-pc-windows-gnu`, the build now wraps `Sleep` at link time:
+For `x86_64-pc-windows-gnu`, `build.rs` wraps both groups of symbols at link
+time and `src/arch.rs` provides the wrappers:
 
 ```text
--Wl,--wrap=Sleep
+-Wl,--wrap=Sleep          -Wl,--wrap=__imp_Sleep
+-Wl,--wrap=fclose         -Wl,--wrap=__imp_fclose
+-Wl,--wrap=getenv         -Wl,--wrap=__imp_getenv
+-Wl,--wrap=round          -Wl,--wrap=__imp_round
+-Wl,--wrap=strerror       -Wl,--wrap=__imp_strerror
+-Wl,--wrap=pthread_rwlock_rdlock
+-Wl,--wrap=pthread_rwlock_wrlock
+-Wl,--wrap=pthread_rwlock_tryrdlock
+-Wl,--wrap=pthread_rwlock_trywrlock
 ```
 
-The wrapper lives in `src/arch.rs` and forwards calls to `KERNEL32!SleepEx`.
-This keeps Tokio's worker threads on the real Windows API path while preserving
-Tokio's multi-thread runtime and Ruby GVL release behavior.
-
-After the fix, the import table shows:
-
-```text
-DLL Name: KERNEL32.dll
-  Sleep
-  SleepEx
-```
+- `__wrap_Sleep` forwards directly to `KERNEL32!SleepEx`.
+- `__wrap_fclose`, `__wrap_getenv`, `__wrap_round`, and `__wrap_strerror`
+  resolve and cache the real exports from `ucrtbase.dll` via `GetModuleHandleA`
+  / `GetProcAddress`, and the matching `__wrap___imp_*` function-pointer
+  statics intercept `dllimport` indirect calls (such as BoringSSL's
+  `err.cc` calling `*__imp_strerror`), ensuring `x64-ucrt-ruby*.dll` imports
+  only Ruby API symbols.
+- `__wrap_pthread_rwlock_*` check for `PTHREAD_RWLOCK_INITIALIZER` (`-1`) with
+  an atomic acquire load; on first use they serialize initialization under a
+  Win32 `SRWLOCK`, call `pthread_rwlock_init` into a stack-local variable, and
+  publish the initialized handle with a release store before delegating to
+  `__real_pthread_rwlock_*`. This works identically whether `winpthreads` is
+  linked statically (`libwinpthread.a`) or dynamically (`libwinpthread-1.dll`),
+  and remains compatible with newer fixed `winpthreads` releases.
 
 ## Notes
 
-`windows-sys` raw-dylib was also tested. It is not enough on its own because the
-problematic `Sleep` reference can come from Rust std, MinGW, or pthread-related
-linking paths, not only from `windows-sys`.
+`windows-sys` raw-dylib and adding `-l ucrt` in `build.rs` are not sufficient on
+their own because `rb-sys`'s libruby link directive is emitted after dependency
+crates such as `btls-sys` and `quic-proto`, and problematic references also come
+from Rust `core`, BoringSSL, and MinGW CRT archives (`libmingwex.a`). Link-time
+`--wrap` intercepts every reference regardless of library scan order.
 
 Windows builds use the `x86_64-pc-windows-gnu` target and the RubyInstaller
 UCRT toolchain. The Rakefile configures that environment automatically, so the
@@ -107,10 +145,3 @@ updated environment. Run `bundle exec rake compile` once after installing or
 switching Ruby so `.cargo/windows.toml` points to the active RubyInstaller.
 Run a Rake command after switching the same checkout between Windows and WSL;
 Windows generates this local configuration, while other platforms remove it.
-
-Result:
-
-```text
-254 runs, 1198 assertions, 0 failures, 0 errors
-2 Rust tests passed
-```
