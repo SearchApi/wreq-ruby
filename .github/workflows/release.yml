@@ -335,7 +335,7 @@ jobs:
           fi
 
       - name: Configure trusted publishing credentials
-        uses: rubygems/configure-rubygems-credentials@v2.1.0
+        uses: rubygems/configure-rubygems-credentials@v2.2.0
 
       - name: Push all gems to RubyGems.org
         run: |
