@@ -187,7 +187,7 @@ pub fn json_serialization_error(ruby: &Ruby, err: MagnusError) -> MagnusError {
     )
 }
 
-/// Add an option name while preserving the original Ruby exception class.
+/// Add the option name to ordinary conversion errors using [`contextualize_magnus_error`].
 pub fn option_value_error(option: &str, err: MagnusError) -> MagnusError {
     contextualize_magnus_error(err, format_args!("invalid value for :{option}"))
 }

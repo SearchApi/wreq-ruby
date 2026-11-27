@@ -5,7 +5,7 @@ mod query;
 mod request;
 pub mod response;
 
-use std::{net::IpAddr, time::Duration};
+use std::{net::IpAddr, path::PathBuf, time::Duration};
 
 use ::serde::Deserialize;
 use magnus::{Module, Object, RModule, Ruby, TryConvert, Value, function, method, typed_data::Obj};
@@ -16,13 +16,12 @@ use crate::{
     client::{request::execute_request, response::Response},
     cookie::Jar,
     emulate::Emulation,
-    error::{option_value_error, wreq_error},
+    error::wreq_error,
     extractor::Extractor,
     gvl,
     header::{Headers, OrigHeaders, UserAgent},
     http::Method,
     options::{NativeOption, Options},
-    utils::convert_path,
 };
 
 /// A builder for `Client`.
@@ -102,13 +101,13 @@ struct Builder {
     tls_info: Option<bool>,
     /// Path to a PEM CA bundle that replaces the default trust store.
     #[serde(default)]
-    ca_file: NativeOption<String>,
+    ca_file: NativeOption<PathBuf>,
     /// Raw PEM certificate content that replaces the default trust store.
     ca_pem: Option<String>,
-    /// Path to a PEM CA bundle added alongside the default trust store.
+    /// Path to a PEM CA bundle added to the TLS backend's default certificate paths.
     #[serde(default)]
-    additional_ca_file: NativeOption<String>,
-    /// Raw PEM certificate content added alongside the default trust store.
+    additional_ca_file: NativeOption<PathBuf>,
+    /// Raw PEM certificate content added to the TLS backend's default certificate paths.
     additional_ca_pem: Option<String>,
 
     // ========= Network options =========
@@ -153,8 +152,8 @@ impl Builder {
     /// # Errors
     ///
     /// Returns `ArgumentError` for unknown, duplicate, conflicting,
-    /// ineffective, or platform-specific options. Known values retain their
-    /// Ruby conversion error class and include the option name.
+    /// ineffective, or platform-specific options. Ordinary conversion errors
+    /// retain their Ruby class and include the option name.
     fn from_options(options: Options<'_>) -> Result<Self, magnus::Error> {
         let options = options.validate_keys::<Self>()?;
         let mut builder = options
@@ -195,14 +194,8 @@ impl Builder {
             )
             .finish()?;
 
-        extract_native_option!(
-            options, builder, ca_file,
-            Value =>? convert_path
-        );
-        extract_native_option!(
-            options, builder, additional_ca_file,
-            Value =>? convert_path
-        );
+        extract_native_option!(options, builder, ca_file);
+        extract_native_option!(options, builder, additional_ca_file);
         extract_native_option!(
             options,
             builder,
@@ -258,8 +251,8 @@ impl Client {
     /// # Errors
     ///
     /// Returns `Wreq::ForkError` if the cookie provider belongs to a parent
-    /// process. Native build failures are mapped only after the GVL has been
-    /// reacquired.
+    /// process or `ArgumentError` if a CA file cannot be read. Native build
+    /// failures are mapped only after the GVL has been reacquired.
     fn build(ruby: &Ruby, mut params: Builder) -> Result<wreq::Client, magnus::Error> {
         let mut cookie_provider = params
             .cookie_provider
@@ -267,7 +260,7 @@ impl Client {
             .map(|jar| jar.clone_store(ruby))
             .transpose()?;
 
-        let mut ca = ca::resolve(ruby, &mut params)?;
+        let ca_bundle = params.take_ca_bundle(ruby)?;
         let result = gvl::nogvl(|| {
             let mut builder = wreq::Client::builder_tokio();
 
@@ -399,14 +392,9 @@ impl Client {
             apply_option!(set_if_some, builder, params.verify, tls_cert_verification);
             apply_option!(set_if_some, builder, params.tls_info, tls_info);
 
-            // Custom CA certificate store.
-            apply_option!(
-                set_if_some_try_map,
-                builder,
-                ca,
-                tls_cert_store,
-                ca::into_cert_store
-            );
+            if let Some(bundle) = ca_bundle {
+                builder = builder.tls_cert_store(bundle.into_cert_store()?);
+            }
 
             // Network options.
             apply_option!(set_if_some, builder, params.proxy, proxy);

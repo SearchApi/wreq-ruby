@@ -3,7 +3,7 @@
 use std::fmt;
 
 use indexmap::IndexSet;
-use magnus::{Error, IntoValue, Ruby, error::ErrorType};
+use magnus::{Error, IntoValue, Ruby, error::ErrorType, value::ReprValue};
 use serde::de::DeserializeOwned;
 use serde_ignored::Path;
 use serde_path_to_error::{Deserializer as PathDeserializer, Path as ErrorPath, Track};
@@ -67,7 +67,8 @@ where
 ///
 /// # Errors
 ///
-/// Returns the Ruby conversion error with the failing option path attached.
+/// Returns conversion errors with field context when available. Ruby exceptions
+/// outside `StandardError` propagate as originally raised.
 pub fn deserialize_options<Input, Output>(ruby: &Ruby, input: Input) -> Result<Output, Error>
 where
     Input: IntoValue,
@@ -87,14 +88,22 @@ where
     })
 }
 
-/// Prefix a Magnus error while preserving its original Ruby exception class.
+/// Add context to ordinary conversion errors while preserving their Ruby class.
+/// Ruby exceptions outside `StandardError` propagate with their original state.
 pub fn contextualize_magnus_error(err: Error, context: fmt::Arguments<'_>) -> Error {
     match err.error_type() {
         ErrorType::Error(class, message) => Error::new(*class, format!("{context}: {message}")),
-        ErrorType::Exception(exception) => Error::new(
-            exception.exception_class(),
-            format!("{context}: {exception}"),
-        ),
+        ErrorType::Exception(exception) => {
+            let ruby = Ruby::get_with(*exception);
+            if exception.is_kind_of(ruby.exception_standard_error()) {
+                Error::new(
+                    exception.exception_class(),
+                    format!("{context}: {exception}"),
+                )
+            } else {
+                err
+            }
+        }
         ErrorType::Jump(_) => err,
     }
 }

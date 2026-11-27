@@ -12,59 +12,59 @@ require "tempfile"
 module CaTlsServer
   # --- PKI (generated once at load time) ---
 
-  CA_KEY  = OpenSSL::PKey::RSA.new(2048)
+  CA_KEY = OpenSSL::PKey::RSA.new(2048)
   CA_CERT = OpenSSL::X509::Certificate.new.tap do |cert|
-    cert.version    = 2
-    cert.serial     = 1
-    cert.subject    = OpenSSL::X509::Name.parse("/CN=Test CA")
-    cert.issuer     = cert.subject
+    cert.version = 2
+    cert.serial = 1
+    cert.subject = OpenSSL::X509::Name.parse("/CN=Test CA")
+    cert.issuer = cert.subject
     cert.public_key = CA_KEY.public_key
     cert.not_before = Time.now - 60
-    cert.not_after  = Time.now + 3600
+    cert.not_after = Time.now + 3600
 
     ef = OpenSSL::X509::ExtensionFactory.new
     ef.subject_certificate = cert
-    ef.issuer_certificate  = cert
+    ef.issuer_certificate = cert
     cert.add_extension(ef.create_extension("basicConstraints", "CA:TRUE", true))
     cert.add_extension(ef.create_extension("subjectKeyIdentifier", "hash"))
 
-    cert.sign(CA_KEY, OpenSSL::Digest::SHA256.new)
+    cert.sign(CA_KEY, OpenSSL::Digest.new("SHA256"))
   end
 
-  SERVER_KEY  = OpenSSL::PKey::RSA.new(2048)
+  SERVER_KEY = OpenSSL::PKey::RSA.new(2048)
   SERVER_CERT = OpenSSL::X509::Certificate.new.tap do |cert|
-    cert.version    = 2
-    cert.serial     = 2
-    cert.subject    = OpenSSL::X509::Name.parse("/CN=localhost")
-    cert.issuer     = CA_CERT.subject
+    cert.version = 2
+    cert.serial = 2
+    cert.subject = OpenSSL::X509::Name.parse("/CN=localhost")
+    cert.issuer = CA_CERT.subject
     cert.public_key = SERVER_KEY.public_key
     cert.not_before = Time.now - 60
-    cert.not_after  = Time.now + 3600
+    cert.not_after = Time.now + 3600
 
     ef = OpenSSL::X509::ExtensionFactory.new
     ef.subject_certificate = cert
-    ef.issuer_certificate  = CA_CERT
+    ef.issuer_certificate = CA_CERT
     cert.add_extension(ef.create_extension("subjectAltName", "DNS:localhost,IP:127.0.0.1"))
 
-    cert.sign(CA_KEY, OpenSSL::Digest::SHA256.new)
+    cert.sign(CA_KEY, OpenSSL::Digest.new("SHA256"))
   end
 
   CA_PEM = CA_CERT.to_pem
 
-  OTHER_KEY  = OpenSSL::PKey::RSA.new(2048)
+  OTHER_KEY = OpenSSL::PKey::RSA.new(2048)
   OTHER_CERT = OpenSSL::X509::Certificate.new.tap do |cert|
-    cert.version    = 2
-    cert.serial     = 3
-    cert.subject    = OpenSSL::X509::Name.parse("/CN=Other CA")
-    cert.issuer     = cert.subject
+    cert.version = 2
+    cert.serial = 3
+    cert.subject = OpenSSL::X509::Name.parse("/CN=Other CA")
+    cert.issuer = cert.subject
     cert.public_key = OTHER_KEY.public_key
     cert.not_before = Time.now - 60
-    cert.not_after  = Time.now + 3600
-    cert.sign(OTHER_KEY, OpenSSL::Digest::SHA256.new)
+    cert.not_after = Time.now + 3600
+    cert.sign(OTHER_KEY, OpenSSL::Digest.new("SHA256"))
   end
 
-  OTHER_PEM  = OTHER_CERT.to_pem
-  BUNDLE_PEM = CA_PEM + OTHER_PEM
+  OTHER_PEM = OTHER_CERT.to_pem
+  BUNDLE_PEM = OTHER_PEM + CA_PEM
 
   # --- Long-lived server (started once, cleaned up at suite end) ---
 
@@ -78,7 +78,7 @@ module CaTlsServer
 
     ctx = OpenSSL::SSL::SSLContext.new
     ctx.cert = SERVER_CERT
-    ctx.key  = SERVER_KEY
+    ctx.key = SERVER_KEY
 
     tcp = TCPServer.new("127.0.0.1", 0)
     @port = tcp.addr[1]
@@ -94,14 +94,15 @@ module CaTlsServer
         rescue IOError
           break
         end
-        Thread.new(client) do |c|
+        Thread.new(client) do |connection|
           begin
-            c.gets
-            c.print "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
-          rescue
+            connection.gets
+            connection.print "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
           ensure
-            c.close rescue nil
+            connection.close
           end
+        rescue IOError, SystemCallError, OpenSSL::SSL::SSLError
+          # The peer may close the socket before the response is written.
         end
       end
     end
